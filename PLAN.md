@@ -94,6 +94,22 @@ the scene model. `kaplay` is tiny (4 MB) but last published 2025-06-15.
 **lazy-loads on first use of its workspace** (§9). Target: first paint < 1.5 MB, each workspace
 engine fetched only when opened.
 
+**Measured (M0 build, `npx vite build`):** the naive `import * from 'monaco-editor'` pulls
+`editor.main.js`, which registers all 81 language definitions *and* the css/html/json/typescript
+language services — emitting `ts.worker` (6.9 MB), `css.worker` (1.08 MB), `html.worker` (743 KB),
+and `json.worker` (433 KB). Importing the editor API + the 6 languages we offer + a curated
+feature set instead:
+
+| | full Monaco | minimal Monaco |
+|---|---|---|
+| `dist/` total | 14 MB | **4.5 MB** |
+| monaco chunk (gzip) | 1,135 KB | **963 KB** |
+| language-service workers | 9.2 MB | **0** |
+
+Total JS gzip for first paint ≈ **1.04 MB** (monaco 963 + react 68 + app 9), inside the 1.5 MB
+target before any workspace engine is loaded. Trade-off accepted: Monaco has no JSON language
+*definition* (only the worker-backed service), so `.json` falls back to plaintext.
+
 ---
 
 ## 4. Architecture
@@ -300,15 +316,20 @@ reload and the scene persists.*
 | `@luau-rs/luau` is v0.x — API may shift | Medium | Pin version; isolate behind `Runtime` |
 | Rapier ≠ Roblox physics solver | Medium | Label as approximate; don't promise parity |
 | Pixi's 76 MB hurts the builder's first load | Medium | Lazy-load; Canvas2D fallback |
-| Monaco's 101 MB bloats the bundle | Medium | Tree-shake to used languages; else CodeMirror 6 |
+| Monaco's 101 MB bloats the bundle | **Resolved** | Minimal build landed in M0: 14 MB → 4.5 MB `dist`, no language-service workers. `.json` falls back to plaintext. |
 | IndexedDB loss on cleared profile | Medium | Prominent export/import; autosave |
 | Analysis at 307 ms/check | Low | Debounce 400 ms in a worker |
 
-**Not verified in this session:** Vite-bundled browser sizes; `@luau-rs/luau` and
-`rapier3d-compat` inside a real Web Worker under Vite's wasm handling; three.js actual
-on-screen rendering (spike 8 exercised scene-graph math, not WebGL); `.rbxlx` round-trip into
-Roblox Studio (no Studio here). Each becomes an early task in its milestone rather than an
-assumption.
+**Not verified:** `@luau-rs/luau` and `rapier3d-compat` inside a real Web Worker under Vite's
+wasm handling; three.js actual on-screen rendering (spike 8 exercised scene-graph math, not
+WebGL); `.rbxlx` round-trip into Roblox Studio (no Studio here). Each becomes an early task in
+its milestone rather than an assumption.
+
+**Verified since this plan was first written:** Vite-bundled browser sizes (see the measured
+table in §3). **No browser is installed in this sandbox and Playwright's CDN is unreachable
+from it**, so M1's iframe/console behaviour is covered by unit tests over the pure logic
+(document assembly, span recording, position mapping, message translation) but has **not** been
+exercised in a real browser. That is the first thing to click through manually.
 
 ---
 
