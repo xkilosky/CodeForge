@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { io } from './core/consoleStore';
+import { consoleStore, io } from './core/consoleStore';
 import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
 import { runStore, startRun, stopRun } from './core/runSession';
-import { TEMPLATES, templateById } from './core/templates';
+import { templateById } from './core/templates';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
 import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
@@ -14,10 +14,10 @@ import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
 import { MobileNav, summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
+import { ProjectsHome } from './ui/ProjectsHome';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
 import { useLayoutMode } from './ui/useLayoutMode';
-import { consoleStore } from './core/consoleStore';
 
 /**
  * Scrolls a stacked section into view on the phone layout.
@@ -29,46 +29,6 @@ function scrollToPane(id: string): void {
   const el = document.getElementById(id);
   if (!el) return;
   el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-}
-
-function Welcome({ onCreate }: { onCreate: (templateId: string) => void }) {
-  return (
-    <div className="welcome">
-      <div className="welcome-inner">
-        <h1>
-          <span className="brand-mark" aria-hidden="true">
-            ⚒
-          </span>{' '}
-          CodeForge
-        </h1>
-        <p className="muted">
-          A universal coding environment in the browser. Pick a template to start — everything is
-          saved locally in your browser.
-        </p>
-        <div className="template-grid">
-          {TEMPLATES.map((t) => {
-            // The milestone is documentation, not the gate: a template becomes
-            // usable when its workspace has a runtime. Gating on a literal
-            // milestone string silently hid every template added after M1.
-            const available =
-              templateById(t.id) !== undefined && runtimeForWorkspace(t.workspace).available;
-            return (
-              <button
-                key={t.id}
-                className={`template-card${available ? '' : ' disabled'}`}
-                onClick={() => onCreate(t.id)}
-                disabled={!available}
-              >
-                <span className="template-label">{t.label}</span>
-                <span className="template-desc">{t.description}</span>
-                {!available ? <span className="template-milestone">{t.milestone}</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function App() {
@@ -83,6 +43,8 @@ export default function App() {
    * opening a project and landing on anything else makes the app look empty.
    */
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
+  /** The project the user most recently had open, for the home screen. */
+  const [lastProjectId, setLastProjectId] = useState<string | null>(null);
   // Issues are counted once here because both the section header and the tab
   // bar show them.
   const issues = useMemo(
@@ -99,6 +61,32 @@ export default function App() {
   }, []);
 
   const project = projectState.project;
+
+  /**
+   * Creating a project always means "open it": from the home screen the new
+   * project replaces the list, and from the top bar it replaces the open one.
+   * Both entry points go through here so they cannot diverge.
+   */
+  const handleCreate = useCallback((templateId: string) => {
+    const template = templateById(templateId);
+    if (!template) {
+      // Never a silent no-op: a missing template id is a bug, and swallowing it
+      // is how the "New…" menu created nothing for several milestones.
+      io.log({ kind: 'error', text: `Unknown template "${templateId}".` });
+      return;
+    }
+    projectActions.createFromTemplate(template);
+    setMobileTab('code');
+  }, []);
+
+  const handleExit = useCallback(() => {
+    // Remember which project was open so the list can mark it — coming back
+    // from a project, "the one I was just in" is the useful row to see first.
+    setLastProjectId(project?.id ?? null);
+    projectActions.close();
+    void projectActions.refreshRecent();
+    setMobileTab('code');
+  }, [project?.id]);
   const runtime = useMemo(
     () => runtimeForWorkspace(project?.workspace ?? 'web'),
     [project?.workspace],
@@ -168,26 +156,40 @@ export default function App() {
         onToggleAutorun={() =>
           projectActions.updateSettings({ autorun: !project?.settings.autorun })
         }
-        onCreate={(templateId) => {
-          const template = templateById(templateId);
-          if (template) projectActions.createFromTemplate(template);
-        }}
+        onCreate={handleCreate}
         onSwitchWorkspace={(workspace) => {
           projectActions.switchWorkspace(workspace);
           // A different workspace is a different project shape; land on Code so
           // the new starter is visible instead of a stale pane.
           setMobileTab('code');
         }}
+        onExit={handleExit}
       />
 
       {projectState.loading ? (
         <div className="pane-empty">Loading…</div>
       ) : !project ? (
-        <Welcome
-          onCreate={(templateId) => {
-            const template = templateById(templateId);
-            if (template) projectActions.createFromTemplate(template);
+        /* No project open: the projects home. This is also the only way out of a
+           project, which used to be impossible. */
+        <ProjectsHome
+          recent={projectState.recent}
+          currentId={lastProjectId}
+          loading={projectState.loading}
+          error={projectState.error}
+          onOpen={(id) => {
+            void projectActions.openById(id);
+            setMobileTab('code');
           }}
+          onDelete={(id) => void projectActions.remove(id)}
+          onDuplicate={async (id) => {
+            // Stay on the list. Opening the copy immediately would look like
+            // the button renamed the project, and duplicating is often done to
+            // keep the original in view.
+            const copy = await projectActions.duplicate(id);
+            if (copy) setLastProjectId(copy.id);
+          }}
+          onCreate={handleCreate}
+          onDismissError={projectActions.dismissError}
         />
       ) : (
         layout === 'compact' ? (
@@ -276,7 +278,7 @@ export default function App() {
             />
           </div>
         ) : (
-        <div className="workspace">
+          <div className="workspace">
           <aside className="sidebar">
             <Explorer
               files={project.files}
@@ -315,12 +317,12 @@ export default function App() {
                 onOpen={(file) => projectActions.setActiveFile(file)}
               />
             </div>
-          </footer>
-        </div>
+            </footer>
+          </div>
         )
       )}
 
-      {projectState.error ? (
+      {projectState.error && project ? (
         <div className="error-banner">Storage error: {projectState.error}</div>
       ) : null}
     </div>

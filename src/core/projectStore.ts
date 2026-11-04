@@ -127,9 +127,30 @@ export const projectActions = {
     void persist(next);
   },
 
+  /**
+   * Opens a project by id, loading it from IndexedDB first.
+   *
+   * The store deliberately does not keep every project's files in memory — the
+   * home screen lists them from metadata only — so opening one is a read.
+   */
+  async openById(id: string): Promise<void> {
+    try {
+      const found = await db.getProject(id);
+      if (found) projectActions.open(found);
+      else projectStore.set((prev) => ({ ...prev, error: 'That project no longer exists.' }));
+    } catch (err) {
+      projectStore.set((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  },
+
   open(project: Project): void {
     if (saveTimer) clearTimeout(saveTimer);
-    projectStore.set((prev) => ({ ...prev, project, dirty: false }));
+    // Opening is a deliberate navigation, so the not-found banner from a
+    // previous attempt must not linger over the newly opened project.
+    projectStore.set((prev) => ({ ...prev, project, dirty: false, error: null }));
   },
 
   async reopen(id: string): Promise<void> {
@@ -137,14 +158,107 @@ export const projectActions = {
     if (found) projectActions.open(found);
   },
 
+  /**
+   * Closes the open project and returns to the projects home.
+   *
+   * Anything still pending in the autosave debounce is written first —
+   * otherwise "Back to projects" would be the one action that loses the last
+   * edit, which is exactly the kind of bug that makes an editor untrustworthy.
+   */
+  close(): void {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    const current = projectStore.get().project;
+    if (current) void persist(current);
+    projectStore.set((prev) => ({ ...prev, project: null, dirty: false }));
+  },
+
+  /**
+   * Creates a copy of a project with a new id, and opens it.
+   *
+   * There is no server and no accounts: duplicating is how a user experiments
+   * without risking work they already have.
+   */
+  async duplicate(id: string): Promise<Project | null> {
+    try {
+      const source = await db.getProject(id);
+      if (!source) {
+        projectStore.set((prev) => ({ ...prev, error: 'That project no longer exists.' }));
+        return null;
+      }
+      const now = Date.now();
+      const copy: Project = {
+        ...source,
+        id: newId('prj'),
+        name: `${source.name} copy`,
+        // Deep-copy the files so editing the copy cannot mutate the original
+        // through a shared reference.
+        files: Object.fromEntries(
+          Object.entries(source.files).map(([path, file]) => [path, { ...file }]),
+        ),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.putProject(copy);
+      await projectActions.refreshRecent();
+      return copy;
+    } catch (err) {
+      projectStore.set((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+      return null;
+    }
+  },
+
+  /**
+   * Re-reads the project list from IndexedDB.
+   *
+   * The home screen shows this list, so every mutation that can happen while it
+   * is visible (create, delete, duplicate from another tab) has to refresh it or
+   * the screen becomes a lie.
+   */
+  async refreshRecent(): Promise<void> {
+    try {
+      const recent = await db.listProjects();
+      projectStore.set((prev) => ({ ...prev, recent }));
+    } catch (err) {
+      projectStore.set((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  },
+
+  dismissError(): void {
+    projectStore.set((prev) => ({ ...prev, error: null }));
+  },
+
+  /**
+   * Deletes a project permanently.
+   *
+   * The UI confirms first; this function does not ask. Deleting the project that
+   * is currently open returns to the home screen rather than silently opening
+   * some other project, which would look like the delete had picked a project
+   * for you.
+   */
   async remove(id: string): Promise<void> {
-    await db.deleteProject(id);
-    const recent = await db.listProjects();
-    projectStore.set((prev) => ({
-      ...prev,
-      recent,
-      project: prev.project?.id === id ? (recent[0] ?? null) : prev.project,
-    }));
+    try {
+      await db.deleteProject(id);
+      const recent = await db.listProjects();
+      projectStore.set((prev) => ({
+        ...prev,
+        recent,
+        project: prev.project?.id === id ? null : prev.project,
+      }));
+    } catch (err) {
+      projectStore.set((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
   },
 
   rename(name: string): void {

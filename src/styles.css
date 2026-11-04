@@ -292,13 +292,76 @@ button, input, select { font: inherit; color: inherit; }
 .kind-warning .console-marker { color: var(--warn); }
 .kind-info { color: var(--muted); }
 
-/* ── welcome ──────────────────────────────────────────── */
-.welcome { flex: 1; display: grid; place-items: center; padding: 24px; overflow: auto; }
-.welcome-inner { max-width: 720px; width: 100%; }
-.welcome h1 { display: flex; align-items: center; gap: 10px; font-size: 26px; margin: 0 0 6px; }
+/* ── projects home ────────────────────────────────────────
+   Not centered like the old welcome screen: this is a list that grows, so it
+   starts at the top and scrolls. A vertically centred list jumps around as
+   projects are added and deleted. */
+.home { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.home-inner { max-width: 860px; margin: 0 auto; padding: 28px 20px 40px; }
+.home-head h1 { display: flex; align-items: center; gap: 10px; font-size: 26px; margin: 0 0 6px; }
+.home-head p { margin: 0; font-size: 13px; line-height: 1.55; max-width: 60ch; }
+
+.home-section { margin-top: 26px; }
+.home-heading {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px;
+  color: var(--muted); margin: 0 0 10px;
+}
+.home-count { font-variant-numeric: tabular-nums; }
+.home-empty {
+  margin: 0; padding: 16px; font-size: 13px;
+  border: 1px dashed var(--border); border-radius: 10px;
+}
+.home-error {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  margin-top: 18px; padding: 10px 12px; border-radius: 8px;
+  background: #3d1418; border: 1px solid var(--error); color: #ffd7d5; font-size: 12.5px;
+}
+
+/* ── project list ─────────────────────────────────────── */
+.project-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.project-row {
+  display: flex; align-items: stretch; gap: 4px;
+  background: var(--bg-raise); border: 1px solid var(--border); border-radius: 10px;
+  transition: border-color 120ms;
+}
+.project-row:hover { border-color: #3a4658; }
+.project-row.current { border-color: var(--accent); }
+.project-open {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;
+  padding: 11px 13px; text-align: left;
+  background: transparent; border: 0; border-radius: 10px 0 0 10px; cursor: pointer;
+  touch-action: manipulation;
+}
+.project-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.project-name-text {
+  font-weight: 600; font-size: 13.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.project-current-chip {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 1px 6px; flex: 0 0 auto;
+}
+.project-meta { display: flex; align-items: center; gap: 8px; font-size: 11.5px; flex-wrap: wrap; }
+.project-actions { display: flex; align-items: center; gap: 2px; padding-right: 6px; }
+.project-action { padding: 6px 8px; font-size: 13px; }
+.project-confirm { display: flex; align-items: center; gap: 2px; }
+.btn.danger { background: #7d2430; border-color: #a4313f; color: #ffe3e1; font-weight: 600; }
+.btn.danger:hover:not(:disabled) { background: #96303d; }
+
+.workspace-tag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; color: var(--muted);
+  flex: 0 0 auto;
+}
+.workspace-tag.roblox { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
+.workspace-tag.web { color: #7cc4ff; border-color: rgba(124, 196, 255, 0.4); }
+
+/* ── template grid ────────────────────────────────────── */
 .template-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px; margin-top: 20px;
+  gap: 10px;
 }
 .template-card {
   display: flex; flex-direction: column; gap: 6px; text-align: left;
@@ -307,12 +370,42 @@ button, input, select { font: inherit; color: inherit; }
 }
 .template-card:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
 .template-card:disabled { cursor: not-allowed; opacity: 0.6; }
+.template-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .template-label { font-weight: 600; }
 .template-desc { color: var(--muted); font-size: 12px; line-height: 1.45; }
 .template-milestone {
   align-self: flex-start; font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px;
   border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--accent);
 }
+
+/* ── "+ New" menu ─────────────────────────────────────── */
+.new-menu { position: relative; }
+.new-btn { white-space: nowrap; font-weight: 600; }
+.new-menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  width: 288px; max-width: calc(100vw - 24px); max-height: min(70vh, 460px); overflow-y: auto;
+  background: var(--bg-raise); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); padding: 6px;
+}
+.new-menu-group + .new-menu-group { border-top: 1px solid var(--border-soft); margin-top: 4px; padding-top: 4px; }
+.new-menu-group-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 4px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted);
+}
+.new-menu-item {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  padding: 8px 9px; border: 0; border-radius: 7px; cursor: pointer;
+  background: transparent; color: var(--text); touch-action: manipulation;
+}
+.new-menu-item:hover:not(:disabled) { background: var(--bg-raise-2); }
+.new-menu-item:disabled { cursor: not-allowed; opacity: 0.45; }
+.new-menu-item-label { font-size: 13px; font-weight: 600; }
+.new-menu-item-desc { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+.brand-btn { background: transparent; border: 0; padding: 0; cursor: pointer; color: inherit; }
+.brand-btn:hover { color: var(--accent); }
+.exit-btn { white-space: nowrap; }
 
 /* ── errors ───────────────────────────────────────────── */
 .error-banner {
@@ -500,11 +593,48 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   .console-line { padding: 3px 8px; }
   .diag-line { padding: 9px 10px; }
 
-  /* Welcome screen: one column of cards, comfortable padding. */
-  .welcome { padding: 18px 14px; }
-  .welcome h1 { font-size: 22px; }
-  .template-grid { grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+  /* Projects home: one column, comfortable padding, and the project rows get
+     full-width action buttons that a thumb can hit. */
+  .home-inner { padding: 18px 14px 28px; }
+  .home-head h1 { font-size: 22px; }
+  .template-grid { grid-template-columns: 1fr; gap: 8px; }
   .template-card { padding: 13px; }
+  .project-open { padding: 13px; }
+  .project-name-text { font-size: 15px; }
+  .project-meta { font-size: 12px; gap: 7px; }
+  /* Destructive actions keep their own row so a missed tap cannot delete. */
+  .project-actions { padding-right: 4px; }
+  .project-action { min-height: 44px; min-width: 44px; font-size: 16px; }
+  .btn.danger { min-height: 40px; }
+
+  /* The menu is anchored to a button near the screen edge, so on a phone it is
+     pinned to the viewport (just under the top bar) instead of to the button. */
+  .new-menu-list {
+    position: fixed; left: 10px; right: 10px; bottom: auto;
+    top: calc(env(safe-area-inset-top, 0px) + 54px);
+    width: auto; max-width: none;
+    max-height: min(62vh, 420px);
+  }
+  .new-menu-item { padding: 11px 10px; }
+  .new-menu-item-label { font-size: 14px; }
+  .new-menu-item-desc { font-size: 12px; }
+
+  /* One way home, not two: with a project open the exit button carries it, so
+     the brand mark (which also goes home) is dropped to buy width. */
+  .topbar.has-project .brand-btn { display: none; }
+  .topbar.has-project .project-name { font-size: 15px; padding: 4px 6px; }
+  /* Stop keeps its icon and loses the word: the target stays, the width goes. */
+  .btn-label { display: none; }
+  .exit-btn {
+    order: -1;
+    min-height: 40px; padding: 0 10px 0 6px; gap: 2px;
+    font-size: 12.5px; color: var(--text);
+  }
+  .exit-btn .exit-label { font-size: 12.5px; }
+  .new-btn { min-height: 40px; padding: 0 10px; }
+  .btn.primary, .run-controls .btn { min-height: 40px; }
+  /* Run stays first: it is the button a finger reaches for. */
+  .topbar { flex-wrap: wrap; row-gap: 6px; }
 
   /* Viewport chrome must not overlap the scene on a small screen. */
   .viewport-stats { font-size: 10px; bottom: 6px; left: 6px; }

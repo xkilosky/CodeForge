@@ -244,3 +244,20 @@ export function projectFromTemplate(template: Template, name?: string): Project 
 export function templateById(id: string): Template | undefined {
   return TEMPLATES.find((t) => t.id === id);
 }
+
+/**
+ * Whether a template can actually be opened right now.
+ *
+ * The rule is runtime availability, never the `milestone` string. Gating on a
+ * literal milestone once hid every template added after M1 (the Roblox
+ * workspace among them), and the failure was silent because a disabled card
+ * looks like "coming soon" rather than a bug.
+ */
+export function isTemplateAvailable(template: Template, available: Set<string>): boolean {
+  return available.has(template.workspace);
+}
+
+/** The workspace ids that currently have a runtime, as a set for lookups. */
+export function availableWorkspaces(runtimes: { id: string; available: boolean }[]): Set<string> {
+  return new Set(runtimes.filter((r) => r.available).map((r) => r.id));
+}
