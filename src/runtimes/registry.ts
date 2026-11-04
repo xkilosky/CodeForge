@@ -1,5 +1,6 @@
 import type { FileMap, IOBridge, PreviewPayload, RunHandle, Runtime } from '../core/types';
 import { webRuntime } from './web';
+import { luauRuntime } from './luau';
 
 /**
  * Placeholder for workspaces that land in a later milestone.
@@ -24,7 +25,7 @@ function upcoming(id: string, label: string, milestone: string, preview: Runtime
 
 export const RUNTIMES: Runtime[] = [
   webRuntime,
-  upcoming('roblox', 'Roblox', 'M2', 'roblox-viewport'),
+  luauRuntime,
   upcoming('game', 'Game builder', 'M7', 'canvas'),
   upcoming('python', 'Python', 'M8', 'terminal'),
 ];

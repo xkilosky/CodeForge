@@ -32,6 +32,11 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: true,
   },
+  // Workers must be ES modules: the Luau wasm bindings and our worker entry both
+  // use top-level await, which IIFE output (Vite's worker default) rejects.
+  worker: {
+    format: 'es',
+  },
   // Monaco is large; keep chunks predictable so the bundle budget is visible.
   build: {
     chunkSizeWarningLimit: 1200,

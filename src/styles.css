@@ -186,7 +186,18 @@ button, input, select { font: inherit; color: inherit; }
 }
 
 /* ── console ──────────────────────────────────────────── */
+.bottom-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+.bottom-panes > * { min-width: 0; min-height: 0; }
+.bottom-panes > * + * { border-left: 1px solid var(--border); }
+
 .console { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.diagnostics { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
 .console-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: 6px 12px; border-bottom: 1px solid var(--border-soft); flex: 0 0 auto;
@@ -220,6 +231,17 @@ button, input, select { font: inherit; color: inherit; }
 .kind-warn { color: var(--warn); }
 .kind-warn .console-marker { color: var(--warn); }
 .kind-system { color: var(--muted); font-style: italic; }
+
+.diag-line {
+  display: flex; gap: 8px; padding: 2px 6px; border-radius: 4px; align-items: baseline;
+  width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--text);
+}
+.diag-line:hover { background: var(--bg-raise-2); }
+.kind-error { color: var(--error); }
+.kind-warning { color: var(--warn); }
+.kind-warning .console-marker { color: var(--warn); }
+.kind-info { color: var(--muted); }
 
 /* ── welcome ──────────────────────────────────────────── */
 .welcome { flex: 1; display: grid; place-items: center; padding: 24px; overflow: auto; }

@@ -83,7 +83,7 @@ export const projectActions = {
       workspace,
       files: {},
       activeFile: '',
-      settings: { theme: 'vs-dark', autorun: true },
+      settings: { theme: 'vs-dark', autorun: true, analysisMode: 'strict' },
       createdAt: now,
       updatedAt: now,
     };

@@ -26,6 +26,12 @@ export type WorkspaceId = 'roblox' | 'web' | 'game' | 'python' | 'blank';
 export interface ProjectSettings {
   theme: 'vs-dark' | 'vs';
   autorun: boolean;
+  /**
+   * Luau analysis mode. `strict` catches type mismatches (e.g. assigning a
+   * string to a `number`); `nonstrict` matches Roblox Studio's default and only
+   * reports clear errors. Ignored by other runtimes.
+   */
+  analysisMode: 'strict' | 'nonstrict' | 'nocheck';
 }
 
 export interface Project {
@@ -111,7 +117,12 @@ export interface Runtime {
    * generic: the shell forwards raw data, the runtime decides what it means.
    */
   handlePreviewMessage?(data: unknown, meta: unknown): PreviewEvent | null;
-  lint?(files: FileMap): Promise<Diagnostic[]>;
+  lint?(files: FileMap, options?: LintOptions): Promise<Diagnostic[]>;
+}
+
+/** Runtime-specific lint settings. `mode` is the Luau analysis mode today. */
+export interface LintOptions {
+  mode?: string;
 }
 
 export const LANGUAGE_BY_EXTENSION: Record<string, LanguageId> = {

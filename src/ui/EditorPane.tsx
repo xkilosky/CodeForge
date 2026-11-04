@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { monaco, monacoLanguageFor } from './monaco';
+import { modelUriFor } from './monacoMarkers';
 
 interface EditorPaneProps {
   /** Recreating the editor per path keeps models simple and avoids stale state. */
@@ -35,10 +36,15 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
 
     const editor = monaco.editor.create(host, {
       ...EDITOR_OPTIONS,
-      value: content,
-      language: monacoLanguageFor(language),
       theme,
     });
+
+    // URI-keyed models let diagnostics target a file that is not the open tab.
+    const uri = modelUriFor(path);
+    const existing = monaco.editor.getModel(uri);
+    const model =
+      existing ?? monaco.editor.createModel(content, monacoLanguageFor(language), uri);
+    editor.setModel(model);
     editorRef.current = editor;
 
     const subscription = editor.onDidChangeModelContent(() => {

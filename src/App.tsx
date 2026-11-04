@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { io } from './core/consoleStore';
+import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
 import { runStore, startRun, stopRun } from './core/runSession';
 import { TEMPLATES, templateById } from './core/templates';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
+import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
 import { ConsolePanel } from './ui/ConsolePanel';
+import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { EditorPane } from './ui/EditorPane';
 import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
@@ -66,6 +69,24 @@ export default function App() {
     () => runtimeForWorkspace(project?.workspace ?? 'web'),
     [project?.workspace],
   );
+
+  // Lint on change. The bus debounces because a Luau check costs ~300 ms.
+  const files = project?.files;
+  const analysisMode = project?.settings.analysisMode;
+  useEffect(() => {
+    if (!files || !runtime.lint) {
+      clearDiagnostics();
+      clearAllMarkers();
+      return;
+    }
+    scheduleLint(runtime, files, analysisMode);
+  }, [files, analysisMode, runtime]);
+
+  // Push results into Monaco as squiggles.
+  const diagnosticsState = useStore(diagnosticsStore);
+  useEffect(() => {
+    applyMarkers(diagnosticsState.diagnostics);
+  }, [diagnosticsState.diagnostics]);
 
   const handleRun = useCallback(() => {
     if (!project) return;
@@ -159,7 +180,12 @@ export default function App() {
           </section>
 
           <footer className="bottom">
-            <ConsolePanel onClear={() => io.clear()} />
+            <div className="bottom-panes">
+              <ConsolePanel onClear={() => io.clear()} />
+              <DiagnosticsPanel
+                onOpen={(file) => projectActions.setActiveFile(file)}
+              />
+            </div>
           </footer>
         </div>
       )}

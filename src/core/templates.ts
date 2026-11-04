@@ -185,7 +185,7 @@ export function projectFromTemplate(template: Template, name?: string): Project 
     workspace: template.workspace,
     files,
     activeFile: template.entry in files ? template.entry : Object.keys(files)[0] ?? '',
-    settings: { theme: 'vs-dark', autorun: true },
+    settings: { theme: 'vs-dark', autorun: true, analysisMode: 'strict' },
     createdAt: now,
     updatedAt: now,
   };
