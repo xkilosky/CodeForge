@@ -278,8 +278,12 @@ debounce, Roblox value types + `Instance` tree.
 *Accept: the §3 spike-3 script runs; `print` streams; an infinite loop dies in ~1s; a type
 error squiggles the right line.*
 
-**M3 — Roblox viewport (A1).** three.js scene from the render bridge; orbit camera.
+**M3 — Roblox viewport (A1).** ✅ *Done.* three.js scene from the render bridge; orbit camera.
 *Accept: spike-3 script draws a baseplate + 5 colored blocks with correct size, position, color.*
+*Done: the acceptance scene is asserted end to end in a real Luau VM (`tests/viewport.test.ts`),
+including each block's position, size, and colour. The script runs as a required module so
+errors keep their real file and line. three.js is lazily imported, so a Web project never
+downloads it and first paint stays at 1014 KB gzip.*
 
 **M4 — Roblox physics (A2).** Rapier integration, `.Touched`, movers.
 *Accept: an unanchored Part falls and rests on the baseplate (spike 7), and `.Touched` fires
