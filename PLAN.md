@@ -285,6 +285,18 @@ including each block's position, size, and colour. The script runs as a required
 errors keep their real file and line. three.js is lazily imported, so a Web project never
 downloads it and first paint stays at 1014 KB gzip.*
 
+**Responsive / mobile.** ✅ *Done.* Not a milestone — a cross-cutting constraint that
+applies to every milestone after it.
+*Accept: at 820px and below the app is one pane at a time with a bottom navigator; at 390px
+the editor and the files list are usable with a thumb; errors stay visible even though the
+console is behind a tab.*
+*Done: `useLayoutMode` keys on viewport width (not a user agent), so a narrow desktop window
+and a landscape tablet both do the right thing. Touch targets are 40px, form inputs are 16px
+so iOS does not zoom, the shell is 100dvh with safe-area insets, and the manifest plus real
+icons make it installable to a home screen. The 3D canvas takes `touch-action: none` so a
+drag orbits instead of scrolling the page, and devicePixelRatio is capped at 1.5 on small
+screens.*
+
 **M4 — Roblox physics (A2).** Rapier integration, `.Touched`, movers.
 *Accept: an unanchored Part falls and rests on the baseplate (spike 7), and `.Touched` fires
 on the Roblox side.*
