@@ -297,9 +297,15 @@ icons make it installable to a home screen. The 3D canvas takes `touch-action: n
 drag orbits instead of scrolling the page, and devicePixelRatio is capped at 1.5 on small
 screens.*
 
-**M4 — Roblox physics (A2).** Rapier integration, `.Touched`, movers.
+**M4 — Roblox physics (A2).** ✅ *Done.* Rapier integration, `.Touched`, movers.
 *Accept: an unanchored Part falls and rests on the baseplate (spike 7), and `.Touched` fires
 on the Roblox side.*
+*Done: parts fall and rest at the predicted height (a 1-stud part lands with its centre at
+10.5 on a ground whose top is at 10), stacks hold, and `.Touched`/`.TouchEnded` deliver the
+other Instance to a handler connected in the same run. Measured architecture note: a fresh
+Luau state costs 6.6–12 ms to boot with the Roblox API, so the script is **re-executed at
+10 Hz** while Rapier steps at 60 Hz — a documented limit, not a hidden one. Rapier is a lazy
+1.6 MB chunk, keeping first paint at 1019 KB gzip.*
 
 **M5 — Roblox services + modules.** `RunService` ticks, `task.*`, `require()`, `TweenService`,
 `Debris`, `Players`, `UserInputService`.
