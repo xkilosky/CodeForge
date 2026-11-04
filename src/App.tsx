@@ -12,13 +12,24 @@ import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { EditorPane } from './ui/EditorPane';
 import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
-import { MobileNav } from './ui/MobileNav';
-import { MobileOutputHint } from './ui/MobileOutputHint';
+import { MobileNav, summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
 import { useLayoutMode } from './ui/useLayoutMode';
 import { consoleStore } from './core/consoleStore';
+
+/**
+ * Scrolls a stacked section into view on the phone layout.
+ *
+ * `scrollIntoView` with block:'start' is used rather than setting scrollTop so
+ * the browser accounts for the sticky section header itself.
+ */
+function scrollToPane(id: string): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
 
 function Welcome({ onCreate }: { onCreate: (templateId: string) => void }) {
   return (
@@ -72,6 +83,12 @@ export default function App() {
    * opening a project and landing on anything else makes the app look empty.
    */
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
+  // Issues are counted once here because both the section header and the tab
+  // bar show them.
+  const issues = useMemo(
+    () => summarizeIssues(consoleState, diagnosticsState),
+    [consoleState, diagnosticsState],
+  );
 
   useEffect(() => {
     void projectActions.init();
@@ -155,6 +172,12 @@ export default function App() {
           const template = templateById(templateId);
           if (template) projectActions.createFromTemplate(template);
         }}
+        onSwitchWorkspace={(workspace) => {
+          projectActions.switchWorkspace(workspace);
+          // A different workspace is a different project shape; land on Code so
+          // the new starter is visible instead of a stale pane.
+          setMobileTab('code');
+        }}
       />
 
       {projectState.loading ? (
@@ -168,32 +191,36 @@ export default function App() {
         />
       ) : (
         layout === 'compact' ? (
-          /* One pane at a time, with the tab bar underneath. */
+          /* Every pane visible, stacked and scrollable. The tab bar scrolls to
+             a section instead of hiding the others, so nothing is ever
+             unreachable — which was the failure mode of the previous version. */
           <div className="workspace workspace-compact">
-            <div className="mobile-pane">
-              {mobileTab === 'files' ? (
-                <aside className="sidebar sidebar-full">
-                  <Explorer
-                    files={project.files}
-                    activeFile={activePath}
-                    onSelect={(path) => {
-                      projectActions.setActiveFile(path);
-                      // Picking a file on a phone means "I want to edit this".
-                      setMobileTab('code');
-                    }}
-                    onAdd={(path) => projectActions.addFile(path)}
-                    onRemove={projectActions.removeFile}
-                  />
-                </aside>
-              ) : null}
+            <div className="mobile-stack">
+              <section id="pane-files" className="mobile-section mobile-section-files">
+                <div className="mobile-section-head">Files</div>
+                <Explorer
+                  files={project.files}
+                  activeFile={activePath}
+                  onSelect={(path) => {
+                    projectActions.setActiveFile(path);
+                    requestAnimationFrame(() => scrollToPane('pane-code'));
+                  }}
+                  onAdd={(path) => projectActions.addFile(path)}
+                  onRemove={projectActions.removeFile}
+                />
+              </section>
 
-              {mobileTab === 'code' ? (
-                <main className="center">
-                  <Tabs
-                    files={project.files}
-                    activeFile={activePath}
-                    onSelect={projectActions.setActiveFile}
-                  />
+              <section id="pane-code" className="mobile-section mobile-section-code">
+                <div className="mobile-section-head">
+                  Code
+                  <span className="muted">{activePath || 'no file'}</span>
+                </div>
+                <Tabs
+                  files={project.files}
+                  activeFile={activePath}
+                  onSelect={projectActions.setActiveFile}
+                />
+                <div className="mobile-editor">
                   <EditorPane
                     path={activePath}
                     content={activeFile?.content ?? ''}
@@ -201,11 +228,12 @@ export default function App() {
                     theme={project.settings.theme}
                     onChange={(value) => projectActions.updateFile(activePath, value)}
                   />
-                </main>
-              ) : null}
+                </div>
+              </section>
 
-              {mobileTab === 'preview' ? (
-                <section className="right">
+              <section id="pane-preview" className="mobile-section mobile-section-preview">
+                <div className="mobile-section-head">Preview</div>
+                <div className="mobile-preview">
                   <PreviewPane
                     runtime={runtime}
                     files={project.files}
@@ -213,34 +241,35 @@ export default function App() {
                     runSignal={runSignal}
                     onRun={handleRun}
                   />
-                </section>
-              ) : null}
+                </div>
+              </section>
 
-              {mobileTab === 'output' ? (
-                <footer className="bottom bottom-full">
-                  <div className="bottom-panes">
-                    <ConsolePanel onClear={() => io.clear()} />
-                    <DiagnosticsPanel
-                      onOpen={(file) => {
-                        projectActions.setActiveFile(file);
-                        setMobileTab('code');
-                      }}
-                    />
-                  </div>
-                </footer>
-              ) : null}
+              <section id="pane-output" className="mobile-section mobile-section-output">
+                <div className="mobile-section-head">
+                  Output
+                  {issues.errors > 0 ? <span className="badge error">{issues.errors}</span> : null}
+                  {issues.errors === 0 && issues.warnings > 0 ? (
+                    <span className="badge warn">{issues.warnings}</span>
+                  ) : null}
+                </div>
+                <div className="mobile-output-grid">
+                  <ConsolePanel onClear={() => io.clear()} />
+                  <DiagnosticsPanel
+                    onOpen={(file) => {
+                      projectActions.setActiveFile(file);
+                      requestAnimationFrame(() => scrollToPane('pane-code'));
+                    }}
+                  />
+                </div>
+              </section>
             </div>
-
-            <MobileOutputHint
-              console={consoleState}
-              diagnostics={diagnosticsState}
-              visible={mobileTab !== 'output'}
-              onOpen={() => setMobileTab('output')}
-            />
 
             <MobileNav
               active={mobileTab}
-              onChange={setMobileTab}
+              onChange={(tab) => {
+                setMobileTab(tab);
+                scrollToPane(`pane-${tab}`);
+              }}
               console={consoleState}
               diagnostics={diagnosticsState}
               running={runState.running}

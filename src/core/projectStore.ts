@@ -1,6 +1,6 @@
 import { db } from './idb';
 import { Store } from './store';
-import { projectFromTemplate, type Template } from './templates';
+import { TEMPLATES, projectFromTemplate, type Template } from './templates';
 import type { FileMap, Project, ProjectSettings } from './types';
 import { languageForPath, newId } from './types';
 
@@ -90,6 +90,41 @@ export const projectActions = {
     projectStore.set((prev) => ({ ...prev, project }));
     void persist(project);
     return project;
+  },
+
+  /**
+   * Switches the open project to a different workspace, replacing its files with
+   * that workspace's starter template.
+   *
+   * This is what the workspace tabs do. Before, they were inert: the click
+   * handler was an empty comment, so tapping "Roblox" on a Web project did
+   * nothing at all and there was no obvious way to reach the Roblox workspace
+   * except by starting over from the Welcome screen.
+   *
+   * Files are replaced rather than merged because a Luau script and an HTML page
+   * do not belong in the same project; the user is choosing a different kind of
+   * project, and the starter is the honest content for it.
+   */
+  switchWorkspace(workspace: Project['workspace']): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    if (current.workspace === workspace) return;
+
+    const template =
+      TEMPLATES.find((t) => t.workspace === workspace) ??
+      TEMPLATES.find((t) => t.workspace === 'blank');
+    if (!template) return;
+
+    const replacement = projectFromTemplate(template, current.name);
+    // Keep identity and settings: this is the same project, retargeted.
+    const next: Project = {
+      ...replacement,
+      id: current.id,
+      settings: current.settings,
+      createdAt: current.createdAt,
+    };
+    projectStore.set((prev) => ({ ...prev, project: next, dirty: true }));
+    void persist(next);
   },
 
   open(project: Project): void {

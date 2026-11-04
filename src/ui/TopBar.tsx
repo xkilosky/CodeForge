@@ -1,4 +1,5 @@
 import type { Project, WorkspaceId } from '../core/types';
+import { TEMPLATES } from '../core/templates';
 import { RUNTIMES } from '../runtimes/registry';
 
 interface TopBarProps {
@@ -10,6 +11,8 @@ interface TopBarProps {
   onStop: () => void;
   onToggleAutorun: () => void;
   onCreate: (templateId: string) => void;
+  /** Switches the open project to another workspace. */
+  onSwitchWorkspace: (workspace: WorkspaceId) => void;
 }
 
 const WORKSPACE_LABEL: Record<WorkspaceId, string> = {
@@ -29,7 +32,23 @@ export function TopBar({
   onStop,
   onToggleAutorun,
   onCreate,
+  onSwitchWorkspace,
 }: TopBarProps) {
+  /**
+   * The entry template for each workspace, so "New…" offers real templates.
+   *
+   * This used to synthesise ids as `${runtime.id}-starter`, which never matched
+   * any actual template id (they are `web-starter`, `roblox-script`,
+   * `roblox-physics`, …). `templateById` returned undefined and the handler
+   * silently did nothing, so no workspace could be created from here at all.
+   */
+  const templatesByWorkspace = RUNTIMES.map((runtime) => {
+    const entry = TEMPLATES.find((t) => t.workspace === runtime.id);
+    return { runtime, template: entry };
+  }).filter((entry): entry is { runtime: (typeof RUNTIMES)[number]; template: NonNullable<typeof entry.template> } =>
+    Boolean(entry.template),
+  );
+
   return (
     <header className="topbar">
       <div className="brand">
@@ -49,7 +68,7 @@ export function TopBar({
               disabled={!runtime.available}
               title={runtime.available ? runtime.label : runtime.unavailableReason}
               onClick={() => {
-                /* workspace switching happens through the template picker in M0 */
+                if (runtime.available) onSwitchWorkspace(runtime.id as WorkspaceId);
               }}
             >
               {runtime.label}
@@ -99,9 +118,9 @@ export function TopBar({
         aria-label="New project from template"
       >
         <option value="">New…</option>
-        {RUNTIMES.filter((r) => r.available).map((r) => (
-          <option key={r.id} value={`${r.id}-starter`}>
-            {r.label} starter
+        {templatesByWorkspace.map(({ runtime, template }) => (
+          <option key={template.id} value={template.id}>
+            {runtime.label} — {template.label}
           </option>
         ))}
       </select>

@@ -340,29 +340,78 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
 .viewport-canvas, .viewport-canvas canvas { touch-action: none; }
 
 /* ── compact layout (one pane at a time) ─────────────────────────────────── */
+/* Stacked, scrollable sections: every pane is present and reachable. */
 .workspace-compact {
   display: flex;
   flex-direction: column;
   grid-template-columns: none;
   grid-template-rows: none;
   grid-template-areas: none;
+  /* The stack, not the shell, owns the scrolling. */
+  overflow: hidden;
 }
-.mobile-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mobile-stack {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Momentum scrolling on iOS. */
+  -webkit-overflow-scrolling: touch;
+  /* Breathing room so the last section is not under the tab bar. */
+  padding-bottom: 4px;
+}
 
-/* Inside the single slot, panes are full-width children rather than grid areas. */
-.workspace-compact .center,
-.workspace-compact .right {
-  flex: 1; min-height: 0; min-width: 0;
-  grid-area: auto; border-right: 0;
+.mobile-section {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 4px solid var(--border);
+  /* Sections size to their content; the editor and preview get explicit
+     heights below. A flex:1 child of a scroll container collapses to 0. */
+  flex: 0 0 auto;
+  min-height: 0;
 }
-.workspace-compact .sidebar-full {
-  flex: 1; min-height: 0; overflow: auto;
-  grid-area: auto; border-right: 0;
+.mobile-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  background: var(--bg-raise);
+  border-bottom: 1px solid var(--border-soft);
 }
-.workspace-compact .bottom-full {
-  flex: 1; min-height: 0;
-  grid-area: auto; border-top: 0;
+.mobile-section-head .badge { margin-left: auto; }
+
+/* Explicit heights, because these panes are absolute/flex-filled internally
+   and have no intrinsic size when stacked. */
+.mobile-editor {
+  height: min(58vh, 460px);
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
 }
+.mobile-preview {
+  height: min(52vh, 420px);
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-section-files .explorer { padding: 10px 12px 14px; }
+.mobile-section-output { border-bottom: 0; }
+.mobile-output-grid {
+  display: flex;
+  flex-direction: column;
+  /* Two panes side by side on a phone would each be ~180px wide. */
+  height: min(70vh, 520px);
+}
+.mobile-output-grid > * { min-height: 0; flex: 1 1 50%; }
+.mobile-output-grid > * + * { border-top: 1px solid var(--border); }
 
 .mobile-nav {
   flex: 0 0 auto;
@@ -471,9 +520,6 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
 
   .error-banner { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0)); }
 
-  /* Output pane: stack the two panes so text is not squeezed to 45% width. */
-  .bottom-panes { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .bottom-panes > * + * { border-left: 0; border-top: 1px solid var(--border); }
 }
 
 /* Landscape phones have very little height; give the editor the screen. */
