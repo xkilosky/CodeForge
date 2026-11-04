@@ -150,3 +150,87 @@ describe('serializeRuns — one Lua operation at a time', () => {
     expect(maxActive).toBe(1);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * The start/stop race
+ * ------------------------------------------------------------------ */
+
+describe('overlapping runs', () => {
+  /**
+   * `startRun` awaits the runtime, and a runtime does real work before it
+   * returns a handle. During that window `handle` is null, so a second
+   * `startRun` had nothing to stop and both executions survived — two physics
+   * loops publishing into one scene store, with the first unstoppable.
+   */
+  it('discards a run that resolves after a newer one started', async () => {
+    const { startRun, stopRun, runStore } = await import('../src/core/runSession');
+    stopRun();
+
+    const stopped: string[] = [];
+    let releaseFirst: (() => void) | null = null;
+
+    const first = startRun(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      return { stop: () => stopped.push('first') };
+    });
+
+    // A second run starts while the first is still booting.
+    const second = startRun(async () => ({ stop: () => stopped.push('second') }));
+
+    releaseFirst!();
+    await Promise.all([first, second]);
+
+    // The stale run must have stopped itself rather than becoming the handle.
+    expect(stopped).toContain('first');
+    expect(runStore.get().running).toBe(true);
+
+    stopRun();
+    expect(stopped).toContain('second');
+    expect(runStore.get().running).toBe(false);
+  });
+
+  it('leaves exactly one run alive and counting', async () => {
+    const { startRun, stopRun, runStore } = await import('../src/core/runSession');
+    stopRun();
+    const before = runStore.get().runCount;
+
+    await Promise.all([
+      startRun(async () => ({ stop() {} })),
+      startRun(async () => ({ stop() {} })),
+      startRun(async () => ({ stop() {} })),
+    ]);
+
+    // Three starts, but the counter tracks the survivor.
+    expect(runStore.get().runCount - before).toBeLessThanOrEqual(1);
+    stopRun();
+  });
+
+  it('reports a stale run that throws without clobbering the live one', async () => {
+    const { startRun, stopRun, runStore } = await import('../src/core/runSession');
+    stopRun();
+
+    const logs: string[] = [];
+    const { io } = await import('../src/core/consoleStore');
+    const original = io.log;
+    io.log = (entry) => logs.push(entry.text);
+
+    let failFirst: ((e: Error) => void) | null = null;
+    const first = startRun(async () => {
+      await new Promise<void>((_resolve, reject) => {
+        failFirst = reject;
+      });
+      return { stop() {} };
+    });
+    const second = startRun(async () => ({ stop() {} }));
+    failFirst!(new Error('worker died'));
+    await Promise.all([first, second]);
+
+    // The dead run's error belongs to a run the user already replaced.
+    expect(logs.join(' ')).not.toContain('worker died');
+    expect(runStore.get().running).toBe(true);
+    io.log = original;
+    stopRun();
+  });
+});

@@ -207,9 +207,38 @@ export const luauRuntime: Runtime = {
       }
 
       // --- phases 1..n: simulate ----------------------------------------
-      await initPhysics();
-      const world = createPhysicsWorld(first.parts);
+      // Named phases in the console: if the viewport is still, the last line
+      // printed says exactly which step did not complete. A silent simulation
+      // is the one bug that cannot be diagnosed from a screenshot.
+      let physicsModule: Awaited<ReturnType<typeof initPhysics>>;
+      try {
+        physicsModule = await initPhysics();
+      } catch (err) {
+        const message = `Physics engine failed to load: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
+        io.log({ kind: 'error', text: message });
+        reportSceneError(message);
+        return { stop() { stopped = true; controller.abort(); } };
+      }
+      void physicsModule;
+
+      let world: ReturnType<typeof createPhysicsWorld>;
+      try {
+        world = createPhysicsWorld(first.parts);
+      } catch (err) {
+        const message = `Physics world could not be built: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
+        io.log({ kind: 'error', text: message });
+        reportSceneError(message);
+        return { stop() { stopped = true; controller.abort(); } };
+      }
       sceneStore.set((prev) => ({ ...prev, simulationNote: null }));
+      io.log({
+        kind: 'system',
+        text: `Simulating ${world.bodyCount} part${world.bodyCount === 1 ? '' : 's'}`,
+      });
 
       let tickFailures = 0;
       // The most recent frame, so a slow script tick reads current positions.

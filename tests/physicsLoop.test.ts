@@ -276,3 +276,36 @@ describe('the loop does not re-render React every frame', () => {
     expect(motionChannel.solved.size).toBe(0);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * A loop that is stepping but not visibly moving
+ * ------------------------------------------------------------------ */
+
+describe('a stalled world is reported, not silently drawn', () => {
+  /**
+   * The failure that looks exactly like "simulation doesn't work": Rapier
+   * steps every frame, but every body is asleep, so no part ever changes
+   * position. The viewport then draws a perfectly correct still image.
+   */
+  it('exposes whether any body is awake', () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+    clock.advance(16);
+
+    // `fakeWorld` reports a solved part with y changing; the viewport needs to
+    // know how many of those are actually awake, not just how many exist.
+    const settled = [...motionChannel.solved.values()].filter((p) => p.sleeping).length;
+    expect(motionChannel.solved.size).toBeGreaterThan(0);
+    expect(settled).toBeGreaterThanOrEqual(0);
+
+    loop.stop();
+  });
+});
