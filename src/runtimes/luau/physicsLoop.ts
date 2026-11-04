@@ -69,6 +69,37 @@ export function usePhysicsState(): PhysicsState {
   return useSyncExternalStore(physicsStore.subscribe, physicsStore.get, physicsStore.get);
 }
 
+/* ------------------------------------------------------------------ *
+ * Per-frame motion — deliberately outside React
+ * ------------------------------------------------------------------ */
+
+/**
+ * The freshest solved positions, readable every animation frame.
+ *
+ * This used to live in `physicsStore`, which meant a new state object and a new
+ * Map 60 times a second, each one notifying React. Every subscriber re-rendered
+ * at that rate — including the 3D viewport, whose render output does not depend
+ * on the positions at all: the render loop reads them and moves meshes directly.
+ * On a phone that is the difference between a simulation and a still frame,
+ * because React reconciling a large tree at 60 Hz starves the same main thread
+ * that is stepping Rapier.
+ *
+ * So the per-frame channel is a plain mutable object. Readers poll it from the
+ * animation frame they already run; nothing re-renders. Status that a human
+ * actually reads (rate, body count, tick cost, errors) still goes through
+ * `physicsStore`, but only a few times a second.
+ */
+export const motionChannel: {
+  solved: Map<string, SolvedPart>;
+  time: number;
+  /** Increments per frame, so a reader can tell whether it is current. */
+  frame: number;
+} = { solved: new Map(), time: 0, frame: 0 };
+
+/** How often React-visible status is republished. Four times a second is
+ *  enough for numbers a person reads, and cheap enough to be invisible. */
+const STATUS_INTERVAL_MS = 250;
+
 export interface PhysicsTick {
   /** Applies solved positions to the Lua tree and returns any touch events. */
   (solved: SolvedPart[], touches: TouchEvent[], time: number): Promise<void>;
@@ -115,8 +146,12 @@ export function startPhysicsLoop(options: PhysicsLoopOptions): PhysicsLoop {
   let previousContacts = world.contacts();
   let ticking = false;
   let touchTotal = 0;
+  let lastStatusAt = -Infinity;
+  let lastRate = rate;
 
   physicsStore.set({ ...EMPTY, enabled: true, rate, bodyCount: world.bodyCount });
+  motionChannel.solved = new Map();
+  motionChannel.time = 0;
 
   const loop = () => {
     if (!running) return;
@@ -132,6 +167,7 @@ export function startPhysicsLoop(options: PhysicsLoopOptions): PhysicsLoop {
     elapsed += dt;
 
     const solved = world.readParts();
+    const solvedByPath = new Map(solved.map((s) => [s.path, s]));
     const contacts = world.contacts();
     const events = diffContactsForLoop(previousContacts, contacts);
     previousContacts = contacts;
@@ -139,13 +175,25 @@ export function startPhysicsLoop(options: PhysicsLoopOptions): PhysicsLoop {
 
     onFrame?.(solved, elapsed);
 
-    physicsStore.set((prev) => ({
-      ...prev,
-      solved: new Map(solved.map((s) => [s.path, s])),
-      time: elapsed,
-      bodyCount: world.bodyCount,
-      touchCount: touchTotal,
-    }));
+    // The hot path: no allocation of a store state, no listeners, no React.
+    motionChannel.solved = solvedByPath;
+    motionChannel.time = elapsed;
+    motionChannel.frame += 1;
+
+    // The cold path: numbers a person reads, at a human rate.
+    if (frameNow - lastStatusAt >= STATUS_INTERVAL_MS) {
+      lastStatusAt = frameNow;
+      physicsStore.set((prev) => ({
+        ...prev,
+        // Kept for callers that read the store rather than the channel; it is
+        // a snapshot, not a per-frame guarantee.
+        solved: solvedByPath,
+        time: elapsed,
+        bodyCount: world.bodyCount,
+        touchCount: touchTotal,
+        rate: lastRate,
+      }));
+    }
 
     // Execute the script only as often as the budget allows.
     const interval = 1 / rate;
@@ -168,6 +216,7 @@ export function startPhysicsLoop(options: PhysicsLoopOptions): PhysicsLoop {
           if (cost > SLOW_TICK_MS && rate > MIN_SIM_RATE) {
             rate = Math.max(MIN_SIM_RATE, Math.round(rate / 2));
           }
+          lastRate = rate;
           physicsStore.set((prev) => ({ ...prev, lastTickMs: cost, rate }));
         });
     }
@@ -180,6 +229,7 @@ export function startPhysicsLoop(options: PhysicsLoopOptions): PhysicsLoop {
       running = false;
       cancelFrame(frameId);
       world.dispose();
+      motionChannel.solved = new Map();
       physicsStore.set(EMPTY);
     },
     isRunning() {

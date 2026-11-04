@@ -7,7 +7,7 @@
  * that stopping really stops.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { physicsStore, startPhysicsLoop } from '../src/runtimes/luau/physicsLoop';
+import { motionChannel, physicsStore, startPhysicsLoop } from '../src/runtimes/luau/physicsLoop';
 import type { SolvedPart } from '../src/runtimes/luau/physics';
 
 /** A world stub that advances a single falling part at a known rate. */
@@ -207,5 +207,72 @@ describe('physics loop scheduling', () => {
     // not the 300 it would move unclamped.
     expect(heights[0]).toBeGreaterThan(90);
     loop.stop();
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Per-frame cost
+ * ------------------------------------------------------------------ */
+
+describe('the loop does not re-render React every frame', () => {
+  /**
+   * Regression: `physicsStore` was pushed a new object (and a new Map of every
+   * solved part) on every animation frame, which notified every subscriber —
+   * including the whole 3D viewport. At 60 Hz that starved the main thread that
+   * steps the solver, and the scene appeared frozen.
+   *
+   * Positions now travel on `motionChannel`, which nothing subscribes to.
+   */
+  it('publishes status a few times a second, not 60', async () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    let notifications = 0;
+    const unsubscribe = physicsStore.subscribe(() => {
+      notifications += 1;
+    });
+
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+
+    // One second at 60 fps.
+    for (let i = 0; i < 60; i++) clock.advance(16);
+    unsubscribe();
+    loop.stop();
+
+    // `stop()` publishes once as well; the point is that 60 frames must not
+    // mean 60 notifications.
+    expect(notifications).toBeLessThanOrEqual(6);
+  });
+
+  it('still exposes every frame through the motion channel', () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+
+    const first = motionChannel.frame;
+    for (let i = 0; i < 10; i++) clock.advance(16);
+    const advanced = motionChannel.frame;
+
+    // The viewport polls this; it must advance every frame.
+    expect(advanced - first).toBe(10);
+    expect(motionChannel.solved.get('Workspace.Ball')).toBeDefined();
+    expect(motionChannel.time).toBeGreaterThan(0);
+
+    loop.stop();
+    // A stopped loop holds no stale positions for the next render to draw.
+    expect(motionChannel.solved.size).toBe(0);
   });
 });

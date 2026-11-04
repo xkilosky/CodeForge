@@ -639,6 +639,7 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   /* Viewport chrome must not overlap the scene on a small screen. */
   .viewport-stats { font-size: 10px; bottom: 6px; left: 6px; }
   .viewport-badge { font-size: 9px; top: 6px; left: 6px; }
+  .viewport-motion { font-size: 10px; bottom: 6px; right: 6px; }
   /* Says why nothing is moving. A still scene with no explanation looks broken. */
 .viewport-note {
   position: absolute; bottom: 34px; left: 8px; z-index: 2; max-width: 70%;
@@ -662,4 +663,15 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
 /* Coarse pointers on a wide screen (tablets): bigger targets, full layout. */
 @media (pointer: coarse) {
   .file-remove { opacity: 1; }
+}
+
+/* Live simulation clock, bottom-right of the viewport. Its only job is to make
+   "the loop is running" visible at a glance, so a still scene can be told apart
+   from a stopped one. */
+.viewport-motion {
+  position: absolute; bottom: 8px; right: 8px; z-index: 2;
+  font-size: 10.5px; font-variant-numeric: tabular-nums;
+  padding: 3px 8px; border-radius: 5px;
+  background: rgba(11, 18, 28, 0.6); color: #9fe6b0;
+  backdrop-filter: blur(4px);
 }

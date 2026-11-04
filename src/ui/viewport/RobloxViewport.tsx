@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useStore } from '../useStore';
 import { sceneStore } from '../../core/sceneStore';
-import { usePhysicsState } from '../../runtimes/luau/physicsLoop';
+import { motionChannel, usePhysicsState } from '../../runtimes/luau/physicsLoop';
 import type { ScenePart } from '../../core/types';
 import {
   CYLINDER_ROTATION_Z,
@@ -106,19 +106,24 @@ export function RobloxViewport() {
   const meshByPathRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const [stats, setStats] = useState({ parts: 0, triangles: 0 });
   const state = useStore(sceneStore);
+  /**
+   * Status only — rate, body count, tick cost, errors. These change a few times
+   * a second, which is a rate React can absorb.
+   *
+   * Per-frame positions are NOT read from here. They arrive through
+   * `motionChannel`, which the render loop polls directly, so a moving scene
+   * costs zero React renders. Reading them from a store re-rendered this whole
+   * tree 60 times a second and starved the thread that steps the solver.
+   */
   const physics = usePhysicsState();
   /**
-   * Solved positions for the current frame. Held in a ref rather than state:
-   * this changes 60 times a second and must drive the render loop directly,
-   * not a React re-render.
+   * A renderer that could not be created (no WebGL, blocklisted driver, an
+   * out-of-memory context) used to throw inside the effect and leave a blank
+   * pane with the scene built and no explanation. The message is shown instead:
+   * a simulation that cannot draw must say so rather than look like a script
+   * that produced nothing.
    */
-  const motionRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
-
-  useEffect(() => {
-    const next = new Map<string, { x: number; y: number; z: number }>();
-    for (const [path, solved] of physics.solved) next.set(path, solved.position);
-    motionRef.current = next;
-  }, [physics.solved]);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   // --- one-time scene setup ------------------------------------------------
   useEffect(() => {
@@ -132,7 +137,17 @@ export function RobloxViewport() {
     camera.position.set(0, 30, 60);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+    } catch (err) {
+      setRenderError(
+        `This browser could not create a WebGL context, so the 3D viewport cannot draw. ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return;
+    }
     // Phones report devicePixelRatio 3, which triples the fragment count for no
     // visible gain on a small screen. Cap lower when the screen is small.
     const smallScreen = Math.min(window.innerWidth, window.innerHeight) < 820;
@@ -187,6 +202,8 @@ export function RobloxViewport() {
 
     let frame = 0;
     let disposed = false;
+    /** Last motion-channel frame applied to meshes, so work is done once. */
+    let appliedFrame = -1;
     // path -> mesh, so the frame loop can move parts without walking the scene.
     const byPath = meshByPathRef.current;
 
@@ -195,14 +212,18 @@ export function RobloxViewport() {
       frame = requestAnimationFrame(tick);
       controls.update();
 
-      // Physics writes solved positions here; the mesh follows. This is the
-      // only per-frame work the renderer does per part, and it is skipped
-      // entirely when nothing is moving.
-      const motion = motionRef.current;
-      if (motion.size > 0) {
-        for (const [path, position] of motion) {
+      // Physics writes solved positions to the channel; the mesh follows. This
+      // is the only per-frame work the renderer does per part, and it is
+      // skipped entirely when nothing is moving.
+      //
+      // `frame` guards against re-walking an unchanged map every frame while a
+      // script is running but the world is asleep.
+      if (motionChannel.frame !== appliedFrame) {
+        appliedFrame = motionChannel.frame;
+        for (const [path, solved] of motionChannel.solved) {
           const mesh = byPath.get(path);
           if (!mesh) continue;
+          const { position } = solved;
           mesh.position.set(position.x, position.y, position.z);
         }
       }
@@ -338,6 +359,7 @@ export function RobloxViewport() {
           </>
         ) : null}
       </div>
+      {renderError ? <div className="viewport-error">{renderError}</div> : null}
       {state.error ? <div className="viewport-error">{state.error}</div> : null}
       {state.simulationNote ? (
         <div className="viewport-note">{state.simulationNote}</div>
@@ -346,6 +368,13 @@ export function RobloxViewport() {
       {!state.snapshot ? (
         <div className="viewport-hint">
           Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or Run to build the scene.
+        </div>
+      ) : null}
+      {/* The one number that says whether the simulation is alive. Without it
+          "nothing is moving" is indistinguishable from "the loop never ran". */}
+      {state.snapshot && physics.enabled ? (
+        <div className="viewport-motion" aria-hidden="true">
+          t {physics.time.toFixed(1)}s
         </div>
       ) : null}
     </div>
