@@ -10,7 +10,6 @@
  * diagnostics. The 3D viewport arrives in M3 and the scheduler/services in M5.
  */
 import type {
-  ConsoleKind,
   Diagnostic,
   FileMap,
   IOBridge,
@@ -25,6 +24,9 @@ import AnalysisWorkerThread from './analysisWorker?worker';
 import type { AnalyzeRequest, AnalyzeResponse } from './analysisWorker';
 import type { LuauAnalysisMode } from './analyze';
 import { formatLuauError, parseLuauError } from './errors';
+import { BOOTSTRAP_DISPLAY_NAME, buildBootstrapSource } from './bootstrap';
+import { buildLuauModules, readSceneSnapshot, requireSpecifierFor } from './modules';
+import { publishScene, reportSceneError } from '../../core/sceneStore';
 
 /** Budgets for one execution. Mirrors the library defaults, stated explicitly. */
 const EXECUTION_LIMITS: ExecutionOptions = {
@@ -86,10 +88,16 @@ export const luauRuntime: Runtime = {
 
     io.log({ kind: 'system', text: `Running ${entryPath}` });
 
+    const bootstrap = buildBootstrapSource({
+      requirePath: requireSpecifierFor(entryPath),
+      displayName: entryPath,
+    });
+
     try {
-      const result = await worker.execute(files[entryPath].content, {
-        entryName: entryPath,
+      const result = await worker.execute(bootstrap, {
+        entryName: BOOTSTRAP_DISPLAY_NAME,
         signal: controller.signal,
+        modules: buildLuauModules(files),
         ...EXECUTION_LIMITS,
       });
 
@@ -101,20 +109,30 @@ export const luauRuntime: Runtime = {
       }
 
       if (result.ok) {
-        const values = result.values
-          .map((v) => (typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)))
-          .join('\t');
+        // The bootstrap's return value is the scene it serialised. It is the
+        // only channel out of the sandbox, which is why the run goes through
+        // the bootstrap at all.
+        const parts = readSceneSnapshot(result.values[0]);
+        publishScene(parts);
         io.log({
           kind: 'system',
-          text: values ? `Finished, returned: ${values}` : 'Finished',
+          text: parts.length === 0
+            ? 'Finished — the script did not create any parts.'
+            : `Finished — ${parts.length} part${parts.length === 1 ? '' : 's'} in the viewport.`,
         });
       } else if (result.error) {
         const parsed = parseLuauError(result.error.message);
-        const kind: ConsoleKind = parsed.kind === 'runtime' ? 'error' : 'error';
+        // A bootstrap failure has no user-visible filename of its own; attribute
+        // it to the script that was required. A genuine script error is already
+        // attributed by the engine and keeps its own file and line.
+        const file = parsed.file ?? entryPath;
+        if (parsed.kind === 'syntax' || parsed.kind === 'compile') {
+          reportSceneError(formatLuauError(parsed));
+        }
         io.log({
-          kind,
+          kind: 'error',
           text: `${parsed.kind} error: ${formatLuauError(parsed)}`,
-          file: parsed.file ?? entryPath,
+          file,
           line: parsed.line,
         });
       }
@@ -126,6 +144,7 @@ export const luauRuntime: Runtime = {
           kind: 'error',
           text: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
         });
+        reportSceneError(err instanceof Error ? err.message : String(err));
       }
     } finally {
       worker.removeEventListener('print', onPrint);
@@ -138,12 +157,8 @@ export const luauRuntime: Runtime = {
     };
   },
 
-  buildPreview(): PreviewPayload {
-    return {
-      kind: 'placeholder',
-      message:
-        'The 3D viewport arrives in M3. Scripts already run against the real Luau VM — check the console for output.',
-    };
+  buildViewport(): PreviewPayload {
+    return { kind: 'viewport' };
   },
 };
 

@@ -176,6 +176,7 @@ export default function App() {
               files={project.files}
               autorun={project.settings.autorun}
               runSignal={runSignal}
+              onRun={handleRun}
             />
           </section>
 

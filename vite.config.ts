@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -36,6 +37,13 @@ export default defineConfig({
   // use top-level await, which IIFE output (Vite's worker default) rejects.
   worker: {
     format: 'es',
+  },
+  // Lets the M3 tests exercise the real `LuaWorker` path (worker bundling
+  // included) in Node, where there is no browser to run it in.
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    testTimeout: 30_000,
   },
   // Monaco is large; keep chunks predictable so the bundle budget is visible.
   build: {

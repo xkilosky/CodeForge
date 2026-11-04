@@ -88,7 +88,59 @@ export type PreviewMode = 'roblox-viewport' | 'iframe' | 'canvas' | 'terminal' |
  */
 export type PreviewPayload =
   | { kind: 'srcdoc'; srcdoc: string; meta?: unknown }
+  | { kind: 'viewport'; meta?: unknown }
   | { kind: 'placeholder'; message: string };
+
+/* ------------------------------------------------------------------ *
+ * Scene snapshot — the render bridge
+ * ------------------------------------------------------------------ */
+
+/** Plain-data mirror of a rendered Roblox part. Survives the Lua/JS boundary. */
+export interface ScenePart {
+  /** Stable id from the Luau Instance tree, so re-runs keep identity. */
+  id: number;
+  className: string;
+  name: string;
+  path: string;
+  position: Vec3Json;
+  size: Vec3Json;
+  color: ColorJson;
+  transparency: number;
+  reflectance: number;
+  anchored: boolean;
+  material: string;
+}
+
+export interface Vec3Json {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface ColorJson {
+  r: number;
+  g: number;
+  b: number;
+}
+
+/** A renderable camera, when the script made one. */
+export interface SceneCamera {
+  position: Vec3Json;
+  /** Degrees, matching Roblox's orientation convention. */
+  cframe?: {
+    position: Vec3Json;
+    /** Row-major 3x3 rotation. */
+    rotation: number[];
+  };
+}
+
+/** One complete frame of the simulated world. */
+export interface SceneSnapshot {
+  parts: ScenePart[];
+  camera?: SceneCamera;
+  /** Increments per run so the viewport can tell a new run from a redraw. */
+  runId: number;
+}
 
 /** A runtime's interpretation of a message posted by its own preview. */
 export type PreviewEvent =
@@ -118,6 +170,12 @@ export interface Runtime {
    */
   handlePreviewMessage?(data: unknown, meta: unknown): PreviewEvent | null;
   lint?(files: FileMap, options?: LintOptions): Promise<Diagnostic[]>;
+  /**
+   * A runtime whose preview is driven by execution output rather than by a
+   * pure function of the files. The shell runs it automatically when autorun
+   * is on, because there is no static equivalent of the scene.
+   */
+  buildViewport?(files: FileMap): PreviewPayload;
 }
 
 /** Runtime-specific lint settings. `mode` is the Luau analysis mode today. */

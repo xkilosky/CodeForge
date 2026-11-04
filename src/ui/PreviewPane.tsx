@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from '../core/consoleStore';
 import type { FileMap, Runtime } from '../core/types';
 
@@ -8,24 +8,45 @@ interface PreviewPaneProps {
   autorun: boolean;
   /** Incrementing this forces a rebuild even when autorun is off. */
   runSignal: number;
+  /**
+   * Re-executes the project. Needed by runtimes whose preview is produced by
+   * running code rather than by a pure function of the files.
+   */
+  onRun?: () => void;
 }
 
 const REBUILD_DEBOUNCE_MS = 400;
 
 /**
+ * three.js is ~150 KB gzipped and a Web workspace never needs it, so the
+ * viewport is split out and fetched only when a Roblox project is opened.
+ */
+const RobloxViewport = lazy(() =>
+  import('./viewport/RobloxViewport').then((m) => ({ default: m.RobloxViewport })),
+);
+
+/**
  * Renders whatever the runtime's preview produces. The shell never interprets
  * preview messages itself — it forwards them to the runtime.
  */
-export function PreviewPane({ runtime, files, autorun, runSignal }: PreviewPaneProps) {
+export function PreviewPane({ runtime, files, autorun, runSignal, onRun }: PreviewPaneProps) {
   const [debouncedFiles, setDebouncedFiles] = useState(files);
   const metaRef = useRef<unknown>(null);
 
   // Debounce so keystrokes do not reload the iframe on every character.
+  //
+  // A viewport runtime has no static output — the scene only exists after the
+  // code has executed — so autorun has to re-run the project rather than hand
+  // the files to `buildPreview`.
+  const viewportRuntime = Boolean(runtime.buildViewport);
   useEffect(() => {
     if (!autorun) return;
-    const t = setTimeout(() => setDebouncedFiles(files), REBUILD_DEBOUNCE_MS);
+    const t = setTimeout(() => {
+      if (viewportRuntime) onRun?.();
+      else setDebouncedFiles(files);
+    }, REBUILD_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [files, autorun]);
+  }, [files, autorun, viewportRuntime, onRun]);
 
   // A manual Run always rebuilds immediately.
   useEffect(() => {
@@ -34,6 +55,7 @@ export function PreviewPane({ runtime, files, autorun, runSignal }: PreviewPaneP
   }, [runSignal]);
 
   const payload = useMemo(() => {
+    if (runtime.buildViewport) return runtime.buildViewport(debouncedFiles);
     if (!runtime.available || !runtime.buildPreview) {
       return {
         kind: 'placeholder' as const,
@@ -62,6 +84,14 @@ export function PreviewPane({ runtime, files, autorun, runSignal }: PreviewPaneP
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [runtime, payload.kind]);
+
+  if (payload.kind === 'viewport') {
+    return (
+      <Suspense fallback={<div className="pane-empty preview-placeholder">Loading viewport…</div>}>
+        <RobloxViewport />
+      </Suspense>
+    );
+  }
 
   if (payload.kind === 'placeholder') {
     return (

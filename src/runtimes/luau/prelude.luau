@@ -1293,7 +1293,103 @@ M.DebugSettings = function() notYet("DebugSettings") end
 M.UserSettings = function() notYet("UserSettings") end
 M.settings = function() notYet("settings") end
 
+----------------------------------------------------------------
+-- Scene serialisation (M3)
+----------------------------------------------------------------
+-- The viewport needs a plain-data snapshot of the instance tree. Values are
+-- deliberately flattened into numeric fields: the host receives detached Lua
+-- values with no metatables, so Vector3 and Color3 would arrive as bare
+-- arrays. Flattening here keeps the JavaScript side free of Roblox knowledge.
+--
+-- Reads go straight to _properties rather than through the instance
+-- metatable so serialisation cannot trigger user-defined property reads,
+-- and cannot fail on an instance that is mid-construction.
+
+local RENDERABLE = {
+	Part = true,
+	MeshPart = true,
+	WedgePart = true,
+	CornerWedgePart = true,
+	TrussPart = true,
+	SpawnLocation = true,
+	SpherePart = true,
+	CylinderPart = true,
+}
+
+local DEFAULT_SIZE = { X = 4, Y = 1, Z = 2 }
+local DEFAULT_COLOR = { R = 0.639, G = 0.635, B = 0.647 }
+
+local function readVector(value, fallback)
+	if nativeTypeof(value) ~= "table" or value.X == nil then
+		return { x = fallback.X, y = fallback.Y, z = fallback.Z }
+	end
+	return { x = value.X, y = value.Y, z = value.Z }
+end
+
+local function readColor(value)
+	if nativeTypeof(value) ~= "table" or value.R == nil then
+		return { r = DEFAULT_COLOR.R, g = DEFAULT_COLOR.G, b = DEFAULT_COLOR.B }
+	end
+	return { r = value.R, g = value.G, b = value.B }
+end
+
+local function readNumber(value, fallback)
+	if nativeTypeof(value) ~= "number" then
+		return fallback
+	end
+	return value
+end
+
+-- Name from the object itself; attribute read, not a metatable call.
+local function displayName(inst)
+	if nativeTypeof(inst.Name) == "string" and inst.Name ~= "" then
+		return inst.Name
+	end
+	return inst.ClassName
+end
+
+local function serializeNode(inst, path, out)
+	local props = inst._properties
+	local name = displayName(inst)
+	local fullPath = path == "" and name or (path .. "." .. name)
+
+	if RENDERABLE[inst.ClassName] then
+		local material = props.Material
+		table.insert(out, {
+			id = inst._id,
+			className = inst.ClassName,
+			name = name,
+			path = fullPath,
+			position = readVector(props.Position, { X = 0, Y = 0, Z = 0 }),
+			size = readVector(props.Size, DEFAULT_SIZE),
+			color = readColor(props.Color),
+			transparency = readNumber(props.Transparency, 0),
+			reflectance = readNumber(props.Reflectance, 0),
+			anchored = props.Anchored == true,
+			material = (nativeTypeof(material) == "table" and material.Name) or "Plastic",
+		})
+	end
+
+	for _, child in ipairs(inst._children) do
+		serializeNode(child, fullPath, out)
+	end
+end
+
+-- Walks the whole DataModel, so a part parented anywhere is drawn. The camera
+-- is included when the script supplied one, because a script that aims the
+-- camera expects to be looking through it.
+function M.__codeforge_serializeScene()
+	local parts = {}
+	for _, child in ipairs(game._children) do
+		serializeNode(child, "", parts)
+	end
+	return {
+		parts = parts,
+		workspaceName = displayName(workspace),
+	}
+end
+
 M._codeforgeVersion = VERSION
-M._codeforgeScope = "M2: value types, Instance tree, signals, core globals. Rendering in M3, services/scheduler in M5."
+M._codeforgeScope = "M3: value types, Instance tree, signals, core globals, scene serialisation. Services/scheduler in M5."
 
 return M

@@ -175,6 +175,48 @@ button, input, select { font: inherit; color: inherit; }
 .editor-host { flex: 1; min-height: 0; }
 .preview-frame { flex: 1; width: 100%; border: 0; background: #fff; }
 
+/* ── 3D viewport ──────────────────────────────────────── */
+.viewport {
+  position: relative; flex: 1; min-width: 0; min-height: 0;
+  display: flex; overflow: hidden; background: #87a7c7;
+}
+.viewport-canvas { position: absolute; inset: 0; }
+.viewport-canvas canvas { display: block; width: 100%; height: 100%; }
+
+/* Permanent honesty label: this draws a simulation, not Roblox's engine. */
+.viewport-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px;
+  padding: 3px 8px; border-radius: 999px; cursor: help;
+  background: rgba(11, 18, 28, 0.72); color: #ffd479;
+  border: 1px solid rgba(255, 212, 121, 0.45);
+  backdrop-filter: blur(4px);
+}
+.viewport-stats {
+  position: absolute; bottom: 8px; left: 8px; z-index: 2;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  padding: 3px 8px; border-radius: 5px;
+  background: rgba(11, 18, 28, 0.6); color: #d6e2ef;
+  backdrop-filter: blur(4px);
+}
+.viewport-hint {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  color: #eef4fb; font-size: 13px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  pointer-events: none; padding: 24px; text-align: center;
+}
+.viewport-hint kbd {
+  font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.viewport-error {
+  position: absolute; top: 8px; right: 8px; z-index: 2; max-width: 60%;
+  font-size: 11px; padding: 6px 10px; border-radius: 6px;
+  background: rgba(120, 22, 22, 0.88); color: #ffe3e3;
+  border: 1px solid rgba(255, 120, 120, 0.5);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
 .pane-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; color: var(--muted); text-align: center; padding: 24px;
