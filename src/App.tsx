@@ -92,17 +92,16 @@ export default function App() {
     [project?.workspace],
   );
 
-  // Lint on change. The bus debounces because a Luau check costs ~300 ms.
+  // Lint on change. The bus debounces so a check never runs per keystroke.
   const files = project?.files;
-  const analysisMode = project?.settings.analysisMode;
   useEffect(() => {
     if (!files || !runtime.lint) {
       clearDiagnostics();
       clearAllMarkers();
       return;
     }
-    scheduleLint(runtime, files, analysisMode);
-  }, [files, analysisMode, runtime]);
+    scheduleLint(runtime, files);
+  }, [files, runtime]);
 
   // Push results into Monaco as squiggles.
   useEffect(() => {

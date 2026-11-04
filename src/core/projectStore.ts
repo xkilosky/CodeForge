@@ -1,6 +1,7 @@
 import { db } from './idb';
 import { Store } from './store';
 import { TEMPLATES, projectFromTemplate, type Template } from './templates';
+import { runtimeForWorkspace } from '../runtimes/registry';
 import type { FileMap, Project, ProjectSettings } from './types';
 import { languageForPath, newId } from './types';
 
@@ -92,7 +93,7 @@ export const projectActions = {
       workspace,
       files: {},
       activeFile: '',
-      settings: { theme: 'vs-dark', autorun: true, analysisMode: 'strict' },
+      settings: { theme: 'vs-dark', autorun: true },
       createdAt: now,
       updatedAt: now,
     };
@@ -106,18 +107,23 @@ export const projectActions = {
    * that workspace's starter template.
    *
    * This is what the workspace tabs do. Before, they were inert: the click
-   * handler was an empty comment, so tapping "Roblox" on a Web project did
-   * nothing at all and there was no obvious way to reach the Roblox workspace
-   * except by starting over from the Welcome screen.
+   * handler was an empty comment, so tapping a workspace tab did nothing at all
+   * and there was no obvious way to reach another workspace except by starting
+   * over from the projects home.
    *
-   * Files are replaced rather than merged because a Luau script and an HTML page
-   * do not belong in the same project; the user is choosing a different kind of
-   * project, and the starter is the honest content for it.
+   * Files are replaced rather than merged because the starters of two
+   * workspaces do not belong in one project; the user is choosing a different
+   * kind of project, and the starter is the honest content for it.
    */
   switchWorkspace(workspace: Project['workspace']): void {
     const current = projectStore.get().project;
     if (!current) return;
     if (current.workspace === workspace) return;
+
+    // A workspace with no runtime cannot run anything: retargeting to it would
+    // hand the user a project whose Run button does nothing. The top bar
+    // disables those tabs, but the action must hold the same line on its own.
+    if (!runtimeForWorkspace(workspace).available) return;
 
     const template =
       TEMPLATES.find((t) => t.workspace === workspace) ??

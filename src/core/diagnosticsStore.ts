@@ -14,17 +14,16 @@ export const diagnosticsStore = new Store<DiagnosticsState>({
   error: null,
 });
 
-/** A check costs ~300 ms in the Luau analyzer, so callers must debounce. */
+/** Checks are not free, so callers must debounce instead of running per edit. */
 const DEBOUNCE_MS = 400;
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = 0;
 
 /**
- * True while a check is in flight. The analysis worker runs one query at a
- * time — a second concurrent request throws "another operation is already
- * active" — so callers that can fire at arbitrary moments (the physics loop's
- * pause-time lint) must check this rather than racing the debounce.
+ * True while a check is in flight. An analysis worker runs one query at a time —
+ * a second concurrent request is refused — so callers that can fire at arbitrary
+ * moments must consult this rather than racing the debounce.
  */
 export function isLintInFlight(): boolean {
   return inFlight > 0 && diagnosticsStore.get().checking;
@@ -43,7 +42,6 @@ export function clearDiagnostics(): void {
 export function scheduleLint(
   runtime: Runtime,
   files: FileMap,
-  mode: string | undefined,
   delay = DEBOUNCE_MS,
 ): void {
   if (timer) clearTimeout(timer);
@@ -58,7 +56,7 @@ export function scheduleLint(
     diagnosticsStore.set((prev) => ({ ...prev, checking: true, error: null }));
 
     void runtime
-      .lint!(files, mode ? { mode } : undefined)
+      .lint!(files)
       .then((diagnostics) => {
         // A newer request superseded this one.
         if (requestId !== inFlight) return;

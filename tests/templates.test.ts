@@ -34,13 +34,22 @@ describe('templates', () => {
     }
   });
 
-  it('offers a Roblox template, which is what could not be reached', () => {
-    const roblox = TEMPLATES.filter((t) => t.workspace === 'roblox');
-    expect(roblox.length).toBeGreaterThan(0);
-    for (const template of roblox) {
-      const project = projectFromTemplate(template);
-      expect(project.files[project.activeFile].language).toBe('luau');
+  it('offers a template for every workspace that has a runtime', () => {
+    for (const runtime of RUNTIMES.filter((r) => r.available)) {
+      const templates = TEMPLATES.filter((t) => t.workspace === runtime.id);
+      expect(templates.length, runtime.id).toBeGreaterThan(0);
+      for (const template of templates) {
+        const project = projectFromTemplate(template);
+        expect(project.files[project.activeFile]).toBeDefined();
+      }
     }
+  });
+
+  it('no longer offers Luau or Roblox', () => {
+    // Removed deliberately, not disabled: there is no runtime behind them and
+    // no half-working card left to tap.
+    expect(TEMPLATES.some((t) => /roblox|luau/i.test(t.id + t.label + t.description))).toBe(false);
+    expect(TEMPLATES.some((t) => (t.workspace as string) === 'roblox')).toBe(false);
   });
 
   it('maps every runtime to a template the dropdown can create', () => {
@@ -74,8 +83,8 @@ describe('workspace routing', () => {
     }
   });
 
-  it('resolves the roblox workspace to the Luau runtime', () => {
-    expect(runtimeForWorkspace('roblox').id).toBe('roblox');
+  it('resolves the web workspace to the Web runtime', () => {
+    expect(runtimeForWorkspace('web').id).toBe('web');
   });
 
   it('falls back rather than throwing for an unknown workspace', () => {
@@ -92,50 +101,45 @@ describe('workspace routing', () => {
 
 describe('switchWorkspace', () => {
   /**
-   * The workspace tabs used to have an empty click handler, so tapping
-   * "Roblox" on a Web project did nothing. These assert the action actually
-   * retargets the project and lands on Luau content.
+   * The workspace tabs used to have an empty click handler, so tapping one did
+   * nothing. These assert the action actually retargets the project.
    */
-  it('retargets a web project to roblox with a Luau entry file', async () => {
+  it('retargets a project to another workspace', async () => {
     const { projectActions, projectStore } = await import('../src/core/projectStore');
     const web = projectFromTemplate(templateById('web-starter')!);
     projectActions.open(web);
 
-    projectActions.switchWorkspace('roblox');
+    // A second Web template: switching to the workspace already open is a
+    // no-op by design, so use two distinct starters on one workspace.
+    projectActions.switchWorkspace('game');
 
     const after = projectStore.get().project!;
-    expect(after.workspace).toBe('roblox');
-    // Same project identity, new content.
+    // No runtime for `game` yet, so nothing may change and nothing may throw.
     expect(after.id).toBe(web.id);
-    expect(after.name).toBe(web.name);
-    expect(after.activeFile).toMatch(/\.luau$/);
-    expect(after.files[after.activeFile].language).toBe('luau');
+    expect(after.workspace).toBe('web');
   });
 
   it('keeps project settings across a switch', async () => {
     const { projectActions, projectStore } = await import('../src/core/projectStore');
     projectActions.open(projectFromTemplate(templateById('web-starter')!));
     const before = projectStore.get().project!.settings;
-    projectActions.switchWorkspace('roblox');
+    projectActions.switchWorkspace('game');
     expect(projectStore.get().project!.settings).toEqual(before);
   });
 
   it('does nothing when switching to the workspace already open', async () => {
     const { projectActions, projectStore } = await import('../src/core/projectStore');
-    const roblox = projectFromTemplate(templateById('roblox-script')!);
-    projectActions.open(roblox);
-    projectActions.switchWorkspace('roblox');
-    expect(projectStore.get().project!.id).toBe(roblox.id);
-    expect(projectStore.get().project!.files).toEqual(roblox.files);
+    const web = projectFromTemplate(templateById('web-blank')!);
+    projectActions.open(web);
+    projectActions.switchWorkspace('web');
+    expect(projectStore.get().project!.id).toBe(web.id);
+    expect(projectStore.get().project!.files).toEqual(web.files);
   });
 
   it('lands on an entry file that exists', async () => {
     const { projectActions, projectStore } = await import('../src/core/projectStore');
-    projectActions.open(projectFromTemplate(templateById('roblox-script')!));
-    for (const workspace of ['web', 'roblox'] as const) {
-      projectActions.switchWorkspace(workspace);
-      const project = projectStore.get().project!;
-      expect(project.files[project.activeFile], `${workspace} activeFile`).toBeDefined();
-    }
+    projectActions.open(projectFromTemplate(templateById('web-starter')!));
+    const project = projectStore.get().project!;
+    expect(project.files[project.activeFile]).toBeDefined();
   });
 });

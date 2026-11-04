@@ -1,6 +1,5 @@
 import type { FileMap, IOBridge, PreviewPayload, RunHandle, Runtime } from '../core/types';
 import { webRuntime } from './web';
-import { luauRuntime } from './luau';
 
 /**
  * Placeholder for workspaces that land in a later milestone.
@@ -25,9 +24,8 @@ function upcoming(id: string, label: string, milestone: string, preview: Runtime
 
 export const RUNTIMES: Runtime[] = [
   webRuntime,
-  luauRuntime,
-  upcoming('game', 'Game builder', 'M7', 'canvas'),
-  upcoming('python', 'Python', 'M8', 'terminal'),
+  upcoming('game', 'Game builder', 'M5', 'canvas'),
+  upcoming('python', 'Python', 'M6', 'terminal'),
 ];
 
 export function runtimeFor(id: string): Runtime | undefined {

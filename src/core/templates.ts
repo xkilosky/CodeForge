@@ -109,89 +109,11 @@ document.querySelector("#boom").addEventListener("click", () => {
     },
   },
   {
-    id: 'roblox-script',
-    label: 'Roblox script',
-    workspace: 'roblox',
-    description: 'Luau with a simulated viewport. Arrives in M2.',
-    milestone: 'M2',
-    entry: 'ServerScript.luau',
-    files: {
-      'ServerScript.luau': `-- Runs in the simulated Roblox viewport (M2).
-local part = Instance.new("Part")
-part.Name = "Baseplate"
-part.Size = Vector3.new(512, 20, 512)
-part.Anchored = true
-part.Color = Color3.fromRGB(40, 200, 90)
-part.Parent = workspace
-
-for i = 1, 5 do
-	local block = Instance.new("Part")
-	block.Name = "Block" .. i
-	block.Position = Vector3.new(i * 12, 20, 0)
-	block.Color = Color3.new(i / 5, 0.3, 1 - i / 5)
-	block.Parent = workspace
-end
-
-print("built " .. #workspace:GetChildren() .. " parts")
-`,
-    },
-  },
-  {
-    id: 'roblox-physics',
-    label: 'Roblox physics',
-    workspace: 'roblox',
-    description: 'Parts fall, bounce, and fire .Touched. Arrives in M4.',
-    milestone: 'M4',
-    entry: 'ServerScript.luau',
-    files: {
-      'ServerScript.luau': `-- Everything below runs in the simulated Roblox viewport.
--- The solver is Rapier, not Roblox's Bullet-derived one, so feel differs.
-local baseplate = Instance.new("Part")
-baseplate.Name = "Baseplate"
-baseplate.Size = Vector3.new(120, 4, 120)
-baseplate.Anchored = true
-baseplate.Color = Color3.fromRGB(60, 70, 85)
-baseplate.Parent = workspace
-
--- A wall to bounce a part off, so Touched has something to report.
-local wall = Instance.new("Part")
-wall.Name = "Wall"
-wall.Size = Vector3.new(30, 20, 2)
-wall.Position = Vector3.new(0, 12, -12)
-wall.Anchored = true
-wall.Color = Color3.fromRGB(200, 90, 60)
-wall.Parent = workspace
-
--- Five balls dropped from different heights, with different rests of bounce.
-for i = 1, 5 do
-	local ball = Instance.new("Part")
-	ball.Name = "Ball" .. i
-	ball.Size = Vector3.new(4, 4, 4)
-	ball.Position = Vector3.new(i * 9 - 27, 40 + i * 12, 0)
-	ball.Color = Color3.fromRGB(90, 170, 230)
-	ball.Material = Enum.Material.SmoothPlastic
-	ball.Parent = workspace
-
-	-- Touched fires every tick the parts are in contact, so the log is kept
-	-- quiet with a flag. Note: this script re-runs each simulation tick, so
-	-- state kept in locals resets — that is the known limit until M5.
-	ball.Touched:Connect(function(other)
-		if other and other.Name == "Baseplate" then
-			print(ball.Name .. " landed on the baseplate")
-		end
-	end)
-end
-
-print("dropped 5 parts")
-`,
-    },
-  },
-  {
     id: 'game-platformer',
     label: 'Platformer',
     workspace: 'game',
-    description: 'Place objects visually and attach code. Arrives in M7.',
-    milestone: 'M7',
+    description: 'Place objects visually and attach code. Arrives in M5.',
+    milestone: 'M5',
     entry: 'game.js',
     files: {
       'game.js': `// Visual game builder projects store a scene alongside these files.
@@ -205,8 +127,8 @@ export function onUpdate(entity, dt) {
     id: 'python-script',
     label: 'Python script',
     workspace: 'python',
-    description: 'Runs on Pyodide in the browser. Arrives in M8.',
-    milestone: 'M8',
+    description: 'Runs on Pyodide in the browser. Arrives in M6.',
+    milestone: 'M6',
     entry: 'main.py',
     files: {
       'main.py': `print("Hello from Python")
@@ -235,7 +157,7 @@ export function projectFromTemplate(template: Template, name?: string): Project 
     workspace: template.workspace,
     files,
     activeFile: template.entry in files ? template.entry : Object.keys(files)[0] ?? '',
-    settings: { theme: 'vs-dark', autorun: true, analysisMode: 'strict' },
+    settings: { theme: 'vs-dark', autorun: true },
     createdAt: now,
     updatedAt: now,
   };
@@ -249,9 +171,8 @@ export function templateById(id: string): Template | undefined {
  * Whether a template can actually be opened right now.
  *
  * The rule is runtime availability, never the `milestone` string. Gating on a
- * literal milestone once hid every template added after M1 (the Roblox
- * workspace among them), and the failure was silent because a disabled card
- * looks like "coming soon" rather than a bug.
+ * literal milestone silently hid templates once, and a disabled card looks like
+ * "coming soon" rather than a bug.
  */
 export function isTemplateAvailable(template: Template, available: Set<string>): boolean {
   return available.has(template.workspace);

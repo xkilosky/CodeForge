@@ -31,12 +31,12 @@ function consoleState(entries: ConsoleEntry[]): ConsoleState {
 function diagState(diagnostics: Partial<Diagnostic>[]): DiagnosticsState {
   return {
     diagnostics: diagnostics.map((d) => ({
-      file: 'a.luau',
+      file: 'index.html',
       line: 1,
       column: 1,
       severity: 'error' as const,
       message: 'm',
-      source: 'luau',
+      source: 'web',
       ...d,
     })),
     checking: false,

@@ -4,7 +4,7 @@
  * `import * from 'monaco-editor'` resolves to editor.main.js, which registers all
  * 81 language definitions *and* the css/html/json/typescript language services.
  * Those services drag in multi-megabyte workers (ts.worker alone is ~6.9 MB) that
- * this app never uses — Luau diagnostics come from @luau-rs/luau in M2.
+ * this app never uses.
  *
  * So: the editor API, the widget, the languages we actually offer, and a curated
  * set of editing features. Nothing that starts a language service.
@@ -18,8 +18,7 @@ import editorWorker from 'monaco-editor/editor/editor.worker?worker';
 import 'monaco-editor/editor/browser/widget/codeEditor/codeEditorWidget';
 import 'monaco-editor/editor/browser/coreCommands';
 
-// Syntax highlighting only. Note there is no Luau mode in Monaco; `lua` is the
-// closest and is what the editor maps .luau files to.
+// Syntax highlighting only.
 import 'monaco-editor/languages/definitions/html/register';
 import 'monaco-editor/languages/definitions/css/register';
 import 'monaco-editor/languages/definitions/javascript/register';
@@ -65,9 +64,10 @@ import 'monaco-codicon-modifiers-css';
 export { monaco };
 
 /**
- * Monaco has no `luau` mode. Mapping it to `lua` gets correct-enough
- * highlighting for Luau without shipping a second tokenizer.
+ * The editor's language id for a file. Kept as a function because not every
+ * Monaco mode name matches our `LanguageId` one-to-one, and callers should not
+ * have to know which do.
  */
 export function monacoLanguageFor(language: string): string {
-  return language === 'luau' ? 'lua' : language;
+  return language;
 }

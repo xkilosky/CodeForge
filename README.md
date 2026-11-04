@@ -1,36 +1,41 @@
 # CodeForge
 
-A coding environment that runs entirely in your browser — Luau in a simulated Roblox viewport,
-HTML/CSS/JS with a live preview, and more workspaces on the way.
+A coding environment that runs entirely in your browser — HTML, CSS, and JavaScript today, with a
+visual game builder and Python planned.
 
 **Live:** https://codeforge-ten-flame.vercel.app
 
-There is no server and no account. Projects are stored in this browser's IndexedDB, the Luau VM
-and the physics solver are WebAssembly running on the device, and the whole thing is a static
-site. [PLAN.md](PLAN.md) has the architecture, the measured feasibility results, and the milestone
-breakdown.
+There is no server and no account. Projects are stored in this browser's IndexedDB, the preview is a
+sandboxed iframe, and the whole thing is a static site.
 
 ## Using it
 
 - **Projects home** — everything saved on this device, newest first. Open, duplicate, or delete
   a project; start a new one from a template.
-- **Out of a project** — the `‹ Projects` button in the top bar (or the ⚒ mark) closes the
-  project and returns home. Pending edits are written before it closes.
-- **+ New** — creates a project from any template, from anywhere. Every workspace with a runtime
-  is offered; workspaces without one say when they arrive.
-- **Workspace tabs** (Web / Roblox / …) retarget the open project to that workspace's starter.
-  Files are replaced on purpose: a Luau script and an HTML page are not the same project.
+- **Out of a project** — the `‹ Projects` button in the top bar (or the ⚒ mark) closes the project
+  and returns home. Pending edits are written before it closes.
+- **+ New** — creates a project from any template, from anywhere.
+- **Workspace tabs** retarget the open project to that workspace's starter. Files are replaced on
+  purpose: the starter of one workspace is not the content of another.
 
 ## Workspaces
 
 | Workspace | Runtime | Preview |
 | --- | --- | --- |
 | Web | HTML/CSS/JS in a sandboxed iframe | live page, console forwarded |
-| Roblox | Luau (WASM) against a Roblox API prelude | three.js viewport + Rapier physics |
+| Games | *planned* | — |
+| Languages | *planned* | — |
 
-The Roblox viewport is a **simulation**, and says so with a permanent badge. It reproduces the
-parts of the Roblox API that scripts actually use — `Instance.new`, properties, `workspace`,
-`Touched`, `WaitForChild`, `Vector3`/`CFrame`/`Color3`, and so on — not the engine.
+## A note on Roblox and Lua
+
+This project previously shipped a Luau/`Roblox` workspace: a WASM Lua VM with a hand-written Roblox
+API prelude, a three.js viewport, and a Rapier physics loop. It was removed rather than repaired —
+the simulation could not be made to behave reliably in a real browser, and it accounted for most of
+the app's weight (Rapier alone was 1.6 MB gzipped, loaded lazily on top of a 1 MB first paint).
+
+Deleting it removed roughly 3,500 lines and four dependencies: `@luau-rs/luau`, `three`,
+`@types/three`, and `@dimforge/rapier3d-compat`. The history is in git if it is ever wanted back;
+`PLAN.md` still describes the design, marked as retired.
 
 ## Development
 
@@ -42,6 +47,5 @@ npm run typecheck
 npm run build
 ```
 
-`spikes/` holds the standalone scripts (Node) that established the technical claims the design
-rests on: Luau-in-WASM boot cost, prelude limits, analysis diagnostics shape, and Rapier solver
-behaviour. They are evidence, not part of the app.
+`spikes/` holds standalone Node scripts that established technical claims during planning. They are
+evidence, not part of the app.

@@ -1,9 +1,16 @@
 # CodeForge — Project Plan
 
-**Universal coding environment in the browser.** Write Lua for Roblox, HTML for the web, build
-games visually, and run other languages — each with a live preview, no install, no server.
+> **Status: the Roblox/Luau pillar described below is RETIRED and has been removed from the code.**
+> The Lua VM, the Roblox API prelude, the three.js viewport, the Rapier physics loop, and the
+> `roblox`/`luau` templates are gone (see README). This document is kept as the design record: the
+> feasibility results, the measured costs, and the reasoning are still accurate history, and the
+> remaining milestones (visual game builder, Python) are renumbered from it.
 
-> **Status: planning, decisions locked.** The repo contained only a 12-byte `README.md` at
+
+**Universal coding environment in the browser.** Write HTML for the web, build games visually, and
+run other languages — each with a live preview, no install, no server.
+
+> **Historical status: planning, decisions locked.** The repo contained only a 12-byte `README.md` at
 > commit `68f00b3`. Every technical claim in §3 was measured in this workspace, not assumed —
 > the scripts are in [`spikes/`](spikes/README.md).
 

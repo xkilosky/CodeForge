@@ -58,7 +58,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('close — the way out of a project', () => {
   it('closes the open project so the home screen can be shown', () => {
-    const project = seed('roblox-physics');
+    const project = seed('web-starter');
     projectActions.open(project);
 
     projectActions.close();
@@ -83,7 +83,7 @@ describe('close — the way out of a project', () => {
 describe('openById', () => {
   it('reopens a project that is not the most recent one', async () => {
     const older = seed('web-starter', 'old web');
-    seed('roblox-script', 'new roblox');
+    seed('web-blank', 'new web');
     // Make the web project clearly older.
     older.updatedAt = Date.now() - 86_400_000;
     rows.set(older.id, older);
@@ -112,18 +112,18 @@ describe('openById', () => {
 
 describe('duplicate', () => {
   it('copies a project under a new id with independent files', async () => {
-    const source = seed('roblox-physics', 'gravity test');
+    const source = seed('web-starter', 'gravity test');
 
     const copy = (await projectActions.duplicate(source.id))!;
 
     expect(copy.id).not.toBe(source.id);
     expect(copy.name).toBe('gravity test copy');
-    expect(copy.workspace).toBe('roblox');
+    expect(copy.workspace).toBe('web');
     expect(Object.keys(copy.files)).toEqual(Object.keys(source.files));
 
     // Editing the copy must not touch the original.
-    copy.files['ServerScript.luau'].content = '-- changed';
-    expect(rows.get(source.id)!.files['ServerScript.luau'].content).not.toBe('-- changed');
+    copy.files['index.html'].content = '<!-- changed -->';
+    expect(rows.get(source.id)!.files['index.html'].content).not.toBe('<!-- changed -->');
   });
 
   it('adds the copy to the project list', async () => {
@@ -141,7 +141,7 @@ describe('duplicate', () => {
 describe('remove', () => {
   it('deletes the project from storage and from the list', async () => {
     const a = seed('web-starter', 'a');
-    seed('roblox-script', 'b');
+    seed('web-blank', 'b');
     projectActions.open(a);
 
     await projectActions.remove(a.id);
@@ -152,7 +152,7 @@ describe('remove', () => {
 
   it('returns to the home screen rather than opening some other project', async () => {
     const a = seed('web-starter', 'a');
-    seed('roblox-script', 'b');
+    seed('web-blank', 'b');
     projectActions.open(a);
 
     await projectActions.remove(a.id);
@@ -185,7 +185,7 @@ describe('describeAge', () => {
 describe('WORKSPACE_LABEL', () => {
   it('names every workspace the type system allows', () => {
     expect(Object.keys(WORKSPACE_LABEL).sort()).toEqual(
-      ['blank', 'game', 'python', 'roblox', 'web'].sort(),
+      ['blank', 'game', 'python', 'web'].sort(),
     );
   });
 });
@@ -217,12 +217,12 @@ describe('ProjectsHome', () => {
   });
 
   it('lists saved projects with their workspace and age', () => {
-    const project = projectFromTemplate(templateById('roblox-physics')!, 'gravity');
+    const project = projectFromTemplate(templateById('web-starter')!, 'gravity');
     const html = render({ recent: [project] });
 
     expect(html).toContain('gravity');
-    expect(html).toContain('Roblox');
-    expect(html).toContain('1 file');
+    expect(html).toContain('Web');
+    expect(html).toContain('3 files');
     expect(html).not.toContain('Nothing here yet');
   });
 
@@ -235,9 +235,9 @@ describe('ProjectsHome', () => {
 
   it('offers every template, enabled or not, from the home screen', () => {
     const html = render();
-    // Both shipping workspaces and both "soon" ones are visible: hiding a
-    // template entirely is how the Roblox workspace became unreachable.
-    for (const label of ['Web page', 'Roblox physics', 'Platformer', 'Python script']) {
+    // Shipping templates and both "soon" ones are visible: hiding a template
+    // entirely is how a workspace once became unreachable.
+    for (const label of ['Web page', 'Platformer', 'Python script']) {
       expect(html, label).toContain(label);
     }
     expect(html).toContain('template-card disabled');

@@ -8,7 +8,6 @@
 import type { WorkspaceId } from '../core/types';
 
 export const WORKSPACE_LABEL: Record<WorkspaceId, string> = {
-  roblox: 'Roblox',
   web: 'Web',
   game: 'Games',
   python: 'Languages',

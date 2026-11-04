@@ -175,55 +175,6 @@ button, input, select { font: inherit; color: inherit; }
 .editor-host { flex: 1; min-height: 0; }
 .preview-frame { flex: 1; width: 100%; border: 0; background: #fff; }
 
-/* ── 3D viewport ──────────────────────────────────────── */
-.viewport {
-  position: relative; flex: 1; min-width: 0; min-height: 0;
-  display: flex; overflow: hidden; background: #87a7c7;
-}
-.viewport-canvas { position: absolute; inset: 0; }
-.viewport-canvas canvas { display: block; width: 100%; height: 100%; }
-
-/* Permanent honesty label: this draws a simulation, not Roblox's engine. */
-.viewport-badge {
-  position: absolute; top: 8px; left: 8px; z-index: 2;
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px;
-  padding: 3px 8px; border-radius: 999px; cursor: help;
-  background: rgba(11, 18, 28, 0.72); color: #ffd479;
-  border: 1px solid rgba(255, 212, 121, 0.45);
-  backdrop-filter: blur(4px);
-}
-.viewport-stats {
-  position: absolute; bottom: 8px; left: 8px; z-index: 2;
-  font-size: 11px; font-variant-numeric: tabular-nums;
-  padding: 3px 8px; border-radius: 5px;
-  background: rgba(11, 18, 28, 0.6); color: #d6e2ef;
-  backdrop-filter: blur(4px);
-}
-.viewport-hint {
-  position: absolute; inset: 0; z-index: 1;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  color: #eef4fb; font-size: 13px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-  pointer-events: none; padding: 24px; text-align: center;
-}
-.viewport-hint kbd {
-  font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px;
-  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3);
-}
-/* Says why nothing is moving. A still scene with no explanation looks broken. */
-.viewport-note {
-  position: absolute; bottom: 34px; left: 8px; z-index: 2; max-width: 70%;
-  font-size: 11px; padding: 4px 9px; border-radius: 5px;
-  background: rgba(11, 18, 28, 0.72); color: #c8d4e2;
-  backdrop-filter: blur(4px);
-}
-.viewport-error {
-  position: absolute; top: 8px; right: 8px; z-index: 2; max-width: 60%;
-  font-size: 11px; padding: 6px 10px; border-radius: 6px;
-  background: rgba(120, 22, 22, 0.88); color: #ffe3e3;
-  border: 1px solid rgba(255, 120, 120, 0.5);
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
-
 .pane-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; color: var(--muted); text-align: center; padding: 24px;
@@ -355,7 +306,6 @@ button, input, select { font: inherit; color: inherit; }
   border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; color: var(--muted);
   flex: 0 0 auto;
 }
-.workspace-tag.roblox { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
 .workspace-tag.web { color: #7cc4ff; border-color: rgba(124, 196, 255, 0.4); }
 
 /* ── template grid ────────────────────────────────────── */
@@ -430,8 +380,6 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
 
 /* The canvas must claim gestures, or the browser scrolls the page instead of
    orbiting the camera. */
-.viewport-canvas, .viewport-canvas canvas { touch-action: none; }
-
 /* ── compact layout (one pane at a time) ─────────────────────────────────── */
 /* Stacked, scrollable sections: every pane is present and reachable. */
 .workspace-compact {
@@ -637,18 +585,6 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   .topbar { flex-wrap: wrap; row-gap: 6px; }
 
   /* Viewport chrome must not overlap the scene on a small screen. */
-  .viewport-stats { font-size: 10px; bottom: 6px; left: 6px; }
-  .viewport-badge { font-size: 9px; top: 6px; left: 6px; }
-  .viewport-motion { font-size: 10px; bottom: 6px; right: 6px; }
-  /* Says why nothing is moving. A still scene with no explanation looks broken. */
-.viewport-note {
-  position: absolute; bottom: 34px; left: 8px; z-index: 2; max-width: 70%;
-  font-size: 11px; padding: 4px 9px; border-radius: 5px;
-  background: rgba(11, 18, 28, 0.72); color: #c8d4e2;
-  backdrop-filter: blur(4px);
-}
-.viewport-error { max-width: 78%; font-size: 11px; }
-
   .error-banner { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0)); }
 
 }
@@ -665,13 +601,3 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   .file-remove { opacity: 1; }
 }
 
-/* Live simulation clock, bottom-right of the viewport. Its only job is to make
-   "the loop is running" visible at a glance, so a still scene can be told apart
-   from a stopped one. */
-.viewport-motion {
-  position: absolute; bottom: 8px; right: 8px; z-index: 2;
-  font-size: 10.5px; font-variant-numeric: tabular-nums;
-  padding: 3px 8px; border-radius: 5px;
-  background: rgba(11, 18, 28, 0.6); color: #9fe6b0;
-  backdrop-filter: blur(4px);
-}
