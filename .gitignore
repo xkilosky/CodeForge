@@ -6,3 +6,6 @@ dist/
 .env
 .env.local
 .scratch/
+
+# Scratch reference sheets, not shipped.
+/brand-sheet.png
