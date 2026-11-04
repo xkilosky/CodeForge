@@ -1,4 +1,5 @@
 import type { FileMap, IOBridge, PreviewPayload, RunHandle, Runtime } from '../core/types';
+import { arrivesIn, arrivesInPhrase } from '../core/release';
 import { gameRuntime } from './game';
 import { webRuntime } from './web';
 
@@ -7,18 +8,18 @@ import { webRuntime } from './web';
  * Declared here so the shell can render an honest "not yet" state instead of
  * pretending the workspace exists.
  */
-function upcoming(id: string, label: string, milestone: string, preview: Runtime['preview']): Runtime {
+function upcoming(id: string, label: string, preview: Runtime['preview']): Runtime {
   return {
     id,
     label,
     preview,
     available: false,
-    unavailableReason: `Arrives in ${milestone}.`,
+    unavailableReason: arrivesIn(),
     run(_files: FileMap, _entry: string, _io: IOBridge): RunHandle {
       return { stop() {} };
     },
     buildPreview(): PreviewPayload {
-      return { kind: 'placeholder', message: `${label} arrives in ${milestone}.` };
+      return { kind: 'placeholder', message: `${label} ${arrivesInPhrase()}` };
     },
   };
 }
@@ -26,7 +27,7 @@ function upcoming(id: string, label: string, milestone: string, preview: Runtime
 export const RUNTIMES: Runtime[] = [
   webRuntime,
   gameRuntime,
-  upcoming('python', 'Python', 'M6', 'terminal'),
+  upcoming('python', 'Python', 'terminal'),
 ];
 
 export function runtimeFor(id: string): Runtime | undefined {

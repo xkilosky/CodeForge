@@ -4,6 +4,7 @@ import { TEMPLATES } from '../core/templates';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL } from './labels';
 import { BrandMark } from './BrandMark';
+import { currentRelease } from '../core/release';
 
 interface TopBarProps {
   project: Project | null;
@@ -117,6 +118,7 @@ export function TopBar({
   onSwitchWorkspace,
   onExit,
 }: TopBarProps) {
+  const release = currentRelease();
   return (
     /* `has-project` lets the phone layout drop the brand mark only when the
        project name and exit control need that width. Without it the home
@@ -125,11 +127,18 @@ export function TopBar({
       <button
         className="brand brand-btn"
         onClick={onExit}
-        title={project ? 'Back to your projects' : 'Projects'}
-        aria-label={project ? 'Back to your projects' : 'Projects'}
+        title={`${release.title} — ${release.channel}. ${project ? 'Back to your projects' : 'Your projects'}`}
+        aria-label={`${release.title}. ${project ? 'Back to your projects' : 'Projects'}`}
       >
         <BrandMark size={22} />
         <span className="brand-name">CodeForge</span>
+        {/*
+          The release rides on the brand rather than getting its own element.
+          The top bar already carries eight controls on a phone, and a ninth
+          would push Run off the edge; the full title and channel are in the
+          tooltip and the accessible name.
+        */}
+        <span className="brand-version">{release.tag}</span>
       </button>
 
       <nav className="workspace-tabs" aria-label="Workspaces">

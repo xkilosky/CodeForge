@@ -168,7 +168,7 @@ export function onUpdate(ctx) {
     id: 'python-script',
     label: 'Python script',
     workspace: 'python',
-    description: 'Runs on Pyodide in the browser. Arrives in M6.',
+    description: 'Runs on Pyodide in the browser. Arrives in Forge S1.6.',
     milestone: 'M6',
     entry: 'main.py',
     files: {

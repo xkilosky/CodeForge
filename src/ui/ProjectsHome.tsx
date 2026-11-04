@@ -19,6 +19,7 @@ import type { Project } from '../core/types';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL, describeAge } from './labels';
 import { BrandMark } from './BrandMark';
+import { currentRelease } from '../core/release';
 
 interface ProjectsHomeProps {
   recent: Project[];
@@ -131,14 +132,19 @@ export function ProjectsHome({
   // Sorted newest first by the store, but `recent` can be stale while a project
   // is open, so never rely on order to decide what is most relevant.
   const projects = recent;
+  const release = currentRelease();
 
   return (
     <div className="home">
       <div className="home-inner">
         <header className="home-head">
           <h1>
-            <BrandMark size={30} /> CodeForge
+            <BrandMark size={30} /> {release.title}
           </h1>
+          <p className="release-line">
+            <span className="release-channel">{release.channel}</span>
+            <span className="release-milestone">{release.milestone}</span>
+          </p>
           <p className="muted">
             A coding environment that runs entirely in this browser. Everything is stored on this
             device — no account, no server.

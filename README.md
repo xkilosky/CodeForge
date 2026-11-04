@@ -3,7 +3,26 @@
 A coding environment that runs entirely in your browser — HTML, CSS and JavaScript, plus a visual
 game builder. Python is planned.
 
-**Live:** https://codeforge-ten-flame.vercel.app
+**Live:** https://codeforge-ten-flame.vercel.app — currently **CodeForge - Forge S1.5**
+(Platform Release)
+
+## Versioning
+
+Every release is named **Forge S<season>.<milestone>** and carries a channel:
+
+| | |
+| --- | --- |
+| Title | `CodeForge - Forge S1.5` |
+| Channel | `Platform Release` |
+| Milestone | M5 — visual game builder |
+
+The number after the dot is the highest **shipped** milestone, and it is derived from
+`SHIPPED_MILESTONES` in `src/core/release.ts` — not typed into a component. Shipping a milestone
+means adding one line to that list; the top bar tag, the home screen, the tab title and the
+"arrives in…" copy for unshipped workspaces all follow.
+
+Season (`S1`) is a decision rather than a count, because a season can open a new product line
+rather than continue the milestone sequence.
 
 There is no server and no account. Projects are stored in this browser's IndexedDB, the preview is a
 sandboxed iframe, and the whole thing is a static site.
