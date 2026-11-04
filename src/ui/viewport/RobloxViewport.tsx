@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useStore } from '../useStore';
 import { sceneStore } from '../../core/sceneStore';
+import { usePhysicsState } from '../../runtimes/luau/physicsLoop';
 import type { ScenePart } from '../../core/types';
 import {
   CYLINDER_ROTATION_Z,
@@ -101,8 +102,23 @@ export function RobloxViewport() {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const partsRef = useRef<Map<number, BuiltPart>>(new Map());
+  /** Path -> mesh, so physics can address parts by instance path. */
+  const meshByPathRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const [stats, setStats] = useState({ parts: 0, triangles: 0 });
   const state = useStore(sceneStore);
+  const physics = usePhysicsState();
+  /**
+   * Solved positions for the current frame. Held in a ref rather than state:
+   * this changes 60 times a second and must drive the render loop directly,
+   * not a React re-render.
+   */
+  const motionRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
+
+  useEffect(() => {
+    const next = new Map<string, { x: number; y: number; z: number }>();
+    for (const [path, solved] of physics.solved) next.set(path, solved.position);
+    motionRef.current = next;
+  }, [physics.solved]);
 
   // --- one-time scene setup ------------------------------------------------
   useEffect(() => {
@@ -171,10 +187,26 @@ export function RobloxViewport() {
 
     let frame = 0;
     let disposed = false;
+    // path -> mesh, so the frame loop can move parts without walking the scene.
+    const byPath = meshByPathRef.current;
+
     const tick = () => {
       if (disposed) return;
       frame = requestAnimationFrame(tick);
       controls.update();
+
+      // Physics writes solved positions here; the mesh follows. This is the
+      // only per-frame work the renderer does per part, and it is skipped
+      // entirely when nothing is moving.
+      const motion = motionRef.current;
+      if (motion.size > 0) {
+        for (const [path, position] of motion) {
+          const mesh = byPath.get(path);
+          if (!mesh) continue;
+          mesh.position.set(position.x, position.y, position.z);
+        }
+      }
+
       renderer.render(scene, camera);
     };
     tick();
@@ -191,6 +223,7 @@ export function RobloxViewport() {
       }
       for (const built of partsRef.current.values()) disposeTree(built.mesh);
       partsRef.current.clear();
+      meshByPathRef.current.clear();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
@@ -233,6 +266,7 @@ export function RobloxViewport() {
         mesh.name = part.path;
         scene.add(mesh);
         built.set(part.id, { mesh, material, signature });
+        meshByPathRef.current.set(part.path, mesh);
       }
 
       const entry = built.get(part.id);
@@ -253,6 +287,9 @@ export function RobloxViewport() {
       scene.remove(entry.mesh);
       disposeTree(entry.mesh);
       built.delete(id);
+      for (const [path, mesh] of meshByPathRef.current) {
+        if (mesh === entry.mesh) meshByPathRef.current.delete(path);
+      }
     }
 
     setStats({ parts: snapshot.parts.length, triangles: Math.round(triangles) });
@@ -293,8 +330,19 @@ export function RobloxViewport() {
       </div>
       <div className="viewport-stats">
         {stats.parts} part{stats.parts === 1 ? '' : 's'} · {stats.triangles.toLocaleString()} tris
+        {physics.enabled ? (
+          <>
+            {' · '}physics {physics.bodyCount} bodies @ {physics.rate}Hz
+            {physics.lastTickMs > 0 ? ` · script ${physics.lastTickMs.toFixed(0)}ms` : ''}
+            {physics.touchCount > 0 ? ` · ${physics.touchCount} touches` : ''}
+          </>
+        ) : null}
       </div>
       {state.error ? <div className="viewport-error">{state.error}</div> : null}
+      {state.simulationNote ? (
+        <div className="viewport-note">{state.simulationNote}</div>
+      ) : null}
+      {physics.error ? <div className="viewport-error">{physics.error}</div> : null}
       {!state.snapshot ? (
         <div className="viewport-hint">
           Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or Run to build the scene.

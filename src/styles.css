@@ -209,6 +209,13 @@ button, input, select { font: inherit; color: inherit; }
   font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px;
   background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3);
 }
+/* Says why nothing is moving. A still scene with no explanation looks broken. */
+.viewport-note {
+  position: absolute; bottom: 34px; left: 8px; z-index: 2; max-width: 70%;
+  font-size: 11px; padding: 4px 9px; border-radius: 5px;
+  background: rgba(11, 18, 28, 0.72); color: #c8d4e2;
+  backdrop-filter: blur(4px);
+}
 .viewport-error {
   position: absolute; top: 8px; right: 8px; z-index: 2; max-width: 60%;
   font-size: 11px; padding: 6px 10px; border-radius: 6px;
@@ -453,7 +460,14 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   /* Viewport chrome must not overlap the scene on a small screen. */
   .viewport-stats { font-size: 10px; bottom: 6px; left: 6px; }
   .viewport-badge { font-size: 9px; top: 6px; left: 6px; }
-  .viewport-error { max-width: 78%; font-size: 11px; }
+  /* Says why nothing is moving. A still scene with no explanation looks broken. */
+.viewport-note {
+  position: absolute; bottom: 34px; left: 8px; z-index: 2; max-width: 70%;
+  font-size: 11px; padding: 4px 9px; border-radius: 5px;
+  background: rgba(11, 18, 28, 0.72); color: #c8d4e2;
+  backdrop-filter: blur(4px);
+}
+.viewport-error { max-width: 78%; font-size: 11px; }
 
   .error-banner { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0)); }
 

@@ -106,6 +106,10 @@ export function readSceneSnapshot(value: unknown): ScenePart[] {
       reflectance: clampUnit(record.reflectance),
       anchored: record.anchored === true,
       material: typeof record.material === 'string' ? record.material : 'Plastic',
+      // Absent means "Roblox default", which is collidable and touchable.
+      canCollide: record.canCollide !== false,
+      canTouch: record.canTouch !== false,
+      velocity: readVec3(record.velocity) ?? { x: 0, y: 0, z: 0 },
     });
   }
   return parts;

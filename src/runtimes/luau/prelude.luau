@@ -1097,8 +1097,22 @@ function Instance:GetAttributes()
 	return table.clone(self._attributes or {})
 end
 
+-- Events that are lazily created per instance. Touched/TouchEnded are real
+-- signals fired by the physics bridge; creating them on first access means a
+-- script that connects costs one table, and one that never connects costs none.
+local SHADOWED_SIGNALS = { Touched = true, TouchEnded = true }
+
 -- Property access. Reads fall back to computed defaults; writes fire .Changed.
 Instance.__index = function(self, key)
+	if SHADOWED_SIGNALS[key] then
+		local slot = "_signal_" .. key
+		local signal = self[slot]
+		if signal == nil then
+			signal = Signal.new()
+			rawset(self, slot, signal)
+		end
+		return signal
+	end
 	if key == "Changed" then
 		return self._changed
 	end
@@ -1367,6 +1381,9 @@ local function serializeNode(inst, path, out)
 			reflectance = readNumber(props.Reflectance, 0),
 			anchored = props.Anchored == true,
 			material = (nativeTypeof(material) == "table" and material.Name) or "Plastic",
+			canCollide = props.CanCollide ~= false,
+			canTouch = props.CanTouch ~= false,
+			velocity = readVector(props.AssemblyLinearVelocity, { X = 0, Y = 0, Z = 0 }),
 		})
 	end
 
@@ -1389,7 +1406,80 @@ function M.__codeforge_serializeScene()
 	}
 end
 
+----------------------------------------------------------------
+-- Physics round-trip hooks (M4)
+----------------------------------------------------------------
+-- The host owns the solver (Rapier); Lua owns the instance tree. Neither can
+-- see the other directly, so each tick moves state across in plain tables.
+--
+-- `__codeforge_applyState` is the upstream half: the host hands back where each
+-- part ended up and the tree is updated so a script that reads `part.Position`
+-- sees the truth rather than the value it set.
+
+local function findByPath(root, path)
+	-- Fast path: "Workspace.Ball" -> root child "Workspace" -> child "Ball".
+	local walk = root
+	for segment in string.gmatch(path, "[^%.]+") do
+		local found = nil
+		for _, child in ipairs(walk._children) do
+			if displayName(child) == segment then
+				found = child
+				break
+			end
+		end
+		if found == nil then
+			return nil
+		end
+		walk = found
+	end
+	return walk
+end
+
+function M.__codeforge_applyState(state)
+	for _, record in ipairs(state) do
+		local inst = findByPath(game, record.path)
+		if inst ~= nil then
+			local props = inst._properties
+			props.Position = Vector3.new(record.position.x, record.position.y, record.position.z)
+			if record.velocity ~= nil then
+				props.AssemblyLinearVelocity = Vector3.new(record.velocity.x, record.velocity.y, record.velocity.z)
+			end
+		end
+	end
+end
+
+-- `__codeforge_now` is set by the host each tick so `tick()`/`time()` advance.
+M.__codeforge_setClock = function(seconds)
+	if nativeTypeof(seconds) ~= "number" then
+		return
+	end
+	startTime = seconds - os.clock()
+end
+
+-- Touched delivery. Handlers are stored on the instance and called from here so
+-- a handler error cannot abort the rest of the frame's touches.
+function M.__codeforge_deliverTouched(events)
+	for _, event in ipairs(events) do
+		local inst = findByPath(game, event.path)
+		if inst ~= nil then
+			local slot = event.kind == "touch" and "_signal_Touched" or "_signal_TouchEnded"
+			local signal = inst[slot]
+			-- nil when nothing ever connected; nothing to deliver.
+			if signal ~= nil then
+				local other = findByPath(game, event.otherPath)
+				local ok, err = pcall(function()
+					signal:Fire(other)
+				end)
+				if not ok then
+					-- Surface it like any other script error: the host prints it.
+					M.warn("Touched handler error on " .. event.path .. ": " .. tostring(err))
+				end
+			end
+		end
+	end
+end
+
 M._codeforgeVersion = VERSION
-M._codeforgeScope = "M3: value types, Instance tree, signals, core globals, scene serialisation. Services/scheduler in M5."
+M._codeforgeScope = "M4: value types, Instance tree, signals, core globals, scene serialisation, physics round-trip hooks. Scheduler/services in M5."
 
 return M

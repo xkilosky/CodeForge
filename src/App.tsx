@@ -36,7 +36,11 @@ function Welcome({ onCreate }: { onCreate: (templateId: string) => void }) {
         </p>
         <div className="template-grid">
           {TEMPLATES.map((t) => {
-            const available = templateById(t.id) !== undefined && t.milestone === 'M1';
+            // The milestone is documentation, not the gate: a template becomes
+            // usable when its workspace has a runtime. Gating on a literal
+            // milestone string silently hid every template added after M1.
+            const available =
+              templateById(t.id) !== undefined && runtimeForWorkspace(t.workspace).available;
             return (
               <button
                 key={t.id}

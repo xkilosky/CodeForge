@@ -109,6 +109,10 @@ export interface ScenePart {
   reflectance: number;
   anchored: boolean;
   material: string;
+  /** Physics descriptors, read by the M4 solver. */
+  canCollide: boolean;
+  canTouch: boolean;
+  velocity: Vec3Json;
 }
 
 export interface Vec3Json {

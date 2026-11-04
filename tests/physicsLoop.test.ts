@@ -1,0 +1,211 @@
+/**
+ * The simulation loop's scheduling.
+ *
+ * The frame clock and the script clock run at different rates on purpose (60 Hz
+ * solver, 10 Hz script), so the thing worth testing is that the split actually
+ * holds, that an over-budget tick steps the rate down instead of blocking, and
+ * that stopping really stops.
+ */
+import { describe, expect, it, vi } from 'vitest';
+import { physicsStore, startPhysicsLoop } from '../src/runtimes/luau/physicsLoop';
+import type { SolvedPart } from '../src/runtimes/luau/physics';
+
+/** A world stub that advances a single falling part at a known rate. */
+function fakeWorld() {
+  let y = 100;
+  let disposed = false;
+  const contacts = new Set<string>();
+  return {
+    get bodyCount() {
+      return 1;
+    },
+    step(dt: number) {
+      y -= 60 * dt;
+    },
+    readParts(): SolvedPart[] {
+      return [
+        {
+          id: 1,
+          path: 'Workspace.Ball',
+          position: { x: 0, y, z: 0 },
+          velocity: { x: 0, y: -60, z: 0 },
+          sleeping: false,
+        },
+      ];
+    },
+    contacts: () => contacts,
+    applyExternal: () => {},
+    dispose() {
+      disposed = true;
+    },
+    get disposed() {
+      return disposed;
+    },
+  };
+}
+
+/**
+ * Drives frames by hand so the test controls time exactly. Timers are stubbed
+ * out because the loop only ever re-schedules itself.
+ */
+function manualClock() {
+  let now = 0;
+  let queue: (() => void)[] = [];
+  return {
+    now: () => now,
+    requestFrame: (cb: () => void) => {
+      queue.push(cb);
+      return queue.length;
+    },
+    cancelFrame: () => {
+      queue = [];
+    },
+    /** Advances time and runs the single pending frame callback. */
+    advance(ms: number) {
+      now += ms;
+      const pending = queue;
+      queue = [];
+      for (const cb of pending) cb();
+    },
+  };
+}
+
+describe('physics loop scheduling', () => {
+  it('steps the world every frame but runs the script at the simulation rate', async () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const onTick = vi.fn().mockResolvedValue(undefined);
+    const frames: number[] = [];
+
+    const loop = startPhysicsLoop({
+      world,
+      onTick,
+      onFrame: (solved) => frames.push(solved[0].position.y),
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+
+    // 60 frames of 16.7ms = one second. The tick is async and the loop will
+    // not start another until it settles, so microtasks are flushed per frame.
+    for (let i = 0; i < 60; i += 1) {
+      clock.advance(1000 / 60);
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    // The solver ran every frame...
+    expect(frames).toHaveLength(60);
+    expect(frames[0]).toBeGreaterThan(frames[59]);
+
+    // ...but the script ran about ten times, not sixty.
+    expect(onTick.mock.calls.length).toBeGreaterThanOrEqual(8);
+    expect(onTick.mock.calls.length).toBeLessThanOrEqual(12);
+
+    loop.stop();
+    expect(world.disposed).toBe(true);
+  });
+
+  it('reports solved positions for the viewport', async () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+    clock.advance(16);
+    const state = physicsStore.get();
+    expect(state.enabled).toBe(true);
+    expect(state.bodyCount).toBe(1);
+    expect(state.solved.get('Workspace.Ball')).toBeDefined();
+    loop.stop();
+    expect(physicsStore.get().enabled).toBe(false);
+  });
+
+  it('halves the rate when a tick overruns its budget', async () => {
+    let fakeNow = 0;
+    const world = fakeWorld();
+    let queue: (() => void)[] = [];
+    const loop = startPhysicsLoop({
+      world,
+      // A tick that takes 40ms of wall time: over the 24ms budget.
+      onTick: async () => {
+        fakeNow += 40;
+      },
+      rate: 10,
+      now: () => fakeNow,
+      requestFrame: (cb) => {
+        queue.push(cb);
+        return queue.length;
+      },
+      cancelFrame: () => {
+        queue = [];
+      },
+    });
+
+    const pump = () => {
+      const pending = queue;
+      queue = [];
+      for (const cb of pending) cb();
+    };
+
+    // First tick runs and is measured as slow.
+    fakeNow += 100;
+    pump();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(physicsStore.get().rate).toBeLessThan(10);
+    loop.stop();
+  });
+
+  it('stops cleanly and stops scheduling frames', () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const onFrame = vi.fn();
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      onFrame,
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+    clock.advance(16);
+    expect(onFrame).toHaveBeenCalledTimes(1);
+    loop.stop();
+    expect(loop.isRunning()).toBe(false);
+    // Nothing is queued after stop, so time passing runs no more frames.
+    clock.advance(16);
+    expect(onFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a multi-second stall teleport parts through the floor', () => {
+    const clock = manualClock();
+    const world = fakeWorld();
+    const heights: number[] = [];
+    const loop = startPhysicsLoop({
+      world,
+      onTick: async () => {},
+      onFrame: (solved) => heights.push(solved[0].position.y),
+      rate: 10,
+      now: clock.now,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    });
+    // A backgrounded tab: five seconds between frames.
+    clock.advance(5000);
+    // Delta is clamped to 0.1s, so at 60 studs/s the part moves ~6 studs,
+    // not the 300 it would move unclamped.
+    expect(heights[0]).toBeGreaterThan(90);
+    loop.stop();
+  });
+});

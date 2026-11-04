@@ -13,15 +13,17 @@ export interface SceneState {
   snapshot: SceneSnapshot | null;
   /** Why the last run produced no scene, when that is worth saying. */
   error: string | null;
+  /** Why physics is not running, when there was nothing to simulate. */
+  simulationNote: string | null;
 }
 
-export const sceneStore = new Store<SceneState>({ snapshot: null, error: null });
+export const sceneStore = new Store<SceneState>({ snapshot: null, error: null, simulationNote: null });
 
 let nextRunId = 1;
 
 /** Called by the Roblox runtime after a successful run. */
 export function publishScene(parts: SceneSnapshot['parts'], camera?: SceneSnapshot['camera']): void {
-  sceneStore.set({ snapshot: { parts, camera, runId: nextRunId++ }, error: null });
+  sceneStore.set({ snapshot: { parts, camera, runId: nextRunId++ }, error: null, simulationNote: null });
 }
 
 /**
@@ -34,5 +36,5 @@ export function reportSceneError(message: string): void {
 }
 
 export function clearScene(): void {
-  sceneStore.set({ snapshot: null, error: null });
+  sceneStore.set({ snapshot: null, error: null, simulationNote: null });
 }

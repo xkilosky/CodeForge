@@ -20,6 +20,16 @@ const DEBOUNCE_MS = 400;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = 0;
 
+/**
+ * True while a check is in flight. The analysis worker runs one query at a
+ * time — a second concurrent request throws "another operation is already
+ * active" — so callers that can fire at arbitrary moments (the physics loop's
+ * pause-time lint) must check this rather than racing the debounce.
+ */
+export function isLintInFlight(): boolean {
+  return inFlight > 0 && diagnosticsStore.get().checking;
+}
+
 export function clearDiagnostics(): void {
   if (timer) clearTimeout(timer);
   timer = null;

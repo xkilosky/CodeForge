@@ -359,6 +359,9 @@ describe('three.js mapping', () => {
     reflectance: 0,
     anchored: true,
     material: 'Plastic',
+    canCollide: true,
+    canTouch: true,
+    velocity: { x: 0, y: 0, z: 0 },
     ...over,
   });
 

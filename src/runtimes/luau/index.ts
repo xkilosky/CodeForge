@@ -26,7 +26,12 @@ import type { LuauAnalysisMode } from './analyze';
 import { formatLuauError, parseLuauError } from './errors';
 import { BOOTSTRAP_DISPLAY_NAME, buildBootstrapSource } from './bootstrap';
 import { buildLuauModules, readSceneSnapshot, requireSpecifierFor } from './modules';
-import { publishScene, reportSceneError } from '../../core/sceneStore';
+import { publishScene, reportSceneError, sceneStore } from '../../core/sceneStore';
+import { createPhysicsWorld, initPhysics } from './physics';
+import type { SolvedPart, TouchEvent } from './physics';
+import { startPhysicsLoop } from './physicsLoop';
+import { applyPhysicsFrame } from './physicsBridge';
+import type { ScenePart } from '../../core/types';
 
 /** Budgets for one execution. Mirrors the library defaults, stated explicitly. */
 const EXECUTION_LIMITS: ExecutionOptions = {
@@ -79,6 +84,9 @@ export const luauRuntime: Runtime = {
 
     const worker = getExecutionWorker();
     const controller = new AbortController();
+    const modules = buildLuauModules(files);
+    // Captured as a const: the closures below lose the narrowing otherwise.
+    const scriptPath: string = entryPath;
 
     const onPrint = (event: Event) => {
       const text = (event as Event & { text?: string }).text ?? '';
@@ -88,16 +96,30 @@ export const luauRuntime: Runtime = {
 
     io.log({ kind: 'system', text: `Running ${entryPath}` });
 
-    const bootstrap = buildBootstrapSource({
-      requirePath: requireSpecifierFor(entryPath),
-      displayName: entryPath,
-    });
+    /**
+     * One script execution. `physicsState` is spliced into the bootstrap so the
+     * script sees solved positions and can receive touch events in the same run
+     * that binds its handlers.
+     */
+    async function executeOnce(
+      physics?: { solved: SolvedPart[]; touches: TouchEvent[]; time: number },
+    ): Promise<{ ok: boolean; parts: ScenePart[] }> {
+      const bootstrap = buildBootstrapSource({
+        requirePath: requireSpecifierFor(scriptPath),
+        displayName: scriptPath,
+        physics: physics
+          ? {
+              state: JSON.stringify(physics.solved),
+              touches: JSON.stringify(physics.touches),
+              time: physics.time,
+            }
+          : undefined,
+      });
 
-    try {
       const result = await worker.execute(bootstrap, {
         entryName: BOOTSTRAP_DISPLAY_NAME,
         signal: controller.signal,
-        modules: buildLuauModules(files),
+        modules,
         ...EXECUTION_LIMITS,
       });
 
@@ -109,33 +131,100 @@ export const luauRuntime: Runtime = {
       }
 
       if (result.ok) {
-        // The bootstrap's return value is the scene it serialised. It is the
-        // only channel out of the sandbox, which is why the run goes through
-        // the bootstrap at all.
-        const parts = readSceneSnapshot(result.values[0]);
-        publishScene(parts);
-        io.log({
-          kind: 'system',
-          text: parts.length === 0
-            ? 'Finished — the script did not create any parts.'
-            : `Finished — ${parts.length} part${parts.length === 1 ? '' : 's'} in the viewport.`,
-        });
-      } else if (result.error) {
+        return { ok: true, parts: readSceneSnapshot(result.values[0]) };
+      }
+
+      if (result.error) {
         const parsed = parseLuauError(result.error.message);
-        // A bootstrap failure has no user-visible filename of its own; attribute
-        // it to the script that was required. A genuine script error is already
-        // attributed by the engine and keeps its own file and line.
-        const file = parsed.file ?? entryPath;
+        // A bootstrap failure has no user-visible filename of its own;
+        // attribute it to the script that was required. A genuine script error
+        // is already attributed by the engine and keeps its file and line.
         if (parsed.kind === 'syntax' || parsed.kind === 'compile') {
           reportSceneError(formatLuauError(parsed));
         }
         io.log({
           kind: 'error',
           text: `${parsed.kind} error: ${formatLuauError(parsed)}`,
-          file,
+          file: parsed.file ?? scriptPath,
           line: parsed.line,
         });
       }
+      return { ok: false, parts: [] };
+    }
+
+    try {
+      // --- phase 0: build the scene -------------------------------------
+      const first = await executeOnce();
+      if (!first.ok) {
+        return { stop() { controller.abort(); } };
+      }
+
+      publishScene(first.parts);
+      io.log({
+        kind: 'system',
+        text: first.parts.length === 0
+          ? 'Finished — the script did not create any parts.'
+          : `Finished — ${first.parts.length} part${first.parts.length === 1 ? '' : 's'} in the viewport.`,
+      });
+
+      const dynamicCount = first.parts.filter((p) => !p.anchored).length;
+      if (dynamicCount === 0) {
+        const tail = 'No unanchored parts, so physics has nothing to simulate.';
+        io.log({ kind: 'system', text: tail });
+        sceneStore.set((prev) => ({ ...prev, simulationNote: tail }));
+        return { stop() { controller.abort(); } };
+      }
+
+      // --- phases 1..n: simulate ----------------------------------------
+      await initPhysics();
+      const world = createPhysicsWorld(first.parts);
+      sceneStore.set((prev) => ({ ...prev, simulationNote: null }));
+
+      let tickFailures = 0;
+      const loop = startPhysicsLoop({
+        world,
+        onFrame: (solved) => {
+          applyPhysicsFrame(solved);
+        },
+        onTick: async (solved, touches, time) => {
+          const tick = await executeOnce({ solved, touches, time });
+          if (!tick.ok) {
+            tickFailures += 1;
+            // A script that fails every tick would spam the console and the
+            // budget; stop after a few rather than filling the log forever.
+            if (tickFailures >= 3) {
+              io.log({
+                kind: 'error',
+                text: 'Stopping the simulation: the script failed on three consecutive ticks.',
+              });
+              stopLoop();
+            }
+            return;
+          }
+          // New instances can appear mid-run (a Touched handler spawning one),
+          // so the scene is republished each tick.
+          if (tick.parts.length !== lastPublishedCount) {
+            lastPublishedCount = tick.parts.length;
+            publishScene(tick.parts);
+          }
+        },
+      });
+
+      let lastPublishedCount = first.parts.length;
+      let stopped = false;
+
+      const stopLoop = () => {
+        if (stopped) return;
+        stopped = true;
+        loop.stop();
+      };
+
+      return {
+        stop() {
+          controller.abort();
+          stopLoop();
+        },
+      };
     } catch (err) {
       if (controller.signal.aborted) {
         io.log({ kind: 'system', text: 'Stopped.' });
@@ -146,15 +235,10 @@ export const luauRuntime: Runtime = {
         });
         reportSceneError(err instanceof Error ? err.message : String(err));
       }
+      return { stop() { controller.abort(); } };
     } finally {
       worker.removeEventListener('print', onPrint);
     }
-
-    return {
-      stop() {
-        controller.abort();
-      },
-    };
   },
 
   buildViewport(): PreviewPayload {

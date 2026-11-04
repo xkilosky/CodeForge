@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
     "@luau-rs/luau": "^0.739.0",
     "monaco-editor": "^0.57.0",
     "react": "^19.3.1",

@@ -137,6 +137,56 @@ print("built " .. #workspace:GetChildren() .. " parts")
     },
   },
   {
+    id: 'roblox-physics',
+    label: 'Roblox physics',
+    workspace: 'roblox',
+    description: 'Parts fall, bounce, and fire .Touched. Arrives in M4.',
+    milestone: 'M4',
+    entry: 'ServerScript.luau',
+    files: {
+      'ServerScript.luau': `-- Everything below runs in the simulated Roblox viewport.
+-- The solver is Rapier, not Roblox's Bullet-derived one, so feel differs.
+local baseplate = Instance.new("Part")
+baseplate.Name = "Baseplate"
+baseplate.Size = Vector3.new(120, 4, 120)
+baseplate.Anchored = true
+baseplate.Color = Color3.fromRGB(60, 70, 85)
+baseplate.Parent = workspace
+
+-- A wall to bounce a part off, so Touched has something to report.
+local wall = Instance.new("Part")
+wall.Name = "Wall"
+wall.Size = Vector3.new(30, 20, 2)
+wall.Position = Vector3.new(0, 12, -12)
+wall.Anchored = true
+wall.Color = Color3.fromRGB(200, 90, 60)
+wall.Parent = workspace
+
+-- Five balls dropped from different heights, with different rests of bounce.
+for i = 1, 5 do
+	local ball = Instance.new("Part")
+	ball.Name = "Ball" .. i
+	ball.Size = Vector3.new(4, 4, 4)
+	ball.Position = Vector3.new(i * 9 - 27, 40 + i * 12, 0)
+	ball.Color = Color3.fromRGB(90, 170, 230)
+	ball.Material = Enum.Material.SmoothPlastic
+	ball.Parent = workspace
+
+	-- Touched fires every tick the parts are in contact, so the log is kept
+	-- quiet with a flag. Note: this script re-runs each simulation tick, so
+	-- state kept in locals resets — that is the known limit until M5.
+	ball.Touched:Connect(function(other)
+		if other and other.Name == "Baseplate" then
+			print(ball.Name .. " landed on the baseplate")
+		end
+	end)
+end
+
+print("dropped 5 parts")
+`,
+    },
+  },
+  {
     id: 'game-platformer',
     label: 'Platformer',
     workspace: 'game',
