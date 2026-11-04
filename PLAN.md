@@ -264,15 +264,16 @@ builder and Roblox explorer. `Ctrl+Enter` run, `Ctrl+S` save.
 Ordered so each ships something usable and de-risks the next. The Roblox simulator is split
 because it is the largest pillar.
 
-**M0 — Scaffold.** Vite + React + TS, shell, Monaco mounting, IndexedDB project store,
-template picker, console panel, `RunSession` plumbing, workspace switcher.
+**M0 — Scaffold.** ✅ *Done.* Vite + React + TS, shell, Monaco mounting, IndexedDB project
+store, template picker, console panel, `RunSession` plumbing, workspace switcher.
 *Accept: create a project, edit, save, reload the page, files persist.*
 
-**M1 — Web workspace.** Smallest complete win; proves the Runtime + preview abstraction.
+**M1 — Web workspace.** ✅ *Done.* Smallest complete win; proves the Runtime + preview
+abstraction.
 *Accept: multi-file HTML/CSS/JS renders live; `console.log` reaches the console panel; a
 runtime error is caught and shown with a line number.*
 
-**M2 — Luau core (no rendering yet).** `LuaWorker`, console, `AnalysisWorker` diagnostics with
+**M2 — Luau core (no rendering yet).** ✅ *Done.* `LuaWorker`, console, diagnostics with
 debounce, Roblox value types + `Instance` tree.
 *Accept: the §3 spike-3 script runs; `print` streams; an infinite loop dies in ~1s; a type
 error squiggles the right line.*
