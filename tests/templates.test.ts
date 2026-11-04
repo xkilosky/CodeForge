@@ -109,14 +109,29 @@ describe('switchWorkspace', () => {
     const web = projectFromTemplate(templateById('web-starter')!);
     projectActions.open(web);
 
-    // A second Web template: switching to the workspace already open is a
-    // no-op by design, so use two distinct starters on one workspace.
     projectActions.switchWorkspace('game');
 
     const after = projectStore.get().project!;
-    // No runtime for `game` yet, so nothing may change and nothing may throw.
+    // Same project, different workspace — and the game starter's scene comes
+    // with it, or the builder would open on an empty stage.
+    expect(after.id).toBe(web.id);
+    expect(after.workspace).toBe('game');
+    expect(after.scene).toBeDefined();
+  });
+
+  it('refuses to retarget to a workspace with no runtime', async () => {
+    const { projectActions, projectStore } = await import('../src/core/projectStore');
+    const web = projectFromTemplate(templateById('web-starter')!);
+    projectActions.open(web);
+
+    // `python` is still an `upcoming()` placeholder: no runtime, so retargeting
+    // would hand back a project whose Run button does nothing.
+    projectActions.switchWorkspace('python');
+
+    const after = projectStore.get().project!;
     expect(after.id).toBe(web.id);
     expect(after.workspace).toBe('web');
+    expect(after.scene).toBeUndefined();
   });
 
   it('keeps project settings across a switch', async () => {
@@ -125,6 +140,18 @@ describe('switchWorkspace', () => {
     const before = projectStore.get().project!.settings;
     projectActions.switchWorkspace('game');
     expect(projectStore.get().project!.settings).toEqual(before);
+  });
+
+  it('switching away from a game project keeps the code and drops the stage', async () => {
+    const { projectActions, projectStore } = await import('../src/core/projectStore');
+    projectActions.open(projectFromTemplate(templateById('game-platformer')!));
+    expect(projectStore.get().project!.scene).toBeDefined();
+
+    projectActions.switchWorkspace('web');
+    const after = projectStore.get().project!;
+    expect(after.workspace).toBe('web');
+    // A Web project with a leftover game scene would render a stage it cannot run.
+    expect(after.scene).toBeUndefined();
   });
 
   it('does nothing when switching to the workspace already open', async () => {

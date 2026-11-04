@@ -4,6 +4,7 @@ import { TEMPLATES, projectFromTemplate, type Template } from './templates';
 import { runtimeForWorkspace } from '../runtimes/registry';
 import type { FileMap, Project, ProjectSettings } from './types';
 import { languageForPath, newId } from './types';
+import { addEntity, removeEntity, setPlayer, updateEntity, type Entity, type Scene } from './scene';
 
 export interface ProjectState {
   project: Project | null;
@@ -13,7 +14,31 @@ export interface ProjectState {
   /** True while a debounced autosave is pending. */
   dirty: boolean;
   error: string | null;
+  /**
+   * Scene undo/redo depth, for the builder's buttons.
+   *
+   * The histories themselves are module-local and not in the store: they hold
+   * whole scenes, and publishing them would re-render every subscriber on every
+   * drag step for no benefit. The UI only needs to know whether a press would
+   * do anything.
+   */
+  undoDepth: number;
+  redoDepth: number;
 }
+
+/**
+ * Undo history for the scene, one project at a time.
+ *
+ * Dragging produces a scene change per pointer move, so entries are opened
+ * explicitly by `beginSceneGesture()` rather than per update — otherwise a
+ * single drag would need forty presses of Ctrl+Z.
+ */
+const UNDO_LIMIT = 60;
+let undoStack: Scene[] = [];
+let redoStack: Scene[] = [];
+let gestureOpen = false;
+/** The scene as it was when the open gesture started, if one is open. */
+let gestureBefore: Scene | null = null;
 
 export const projectStore = new Store<ProjectState>({
   project: null,
@@ -21,6 +46,8 @@ export const projectStore = new Store<ProjectState>({
   loading: true,
   dirty: false,
   error: null,
+  undoDepth: 0,
+  redoDepth: 0,
 });
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -42,6 +69,37 @@ async function persist(project: Project): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     }));
   }
+}
+
+/**
+ * Pushes a scene onto the undo stack.
+ *
+ * The redo stack dies here on purpose: once a new change is made, the branch
+ * that was undone is unreachable, and keeping it would make Redo jump back to a
+ * state the user has already replaced.
+ */
+function pushHistory(before: Scene): void {
+  undoStack.push(before);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack = [];
+  publishDepths();
+}
+
+function publishDepths(): void {
+  projectStore.set((prev) => ({
+    ...prev,
+    undoDepth: undoStack.length,
+    redoDepth: redoStack.length,
+  }));
+}
+
+/** Scene history is per project; opening a different one must not leak it. */
+function resetHistory(): void {
+  undoStack = [];
+  redoStack = [];
+  gestureOpen = false;
+  gestureBefore = null;
+  publishDepths();
 }
 
 function scheduleSave(project: Project): void {
@@ -162,6 +220,7 @@ export const projectActions = {
   },
 
   open(project: Project): void {
+    resetHistory();
     if (saveTimer) clearTimeout(saveTimer);
     // Opening is a deliberate navigation, so the not-found banner from a
     // previous attempt must not linger over the newly opened project.
@@ -181,6 +240,7 @@ export const projectActions = {
    * edit, which is exactly the kind of bug that makes an editor untrustworthy.
    */
   close(): void {
+    resetHistory();
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -321,6 +381,122 @@ export const projectActions = {
         activeFile: current.activeFile === path ? (keys[0] ?? '') : current.activeFile,
       }),
     );
+  },
+
+  // ── scene (the game builder) ──────────────────────────────────────────
+  /**
+   * Records the current scene as one undo step.
+   *
+   * Called at the start of a drag, so the whole gesture collapses into a single
+   * press of Ctrl+Z rather than one per pixel of movement.
+   */
+  beginSceneGesture(): void {
+    gestureOpen = true;
+    gestureBefore = projectStore.get().project?.scene ?? null;
+  },
+
+  /**
+   * Ends a gesture, recording the state it started from as one undo step.
+   *
+   * One drag therefore costs one press of Ctrl+Z. A gesture during which
+   * nothing actually moved records nothing.
+   */
+  endSceneGesture(): void {
+    const before = gestureBefore;
+    gestureOpen = false;
+    gestureBefore = null;
+    const current = projectStore.get().project?.scene;
+    if (before && current && before !== current) pushHistory(before);
+  },
+
+  /**
+   * Applies a change to the scene, recording history once per gesture.
+   *
+   * A change with no open gesture records its own entry, which is what a
+   * button press or a typed field should undo to.
+   */
+  updateScene(change: (scene: Scene) => Scene): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    const before = current.scene;
+    const next = change(before ?? { version: 1, world: { width: 960, height: 540, gravity: 1600 }, entities: [] });
+    if (!before || next === before) return;
+
+    // Inside a gesture the pre-drag scene is recorded once, and only once the
+    // gesture *ends* — so the entry is the state before the whole drag, not the
+    // state between its first and second pointer moves.
+    if (gestureOpen) {
+      gestureBefore ??= before;
+    } else {
+      pushHistory(before);
+    }
+
+    scheduleSave(touch({ ...current, scene: next }));
+  },
+
+  addEntity(kind: 'box' | 'circle', x: number, y: number): string | null {
+    const current = projectStore.get().project;
+    if (!current?.scene) return null;
+    const result = addEntity(current.scene, kind, x, y);
+    projectActions.updateScene(() => result.scene);
+    return result.entity.id;
+  },
+
+  moveEntity(id: string, x: number, y: number): void {
+    projectActions.updateScene((scene) => updateEntity(scene, id, { x, y }));
+  },
+
+  resizeEntity(id: string, w: number, h: number): void {
+    projectActions.updateScene((scene) => updateEntity(scene, id, { w, h }));
+  },
+
+  patchEntity(id: string, patch: Partial<Omit<Entity, 'id'>>): void {
+    projectActions.updateScene((scene) => updateEntity(scene, id, patch));
+  },
+
+  deleteEntity(id: string): void {
+    projectActions.updateScene((scene) => removeEntity(scene, id));
+  },
+
+  duplicateEntity(id: string): string | null {
+    const current = projectStore.get().project;
+    const source = current?.scene?.entities.find((entity) => entity.id === id);
+    if (!current?.scene || !source) return null;
+    const result = addEntity(
+      current.scene,
+      source.kind,
+      source.x + 24,
+      source.y + 24,
+      { w: source.w, h: source.h, color: source.color, solid: source.solid, name: `${source.name} copy` },
+    );
+    projectActions.updateScene(() => result.scene);
+    return result.entity.id;
+  },
+
+  setPlayer(id: string | undefined): void {
+    projectActions.updateScene((scene) => setPlayer(scene, id));
+  },
+
+  patchWorld(patch: Partial<Scene['world']>): void {
+    projectActions.updateScene((scene) => ({ ...scene, world: { ...scene.world, ...patch } }));
+  },
+
+  undoScene(): void {
+    const current = projectStore.get().project;
+    const previous = undoStack.pop();
+    if (!current || !current.scene || !previous) return;
+    redoStack.push(current.scene);
+    publishDepths();
+    scheduleSave(touch({ ...current, scene: previous }));
+  },
+
+  redoScene(): void {
+    const current = projectStore.get().project;
+    const next = redoStack.pop();
+    if (!current || !current.scene || !next) return;
+    undoStack.push(current.scene);
+    publishDepths();
+    scheduleSave(touch({ ...current, scene: next }));
   },
 
   updateSettings(patch: Partial<ProjectSettings>): void {

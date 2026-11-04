@@ -1,4 +1,5 @@
 import type { FileMap, IOBridge, PreviewPayload, RunHandle, Runtime } from '../core/types';
+import { gameRuntime } from './game';
 import { webRuntime } from './web';
 
 /**
@@ -24,7 +25,7 @@ function upcoming(id: string, label: string, milestone: string, preview: Runtime
 
 export const RUNTIMES: Runtime[] = [
   webRuntime,
-  upcoming('game', 'Game builder', 'M5', 'canvas'),
+  gameRuntime,
   upcoming('python', 'Python', 'M6', 'terminal'),
 ];
 

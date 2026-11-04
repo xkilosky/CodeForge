@@ -3,6 +3,8 @@
  * Adding a language means adding a Runtime — nothing here changes.
  */
 
+import type { Scene } from './scene';
+
 export type LanguageId =
   | 'html'
   | 'css'
@@ -34,6 +36,14 @@ export interface Project {
   files: FileMap;
   activeFile: string;
   settings: ProjectSettings;
+  /**
+   * The visual scene, for workspaces that have one (the game builder).
+   *
+   * It lives on the project so a single IndexedDB write persists both the code
+   * and the stage. Optional: a Web project has none, and a project saved before
+   * the game builder existed must still open.
+   */
+  scene?: Scene;
   createdAt: number;
   updatedAt: number;
 }
@@ -103,8 +113,12 @@ export interface Runtime {
   /**
    * Produce what the preview panel renders. Kept on the runtime so the shell
    * stays language-agnostic.
+   *
+   * `scene` is only meaningful for workspaces that have one (the game builder);
+   * runtimes that do not are free to ignore it. Passing it through the same
+   * call keeps a single preview path instead of one per workspace shape.
    */
-  buildPreview?(files: FileMap): PreviewPayload;
+  buildPreview?(files: FileMap, scene?: Scene): PreviewPayload;
   /**
    * Interpret a message posted by this runtime's own preview. Keeps the shell
    * generic: the shell forwards raw data, the runtime decides what it means.

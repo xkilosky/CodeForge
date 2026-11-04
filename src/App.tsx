@@ -14,6 +14,7 @@ import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
 import { MobileNav, summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
+import { GameWorkspace } from './ui/GameWorkspace';
 import { ProjectsHome } from './ui/ProjectsHome';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
@@ -114,6 +115,16 @@ export default function App() {
       io.log({ kind: 'system', text: runtime.unavailableReason ?? 'This workspace is not ready.' });
       return;
     }
+    // A game project is driven by the builder's own Play button. Rebuilding the
+    // preview from here would fight it: two transports, one stage.
+    if (project.workspace === 'game') {
+      io.log({
+        kind: 'system',
+        text: 'Use ▶ Play above the stage to run a game project.',
+      });
+      if (layout === 'compact') setMobileTab('preview');
+      return;
+    }
     setRunSignal((n) => n + 1);
     // On a phone the preview is behind a tab. Pressing Run means "show me the
     // result", so bring it into view rather than leaving the user on Files.
@@ -190,6 +201,12 @@ export default function App() {
           onCreate={handleCreate}
           onDismissError={projectActions.dismissError}
         />
+      ) : project.workspace === 'game' ? (
+        <GameWorkspace
+          project={project}
+          compact={layout === 'compact'}
+          onSelectEntity={() => {}}
+        />
       ) : (
         layout === 'compact' ? (
           /* Every pane visible, stacked and scrollable. The tab bar scrolls to
@@ -238,6 +255,7 @@ export default function App() {
                   <PreviewPane
                     runtime={runtime}
                     files={project.files}
+                    scene={project.scene}
                     autorun={project.settings.autorun}
                     runSignal={runSignal}
                     onRun={handleRun}
@@ -303,6 +321,7 @@ export default function App() {
             <PreviewPane
               runtime={runtime}
               files={project.files}
+              scene={project.scene}
               autorun={project.settings.autorun}
               runSignal={runSignal}
               onRun={handleRun}

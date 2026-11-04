@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from '../core/consoleStore';
 import type { FileMap, Runtime } from '../core/types';
+import type { Scene } from '../core/scene';
 
 interface PreviewPaneProps {
   runtime: Runtime;
   files: FileMap;
+  /**
+   * The project's scene, for workspaces that have one. Passed through so the
+   * runtime keeps a single preview path rather than the shell special-casing
+   * the game workspace.
+   */
+  scene?: Scene;
   autorun: boolean;
   /** Incrementing this forces a rebuild even when autorun is off. */
   runSignal: number;
@@ -18,7 +25,7 @@ const REBUILD_DEBOUNCE_MS = 400;
  * Renders whatever the runtime's preview produces. The shell never interprets
  * preview messages itself — it forwards them to the runtime.
  */
-export function PreviewPane({ runtime, files, autorun, runSignal }: PreviewPaneProps) {
+export function PreviewPane({ runtime, files, scene, autorun, runSignal }: PreviewPaneProps) {
   const [debouncedFiles, setDebouncedFiles] = useState(files);
   const metaRef = useRef<unknown>(null);
 
@@ -42,8 +49,8 @@ export function PreviewPane({ runtime, files, autorun, runSignal }: PreviewPaneP
         message: runtime.unavailableReason ?? 'No preview for this workspace.',
       };
     }
-    return runtime.buildPreview(debouncedFiles);
-  }, [runtime, debouncedFiles]);
+    return runtime.buildPreview(debouncedFiles, scene);
+  }, [runtime, debouncedFiles, scene]);
 
   useEffect(() => {
     if (payload.kind === 'srcdoc') metaRef.current = payload.meta ?? null;

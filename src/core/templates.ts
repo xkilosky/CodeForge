@@ -1,5 +1,6 @@
 import type { FileMap, Project, WorkspaceId } from './types';
 import { languageForPath, newId } from './types';
+import { emptyScene, starterScene, type Scene } from './scene';
 
 export interface Template {
   id: string;
@@ -10,6 +11,13 @@ export interface Template {
   files: Record<string, string>;
   /** Milestone the workspace lands in — drives the "coming soon" state. */
   milestone: string;
+  /**
+   * Starting stage, for workspaces that have one. A function rather than a
+   * value so every project from this template gets its own scene with its own
+   * entity ids — sharing them would make two projects address each other's
+   * objects.
+   */
+  scene?: () => Scene;
 }
 
 export const TEMPLATES: Template[] = [
@@ -112,13 +120,46 @@ document.querySelector("#boom").addEventListener("click", () => {
     id: 'game-platformer',
     label: 'Platformer',
     workspace: 'game',
-    description: 'Place objects visually and attach code. Arrives in M5.',
+    description: 'A stage, a player and a script. Drag things around, press Run.',
     milestone: 'M5',
     entry: 'game.js',
+    scene: starterScene,
     files: {
-      'game.js': `// Visual game builder projects store a scene alongside these files.
-export function onUpdate(entity, dt) {
-  entity.x += 60 * dt;
+      'game.js': `/**
+ * Runs once per frame while the game is playing.
+ *
+ *   ctx.player  the entity you drive: x, y, vx, vy, grounded
+ *               move(vx) sets horizontal speed, jump() leaves the ground
+ *   ctx.time    seconds since Play was pressed
+ *   ctx.dt      seconds since the previous frame
+ *   ctx.input   { axis: -1 | 0 | 1, jump: boolean }
+ *   ctx.api     find(name) and pickups() to inspect the stage
+ *
+ * Arrow keys or WASD move; space jumps. The on-screen pads appear on touch.
+ */
+export function onUpdate(ctx) {
+  // The scene responds to the keyboard on its own; this hook is for anything
+  // you want on top of it. Move with the arrow keys and this log will show the
+  // player's height.
+  if (ctx.player.grounded && ctx.api.math.floor(ctx.time) % 2 === 0 && ctx.time % 1 < ctx.dt) {
+    ctx.api.log("standing at y=" + Math.round(ctx.player.y));
+  }
+}
+`,
+    },
+  },
+  {
+    id: 'game-blank',
+    label: 'Empty stage',
+    workspace: 'game',
+    description: 'A bare stage with nothing on it. Add objects in the builder.',
+    milestone: 'M5',
+    entry: 'game.js',
+    scene: () => emptyScene(),
+    files: {
+      'game.js': `export function onUpdate(ctx) {
+  // Nothing on the stage yet. Add an object in the builder, set it as the
+  // player, then press Run.
 }
 `,
     },
@@ -158,6 +199,7 @@ export function projectFromTemplate(template: Template, name?: string): Project 
     files,
     activeFile: template.entry in files ? template.entry : Object.keys(files)[0] ?? '',
     settings: { theme: 'vs-dark', autorun: true },
+    ...(template.scene ? { scene: template.scene() } : {}),
     createdAt: now,
     updatedAt: now,
   };

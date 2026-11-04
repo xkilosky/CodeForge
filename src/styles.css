@@ -601,3 +601,143 @@ button, .file-row, .tab, .template-card { touch-action: manipulation; -webkit-ta
   .file-remove { opacity: 1; }
 }
 
+
+/* ── game builder ───────────────────────────────────────────────────────
+   The stage is the point of this workspace, so it gets the upper two thirds
+   and the code sits underneath. The phone layout stacks the same sections the
+   Web workspace uses; nothing is hidden behind a tab. */
+
+.game-workspace {
+  display: grid;
+  grid-template-rows: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--border);
+}
+
+.game-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1px;
+  min-height: 0;
+  background: var(--border);
+}
+
+.game-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  min-height: 0;
+  background: var(--border);
+}
+
+.game-stage, .game-side, .game-code, .game-console {
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.game-side { background: var(--bg-raise); overflow: auto; }
+.game-code { border-right: 1px solid var(--border); }
+.game-console { background: var(--bg-raise); }
+
+.stage-pane { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.stage-head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 10px; border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-raise);
+}
+.stage-title { font-weight: 600; font-size: 12px; }
+.stage-meta { font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.builder-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 7px 10px; border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-raise);
+}
+.builder-group { display: flex; gap: 5px; }
+.builder-transport { margin-left: auto; }
+
+.stage-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.stage-editor { position: absolute; inset: 0; }
+.stage-canvas { display: block; touch-action: none; cursor: crosshair; }
+.stage-empty {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; text-align: center;
+  pointer-events: none; padding: 20px;
+}
+.stage-empty p { margin: 0; }
+.stage-warn {
+  padding: 7px 10px; font-size: 11.5px;
+  color: var(--warn); background: #241a00;
+  border-top: 1px solid var(--border-soft);
+}
+
+.game-frame { flex: 1; width: 100%; border: 0; background: #0b1020; }
+
+.game-output {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: 100%; min-height: 0;
+}
+.game-output > * { min-width: 0; min-height: 0; }
+.game-output > * + * { border-left: 1px solid var(--border); }
+
+/* ── inspector ───────────────────────────────────────────────────────── */
+.inspector { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.inspector-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px; font-weight: 600; font-size: 12px;
+  border-bottom: 1px solid var(--border-soft); background: var(--bg-raise);
+}
+.inspector-close {
+  background: transparent; border: 0; color: var(--muted);
+  font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+}
+.inspector-close:hover { color: var(--text); background: var(--bg-raise-2); }
+.inspector-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+.inspector-hint { margin: 0; font-size: 11.5px; line-height: 1.45; }
+.inspector-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-inline { flex-direction: row; align-items: center; gap: 6px; }
+.field-label { font-size: 11px; color: var(--muted); min-width: 14px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field-input {
+  width: 100%; min-width: 0;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 7px; font-family: var(--font-mono); font-size: 12px;
+}
+.field-input:focus { outline: none; border-color: var(--accent); }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch {
+  width: 24px; height: 24px; border-radius: 6px;
+  border: 2px solid transparent; cursor: pointer; padding: 0;
+}
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 1px var(--bg); }
+
+.check { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.4; }
+.check input { margin-top: 2px; flex: 0 0 auto; }
+
+.btn.danger { color: var(--error); }
+.btn.danger:hover:not(:disabled) { border-color: var(--error); }
+
+/* ── game workspace on a phone ─────────────────────────────────────────
+   The stage keeps a usable height instead of collapsing to the height of its
+   content, and the touch pads inside the frame are 56px tall there. */
+@media (max-width: 820px) {
+  .game-workspace { display: block; }
+  .game-top { display: block; }
+  .game-stage .stage-body { min-height: 46vh; }
+  .game-side { border-top: 1px solid var(--border); }
+  .game-bottom { display: block; }
+  .mobile-section .stage-body { min-height: 46vh; }
+  .mobile-section .inspector { height: auto; }
+  .builder-toolbar { gap: 6px; }
+  .builder-transport { margin-left: 0; }
+  .builder-toolbar .btn { min-height: 40px; }
+  .field-input { min-height: 40px; font-size: 16px; }
+  .swatch { width: 34px; height: 34px; }
+}

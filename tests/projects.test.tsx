@@ -50,6 +50,8 @@ function reset(): void {
     loading: false,
     dirty: false,
     error: null,
+    undoDepth: 0,
+    redoDepth: 0,
   });
 }
 

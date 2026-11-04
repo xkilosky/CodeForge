@@ -5,6 +5,9 @@
 > `roblox`/`luau` templates are gone (see README). This document is kept as the design record: the
 > feasibility results, the measured costs, and the reasoning are still accurate history, and the
 > remaining milestones (visual game builder, Python) are renumbered from it.
+>
+> **M5 — the visual game builder — is built.** It was scoped down from the Pixi/ECS design below:
+> an AABB platformer on a 2D canvas, not a general engine. See §9.
 
 
 **Universal coding environment in the browser.** Write HTML for the web, build games visually, and
@@ -314,24 +317,23 @@ Luau state costs 6.6–12 ms to boot with the Roblox API, so the script is **re-
 10 Hz** while Rapier steps at 60 Hz — a documented limit, not a hidden one. Rapier is a lazy
 1.6 MB chunk, keeping first paint at 1019 KB gzip.*
 
-**M5 — Roblox services + modules.** `RunService` ticks, `task.*`, `require()`, `TweenService`,
-`Debris`, `Players`, `UserInputService`.
-*Accept: a part spins via `RunService.Heartbeat`; a tween moves it; a two-file project using
-`require` runs.*
-
-**M6 — Roblox lighting, GUI, particles (A3–A5).**
-*Accept: `Lighting.ClockTime` changes the scene; a `ScreenGui` with a `TextButton` renders as
-DOM overlay and fires `.Activated`; a `ParticleEmitter` draws.*
-
-**M7 — Visual game builder.** ECS + Pixi, editor UI, property inspector, script hooks,
-transport, asset upload, templates.
-*Accept: place a sprite, attach an `onUpdate` script that moves it, press play, see it move;
+**M5 — Visual game builder.** ✅ *Done.* A scene on the project, a canvas stage with drag/resize,
+an inspector, undo/redo, and a runtime that plays the scene in a sandboxed iframe.
+*Accept: place an object, attach an `onUpdate` script that moves it, press play, see it move;
 reload and the scene persists.*
+*Done, and asserted by running the shipped preview document in Node rather than by matching
+strings in a template: the player falls and rests exactly on the floor (centre y = 428 for a
+64-unit box on a floor whose top is 492), walks, jumps and lands again, collects a pickup once,
+and respawns when it falls off the stage. A script that throws is reported **once** — a throw per
+frame would emit 120 identical errors a second and bury the first — and module-level state
+survives between frames, which is why the script is compiled once rather than per tick.
+Scope was cut deliberately: AABB collision and one driven entity, not rigid-body physics.*
 
-**M8 — Python + other languages.** Pyodide lazy-loaded.
+**M6 — Python + other languages.** Pyodide lazy-loaded.
 *Accept: a Python script prints; `import numpy` works; matplotlib output renders.*
 
-**M9 — Polish.** `.rbxlx` export, project export/import, theming, keyboard map, mobile layout.
+**M7 — Polish.** Project export/import, theming, keyboard map, asset upload, more game
+primitives (sprites, tilemaps), and the mobile pass over the builder.
 
 ---
 
@@ -366,5 +368,6 @@ exercised in a real browser. That is the first thing to click through manually.
 ## 11. Immediate next step
 
 **M0 scaffold**, then **M1 (Web workspace)** because it is the smallest complete proof of the
-Runtime + preview abstraction that everything else reuses. M2–M6 then build the Roblox
-simulator incrementally, each milestone demo-able on its own.
+Runtime + preview abstraction that everything else reuses. The Roblox pillar that followed was
+retired; the **visual game builder (M5)** now occupies the same slot and reuses the same
+Runtime + preview contract. Next is **M6 (Python)**, then M7 polish.

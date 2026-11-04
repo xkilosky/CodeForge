@@ -1,7 +1,7 @@
 # CodeForge
 
-A coding environment that runs entirely in your browser — HTML, CSS, and JavaScript today, with a
-visual game builder and Python planned.
+A coding environment that runs entirely in your browser — HTML, CSS and JavaScript, plus a visual
+game builder. Python is planned.
 
 **Live:** https://codeforge-ten-flame.vercel.app
 
@@ -16,15 +16,39 @@ sandboxed iframe, and the whole thing is a static site.
   and returns home. Pending edits are written before it closes.
 - **+ New** — creates a project from any template, from anywhere.
 - **Workspace tabs** retarget the open project to that workspace's starter. Files are replaced on
-  purpose: the starter of one workspace is not the content of another.
+  purpose: the starter of one workspace is not the content of another. A workspace with no runtime
+  yet (Languages) refuses the switch rather than handing back a project whose Run button does
+  nothing.
 
 ## Workspaces
 
 | Workspace | Runtime | Preview |
 | --- | --- | --- |
 | Web | HTML/CSS/JS in a sandboxed iframe | live page, console forwarded |
-| Games | *planned* | — |
-| Languages | *planned* | — |
+| Games | canvas stage + gravity + a per-frame script | the stage, playable |
+| Languages | *planned* (M6) | — |
+
+### The game builder
+
+A game project is a **scene** plus a **script**, both saved with the project.
+
+- **Stage** — drag objects to move them, drag a corner to resize. `+ Box` and `+ Circle` add more.
+- **Inspector** — name, position, size, colour, and whether an object is *solid*. Solids block the
+  player and never move; anything else is a pickup.
+- **Player** — the object Play drives. Exactly one; `Make player` moves the marker.
+- **Code** — the script's `onUpdate(ctx)` runs once per frame while playing. The stage reacts to the
+  arrow keys or WASD on its own; the hook is for everything else.
+- **Play / Restart** — above the stage. Editing stops the game; the iframe only exists while playing.
+
+```js
+export function onUpdate(ctx) {
+  // ctx.player  x, y, vx, vy, grounded, move(vx), jump()
+  // ctx.time    seconds since Play
+  // ctx.dt      seconds since the last frame
+  // ctx.input   { axis: -1 | 0 | 1, jump }
+  // ctx.api     find(name), pickups(), log(...), math
+}
+```
 
 ## A note on Roblox and Lua
 
