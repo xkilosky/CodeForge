@@ -33,7 +33,7 @@ API prelude, a three.js viewport, and a Rapier physics loop. It was removed rath
 the simulation could not be made to behave reliably in a real browser, and it accounted for most of
 the app's weight (Rapier alone was 1.6 MB gzipped, loaded lazily on top of a 1 MB first paint).
 
-Deleting it removed roughly 3,500 lines and four dependencies: `@luau-rs/luau`, `three`,
+Deleting it removed roughly 6,000 lines and four dependencies: `@luau-rs/luau`, `three`,
 `@types/three`, and `@dimforge/rapier3d-compat`. The history is in git if it is ever wanted back;
 `PLAN.md` still describes the design, marked as retired.
 
