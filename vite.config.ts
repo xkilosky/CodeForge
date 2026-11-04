@@ -33,13 +33,13 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: true,
   },
-  // Workers must be ES modules: the Luau wasm bindings and our worker entry both
-  // use top-level await, which IIFE output (Vite's worker default) rejects.
+  // Workers must be ES modules: Monaco's editor worker is emitted as one, and
+  // ES output is what Vite's worker pipeline expects here.
   worker: {
     format: 'es',
   },
-  // Lets the M3 tests exercise the real `LuaWorker` path (worker bundling
-  // included) in Node, where there is no browser to run it in.
+  // Tests run in Node by default; jsdom is opted into per-file where the real
+  // DOM is needed (Monaco cannot mount there, so it is mocked).
   test: {
     environment: 'node',
     include: ['tests/**/*.test.{ts,tsx}'],

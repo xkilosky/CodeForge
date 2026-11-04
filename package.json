@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Universal coding environment in the browser — Roblox Lua, Web, and visual games, each with a live preview.",
+  "description": "Universal coding environment in the browser — build web pages with a live preview, everything saved on your device.",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
