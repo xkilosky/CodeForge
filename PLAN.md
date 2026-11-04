@@ -1,125 +1,137 @@
 # CodeForge — Project Plan
 
-**Universal coding environment in the browser.** Write Lua for Roblox, HTML for the web,
-games, and other languages — each with a live preview, no install, no server to configure.
+**Universal coding environment in the browser.** Write Lua for Roblox, HTML for the web, build
+games visually, and run other languages — each with a live preview, no install, no server.
 
-> Status: **planning**. Nothing is built yet — the repo contained only a 12-byte `README.md`
-> at commit `68f00b3`. Every technical claim in §2 was measured in this workspace, not assumed.
-
----
-
-## 1. Product in one paragraph
-
-CodeForge is a browser IDE shaped around **one editor + one preview**, where the preview
-changes meaning per language: a Roblox viewport for Luau, a live page for HTML, a canvas for
-games, a terminal for everything else. The unifying idea is that a *language* is a pluggable
-**Runtime** that provides three things — an executor, a diagnostic source, and a preview mode —
-and the rest of the app (files, tabs, console, persistence, layout) is language-agnostic.
+> **Status: planning, decisions locked.** The repo contained only a 12-byte `README.md` at
+> commit `68f00b3`. Every technical claim in §3 was measured in this workspace, not assumed —
+> the scripts are in [`spikes/`](spikes/README.md).
 
 ---
 
-## 2. Verified technical foundation
+## 1. Locked decisions
 
-The riskiest assumption in a project like this is *"can we really run Roblox Luau in a
-browser, and can we inject our own API into it?"* That was tested rather than guessed.
+| # | Question | Decision | Consequence |
+|---|---|---|---|
+| 1 | Roblox preview fidelity | **Push the simulator hard** | Physics, lighting, GUI, and particles become a first-class pillar, not an afterthought. Biggest single chunk of work. |
+| 2 | Where code runs | **Fully client-side, no server** | Everything is WASM in the browser. Static hosting only, works offline, zero per-user compute cost. |
+| 3 | "Games" category | **Visual game builder** | A scene editor: place objects visually, set properties, attach code. Not just "inject a JS library". |
+| 4 | Who uses it | **Local-first, no accounts** | IndexedDB persistence, export/import for backup. No auth, no database, no sync. |
 
-**Test harness:** `npm i @luau-rs/luau` in `/home/user/spikes/luau`, Node v22.22.3.
+These four are compatible and reinforce each other: client-only + local-first means the app is
+a **static site**, and the two heavy pillars (Roblox simulator, visual builder) are both pure
+frontend work.
+
+---
+
+## 2. Product shape
+
+Three workspaces, one shell:
+
+| Workspace | What you do | Preview |
+|---|---|---|
+| **Roblox** | Write Luau, build a place | Simulated 3D viewport (physics + lighting + GUI) |
+| **Web** | Write HTML / CSS / JS | Live iframe with captured console |
+| **Games** | Place objects on a canvas, attach code | 2D game canvas with a play/stop transport |
+
+Plus a **Languages** area for Python and other runtimes, where the preview is a terminal or
+rendered output rather than a viewport.
+
+The unifying idea: a language is a pluggable **Runtime** providing an executor, a diagnostic
+source, and a preview mode. Files, tabs, console, persistence, and layout stay language-agnostic.
+
+---
+
+## 3. Verified technical foundation
+
+Eight spikes were run in this workspace (`node --version` → v22.22.3).
 
 | # | Question | Result |
 |---|---|---|
 | 1 | Is it real Luau, not Lua 5.4? | **Yes.** `+=`, `continue`, `type Point = {...}`, and `` `{interp}` `` all compiled and ran; loop returned `25` (1+3+5+7+9). Package targets **Luau v739**. |
-| 2 | Can we inject a Roblox-style API? | **Yes.** A Luau **prelude** defining `Vector3` (`__add`/`__tostring`/`:Magnitude()`/`:Lerp()`), `Color3`, `Enum.Material`, `Instance.new` with `:FindFirstChild`/`:GetChildren`/`:Clone`, `workspace`, `game` ran real user code that built a 6-object scene. |
-| 3 | Can it drive a renderer? | **Yes.** The prelude pushed 6 `Part`s with position/size/color through a JS host callback into a render queue — the exact data a 3D viewport needs. |
-| 4 | Is untrusted code contained? | **Yes.** `LuaWorker` enforces `memoryLimitBytes: 33554432`, `interruptLimit: 250000`, `outputLimitBytes: 65536`, `outputLimitEvents: 1024`, `resultLimitBytes: 1048576`. `while true do end`, a memory bomb, and an output bomb all died in **~1.0s**; a valid script returned `42` in 105 ms. |
-| 5 | Real diagnostics? | **Yes.** `AnalysisWorker` (`@luau-rs/luau/analysis/worker`) returned `{kind, severity, code: 1001, location: {begin:{line,column}, end:{line,column}}}` — exactly what editor squiggles need. One check = **316 ms** (so: debounce). |
+| 2 | Can we inject a Roblox-style API? | **Yes.** A Luau **prelude** defining `Vector3` (`__add`/`__tostring`/`:Magnitude()`/`:Lerp()`), `Color3`, `Enum.Material`, `Instance.new` with `:FindFirstChild`/`:GetChildren`/`:Clone`, `workspace`, `game` ran real user code and built a 6-object scene. |
+| 3 | Can it drive a renderer? | **Yes.** The prelude pushed 6 `Part`s with position/size/color through a JS host callback into a render queue — exactly what a viewport needs. |
+| 4 | Is untrusted code contained? | **Yes.** `LuaWorker` enforces `memoryLimitBytes: 33554432`, `interruptLimit: 250000`, `outputLimitBytes: 65536`, `outputLimitEvents: 1024`. Infinite loop, memory bomb, and output bomb all died in **~1.1s**; a valid script returned `42` in 117 ms. |
+| 5 | Real diagnostics? | **Yes.** `AnalysisWorker` returned `{kind, severity, code: 1001, location: {begin:{line,column}, end:{line,column}}}` — what editor squiggles need. One check = **307 ms** → debounce. |
+| 6 | Physics, client-side, no fetch? | **Yes.** `@dimforge/rapier3d-compat` 0.21.0 loaded with inlined wasm, ran at Roblox's gravity (**196.2 studs/s²**); a Part fell `60 → 35.27 → 0.5` and **rested on the baseplate**. |
+| 7 | `.Touched` events? | **Yes** — `world.contactPairsWith()` reports contacts. **Gotcha:** the callback receives a *Collider object*, not a handle; compare `.handle`. |
+| 8 | Roblox Part → three.js mesh? | **Yes, and the coordinate mapping is direct.** `Size (4,1,2)` at `Position (12,20,0)` → `BoxGeometry(4,1,2)`, measured AABB size `4,1,2`, center `12,20,0`, `Color3.fromRGB(40,200,90)` → `#6ee5a0`. Roblox `Position` is the part **center** and so is three's mesh origin, so no offset math is needed. |
 
 ### Constraints discovered (these shape the design)
 
 1. **Sandbox mode makes `_G` readonly.** `_G.Vector3 = ...` fails with *"attempt to modify a
-   readonly table"*. → The prelude must **`return`** its API table and the host installs each
-   global via `lua.globals.set()`. This is better design anyway: the host controls the exact
-   global surface.
-2. **`warn` is `nil` in this build** — the shim must supply it.
-3. **`LuaTable.get(k)` returns a `LuaFunction` handle that is *not* JS-callable.** Calling it
-   throws. → Use `table.callMethod(name, args)`. Better: keep the API **in Luau**, and use JS
-   only for the ~5 host bridges (render, console, time, input, audio). This avoids thousands of
-   JS↔WASM boundary crossings per frame.
+   readonly table"*. → The prelude must **`return`** its API table; the host installs each global
+   via `lua.globals.set()`. Better design anyway: the host controls the exact global surface.
+2. **`warn` is `nil` in this build** (`typeof(warn)` → `"nil"`). The shim must supply it.
+3. **`LuaTable.get(k)` returns a `LuaFunction` handle that is *not* JS-callable.** → Use
+   `table.callMethod(name, args)`. Better: keep the API **in Luau** and use JS only for the few
+   host bridges (render, physics, console, time, input, audio). Avoids thousands of JS↔WASM
+   crossings per frame.
 4. **A parse error suppresses later type diagnostics** — the checker reported 1 of 3 planted
    issues. → Report syntax errors first, re-check once they clear.
-5. `@luau-rs/luau` is **ESM-only** and ships **two** wasm blobs (`luau_wasm_bg.wasm`,
-   `luau_analysis_wasm_bg.wasm`); total install **8.4 MB**.
+5. **`contactPairsWith` yields Collider objects**, not handles (see spike 7).
+6. `@luau-rs/luau` is **ESM-only** and ships **two** wasm blobs; total install **8.4 MB**.
 
-### Dependency shortlist (versions + sizes pulled from the npm registry)
+### Dependency shortlist (versions + sizes from the npm registry)
 
 | Package | Version | Unpacked | Role |
 |---|---|---|---|
-| `@luau-rs/luau` | 0.739.0 | 8.66 MB | Luau VM + compiler + analysis. **The** Roblox engine. |
-| `monaco-editor` | 0.57.0 | 101.67 MB | Editor. Big — tree-shake to needed languages. |
-| `pyodide` | 314.0.7 | 13.88 MB | Python, in-browser. |
-| `@webcontainer/api` | 1.6.4 | 0.18 MB | Node/npm in browser (API only; runtime fetched at runtime). |
-| `codemirror-mode-luau` | 1.0.9 | — | Luau highlighting (fallback if Monaco's Lua mode is too weak). |
-| `@rbxts/types` | 1.0.961 | — | Roblox API typings → generate autocomplete. |
+| `@luau-rs/luau` | 0.739.0 | 8.66 MB | Luau VM + compiler + analysis. The Roblox engine. ✅ tested |
+| `@dimforge/rapier3d-compat` | 0.21.0 | 15.04 MB | Physics. Inlined wasm → **no fetch**, works offline. ✅ tested |
+| `three` | 0.187.0 | 21.03 MB | 3D renderer for the Roblox viewport. ✅ tested |
+| `pixi.js` | 8.22.0 | 76.27 MB | 2D renderer for the visual game builder |
+| `monaco-editor` | 0.57.0 | 101.67 MB | Editor. Tree-shake to needed languages. |
+| `pyodide` | 314.0.7 | 13.88 MB | Python, in-browser |
+| `@rbxts/types` | 1.0.961 | — | Roblox API typings → generate autocomplete |
+| `codemirror-mode-luau` | 1.0.9 | — | Luau highlighting fallback |
 
-Rejected: **`wasmoon` 1.16.0 is Lua 5.4, not Luau** — it cannot parse Roblox's `+=`,
-`continue`, or type annotations, so it is not a viable substitute.
+**Rejected:** `wasmoon` 1.16.0 is **Lua 5.4, not Luau** — cannot parse `+=`, `continue`, or type
+annotations. `cannon-es` 0.20.0 is only 0.77 MB but last published **2022-08-12** (stale).
+`phaser` 4.2.1 is 112 MB and is a full framework, which fights a *visual builder* where we own
+the scene model. `kaplay` is tiny (4 MB) but last published 2025-06-15.
 
----
-
-## 3. The one hard truth about "Roblox Preview"
-
-Roblox's engine is proprietary and **cannot run in a browser**. No browser build of
-Roblox Studio or its physics/rendering pipeline exists. So "Lua Roblox with Preview" means
-one of three honest things, and the plan does all three:
-
-| Tier | What it is | Fidelity |
-|---|---|---|
-| **A. Simulate** | Real Luau executes against a Roblox **API shim**; a scene graph is drawn to a WebGL canvas. | High for scripting logic; approximate for physics/rendering. |
-| **B. Validate** | Real Luau type-checks and lints the script. | Exact — it *is* Roblox's checker. |
-| **C. Export** | Emit a `.rbxlx`/`.rbxmx` the user opens in actual Studio. | Perfect — runs in the real engine. |
-
-**Recommendation: build A + B, then C.** A gives instant feedback while learning; B is free
-(the analysis wasm is already in the package); C is the escape hatch that makes the simulator's
-gaps acceptable. The UI must state plainly that the viewport is a **simulation**, so nobody
-believes a preview bug is a bug in their game.
+**Bundle budget:** these sum to far more than one page should download. Every engine
+**lazy-loads on first use of its workspace** (§9). Target: first paint < 1.5 MB, each workspace
+engine fetched only when opened.
 
 ---
 
 ## 4. Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  UI Shell (React)   explorer · tabs · editor · preview · console   │
-└──────────────────────────────┬─────────────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────────────┐
-│  Core                                                              │
-│  ProjectStore (files, tabs, settings)  →  IndexedDB persistence    │
-│  RunSession (start/stop/restart, stdout+stderr stream, timers)     │
-│  DiagnosticsBus (debounced, per-language)                          │
-└──────────────────────────────┬─────────────────────────────────────┘
-                               │  interface Runtime
-┌──────────┬───────────────┬───┴────────┬──────────────┬─────────────┐
-│ luau-    │ html-web      │ js-game    │ python       │ wasm-lang   │
-│ roblox   │               │            │              │ (later)     │
-├──────────┼───────────────┼────────────┼──────────────┼─────────────┤
-│ LuaWorker│ iframe srcdoc │ iframe +   │ Pyodide      │ clang/rustc │
-│ + prelude│               │ game libs  │              │ wasm        │
-├──────────┼───────────────┼────────────┼──────────────┼─────────────┤
-│ WebGL    │ iframe        │ canvas     │ text/        │ text        │
-│ viewport │               │            │ matplotlib   │             │
-└──────────┴───────────────┴────────────┴──────────────┴─────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  Shell (React): workspace switcher · explorer · tabs · editor ·      │
+│                 preview · console · property inspector               │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼──────────────────────────────────────┐
+│  Core                                                                │
+│  ProjectStore (files, scene, tabs, settings) → IndexedDB, autosaved  │
+│  RunSession  (start/stop/restart, stdout+stderr, kill, timers)       │
+│  DiagnosticsBus (debounced 400ms, per-runtime)                       │
+│  AssetStore (uploaded images/audio → IndexedDB blobs)                │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │  interface Runtime
+   ┌────────────────┬───────────┴─────────┬───────────────┬────────────┐
+   │ luau-roblox    │ html-web            │ game-builder  │ python     │
+   ├────────────────┼─────────────────────┼───────────────┼────────────┤
+   │ LuaWorker      │ iframe srcdoc       │ ECS + Pixi    │ Pyodide    │
+   │ + prelude      │                     │ + per-object  │            │
+   │ + rapier3d     │                     │   scripts     │            │
+   ├────────────────┼─────────────────────┼───────────────┼────────────┤
+   │ three.js       │ iframe              │ canvas        │ terminal   │
+   │ + DOM GUI layer│                     │ + transport   │ / image    │
+   └────────────────┴─────────────────────┴───────────────┴────────────┘
 ```
-
-The contract every language implements:
 
 ```ts
 interface Runtime {
   id: string
   preview: 'roblox-viewport' | 'iframe' | 'canvas' | 'terminal' | 'none'
-  init(): Promise<void>
+  init(): Promise<void>                                  // lazy engine load
   run(files: FileMap, entry: string, io: IOBridge): Promise<RunHandle>
-  lint?(files: FileMap): Promise<Diagnostic[]>   // debounced by DiagnosticsBus
-  export?(files: FileMap): Promise<Blob>          // .rbxlx, .zip, …
+  lint?(files: FileMap): Promise<Diagnostic[]>
+  export?(files: FileMap): Promise<Blob>
 }
 ```
 
@@ -127,47 +139,58 @@ Adding a language = adding a runtime. Nothing in Core or the shell changes.
 
 ---
 
-## 5. Runtime matrix
+## 5. Pillar A — the Roblox simulator (the big one)
 
-| Language | Executor | Preview | Diagnostics | Notes |
-|---|---|---|---|---|
-| **Luau / Roblox** | `LuaWorker` + Luau prelude | WebGL scene viewport | `AnalysisWorker` ✅ | Proven in §2 |
-| **HTML / CSS / JS** | iframe `srcdoc` | Live iframe | Editor built-ins | Console + network captured via injected shim |
-| **JS games** | iframe + Kaplay / Phaser / three.js | Canvas | Editor built-ins | Auto-inject the chosen lib; hot-reload on save |
-| **Python** | Pyodide | Text or matplotlib PNG | Pyodide | 13.9 MB, lazy-loaded on first use |
-| **JS / Node** | WebContainers | iframe or terminal | tsc (optional) | Needs COOP/COEP + secure context — see risks |
-| **C / C++ / Rust / Go** | WASM toolchains | Text | toolchain | Later; large downloads |
+Chosen deliberately over a thin preview, so it is scoped honestly. Four sub-systems, in
+dependency order:
 
-Every runtime lazy-loads its engine on first use so the initial page stays small.
+**A1. Scene & rendering.** three.js. `Part`, `MeshPart`, `WedgePart`, `SpherePart`,
+`CylinderPart` with color / material / transparency / reflectance. Orbit, first-person, and
+follow cameras. Verified mapping in §3 spike 8.
+
+**A2. Physics.** Rapier3D. `Anchored`, `CanCollide`, `Mass`, `CustomPhysicalProperties`,
+`BodyVelocity`, `BodyForce`, `BodyGyro`, `AlignPosition`, `VectorForce`. `.Touched` /
+`.TouchEnded` from `contactPairsWith`. Roblox uses a Bullet-derived solver, so **results will
+differ** — the viewport carries a permanent "simulation" badge.
+
+**A3. Lighting.** `Lighting` service → three.js lights: `Ambient`, `Brightness`, `ClockTime`,
+`ColorShift`, `FogEnd`/`FogStart`/`FogColor`, `GlobalShadows`. Day/night cycle driven by
+`ClockTime`.
+
+**A4. GUI.** **Key architectural choice:** render `ScreenGui` / `Frame` / `TextLabel` /
+`TextButton` / `ImageLabel` as **real DOM elements layered over the canvas**, not as canvas
+drawing. CSS gives us positioning, text shaping, and input handling for free, and `UDim2`
+maps cleanly onto percentage + pixel offsets. Covers anchors, offsets, `ZIndex`, `Visible`,
+`Active`, basic `UIListLayout`/`UITextSizeConstraint`.
+
+**A5. Particles.** `ParticleEmitter` → three.js `Points`: `Rate`, `Lifetime`, `Speed`,
+`SpreadAngle`, `Color`/`Size`/`Transparency` as `NumberSequence`/`ColorSequence`, `Rotation`.
+
+**Explicitly out of scope** (each raises a *named* error rather than silently returning `nil`):
+real client↔server networking, `HttpService` requests, DataStores, terrain editing, the full
+constraint solver, `PathfindingService`, and exact Roblox lighting parity.
+
+**Escape hatch:** even with a deep simulator, `.rbxlx` export stays valuable so users can
+verify in real Studio. Deferred to M7 rather than dropped.
 
 ---
 
-## 6. Roblox shim — explicit scope
+## 6. Pillar B — the visual game builder
 
-The Roblox API is enormous. Shipping "all of it" is not possible, so the supported subset is
-**written down** and anything outside it raises a clear, named error instead of a silent `nil`.
+Not "write engine code" — **place things, then script them**.
 
-**In scope (phases 1–4):**
-- **Value types:** `Vector3`, `CFrame`, `Color3`, `UDim`, `UDim2`, `Rect`, `Region3`, `Ray`,
-  `NumberRange`, `BrickColor`, `Random`, `Enum` (subset)
-- **Instances:** `new`, parenting, `Name`, `ClassName`, `Parent`, `FindFirstChild`,
-  `WaitForChild`, `GetChildren`, `GetDescendants`, `Clone`, `Destroy`, `IsA`
-- **Signals:** `.Changed`, `.Touched`, `BindableEvent`/`BindableFunction`
-- **Globals:** `print`, `warn`, `error`, `typeof`, `tick`, `time`, `task.*`,
-  legacy `wait`/`spawn`/`delay`, `table.*` extensions (`find`, `create`, `move`, `clear`,
-  `clone`), `string.split`, `string.format`, `utf8`, `buffer`
-- **Services:** `Workspace`, `ReplicatedStorage`, `ServerStorage`, `Players`, `RunService`
-  (`Heartbeat`/`RenderStepped`/`Stepped`), `TweenService` (real tween math), `Debris`,
-  `Lighting`, `SoundService` (WebAudio), `UserInputService`
-- **Modules:** `require()` resolved against project files; Rojo-style folder mapping
-
-**Explicitly out of scope (clear error message):** networking/remotes across a real
-client-server boundary, `HttpService` network calls, DataStores, real physics solver,
-terrain editing, GUI layout engine (basic frames/labels only), particle systems (v1).
-
-**Renderer:** WebGL (three.js) drawing `Part`, `MeshPart`, `WedgePart`, `SpherePart`,
-`CylinderPart` with color/material/transparency; orbit + first-person camera; simple
-gravity/collision in phase 2; `Touched` fired from that pass.
+- **Scene model (our own ECS):** `Entity { id, name, type, position, size, rotation, z,
+  visible, props, scriptId }`. Serialized as JSON alongside the project files.
+- **Editor UI:** object palette → click/drag onto canvas → select → **property inspector** on
+  the right → **attach a code script** with lifecycle hooks.
+- **Script hooks:** `onStart()`, `onUpdate(dt)`, `onKeyDown(key)`, `onCollide(other)`,
+  `onClick()`. Scripts are ordinary JS/TS in the editor, so the same editor + console serve it.
+- **Renderer:** PixiJS 8 for sprites, textures, and a camera. Fallback: plain Canvas2D if the
+  76 MB package becomes a bundle problem.
+- **Built-in types:** sprite, rectangle, text, tilemap, camera, spawner, trigger zone.
+- **Transport:** play / pause / stop / step-frame, with a reset that restores initial state.
+- **Assets:** uploaded images and audio stored in IndexedDB via `AssetStore`.
+- **Templates:** platformer, top-down, clicker, pong.
 
 ---
 
@@ -177,105 +200,120 @@ gravity/collision in phase 2; `Touched` fired from that pass.
 type Project = {
   id: string
   name: string
-  template: TemplateId          // drives which Runtime is used
-  files: FileMap                // path → { content, language }
+  workspace: 'roblox' | 'web' | 'game' | 'python' | 'blank'
+  files: FileMap                    // path → { content, language }
+  scene?: GameScene                 // visual-builder projects only
   activeFile: string
   settings: { theme, layout, autorun }
   createdAt: number
+  updatedAt: number
 }
 ```
 
-- **Persistence:** IndexedDB (local-first, zero backend). Autosave on edit, debounced.
-- **Templates:** `roblox-script`, `roblox-model` (multi-file with `ServerScriptService` /
-  `ReplicatedStorage` layout), `html`, `js-game`, `python`, `blank`.
-- **Cloud sync / accounts:** deliberately deferred (see open decisions).
+- **Persistence:** IndexedDB, local-first, autosaved with debounce. No backend, no accounts.
+- **Backup:** export a project as a single JSON/zip; import it back. This is the *only* durability
+  guarantee — state it plainly in the UI, since a cleared browser profile loses everything.
+- **Assets:** blobs in a separate IndexedDB store, referenced by id.
+- **Templates:** `roblox-script`, `roblox-place` (multi-file `ServerScriptService` /
+  `ReplicatedStorage` layout), `html`, `game-platformer`, `game-topdown`, `python`, `blank`.
 
 ---
 
 ## 8. UI
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ CodeForge │ ▾ MyProject │ ▶ Run  ■ Stop │ Luau │ ⤓ Export │ ⚙ │
-├────────────┬──────────────────────────────┬─────────────────────┤
-│ Explorer   │  Script.luau  ×  Util.luau × │   PREVIEW           │
-│  📁 script │  1 │ local part = Instance…  │   [Roblox viewport] │
-│  📄 Util   │  2 │ part.Parent = workspace │                     │
-│  ＋ New    │  3 │                         │                     │
-│            │                              │                     │
-├────────────┴──────────────────────────────┴─────────────────────┤
-│ Console │ Problems (2) │ Terminal                                │
-│ > made Block1 at 12, 20, 0                                      │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│ CodeForge │ [Roblox] [Web] [Games] │ ▾ MyPlace │ ▶ ■ │ ⤓ │ ⚙          │
+├────────────┬───────────────────────────────┬───────────────────────────┤
+│ Explorer   │  ServerScript.luau  ×         │  PREVIEW                  │
+│  📁 script │  1 │ local part = Instance…   │  [3D viewport · simulate] │
+│  📄 Util   │  2 │ part.Parent = workspace  │                           │
+│  ＋ New    │  3 │                          │  ── or ──                 │
+│            │                               │  [canvas + transport]     │
+│ PROPS      │                               │  ── or ──                 │
+│  Anchored ☑│                               │  [live iframe]            │
+├────────────┴───────────────────────────────┴───────────────────────────┤
+│ Console │ Problems (2) │ Terminal                                      │
+│ > made Block1 at 12, 20, 0                                            │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-Resizable panes, collapsible right panel for small screens. `Ctrl+Enter` run, `Ctrl+S` save.
+Resizable, collapsible panes. Right panel doubles as the **property inspector** in the game
+builder and Roblox explorer. `Ctrl+Enter` run, `Ctrl+S` save.
 
 ---
 
 ## 9. Milestones
 
-Each milestone ships something usable and has a testable acceptance criterion.
+Ordered so each ships something usable and de-risks the next. The Roblox simulator is split
+because it is the largest pillar.
 
-**M0 — Scaffold.** Vite + React + TS, layout shell, Monaco mounting, IndexedDB project
-store, template picker, console panel, `RunSession` plumbing.
-*Accept: create a project from a template, edit, save, reload the page, files persist.*
+**M0 — Scaffold.** Vite + React + TS, shell, Monaco mounting, IndexedDB project store,
+template picker, console panel, `RunSession` plumbing, workspace switcher.
+*Accept: create a project, edit, save, reload the page, files persist.*
 
-**M1 — HTML/Web runtime.** Smallest complete win; proves the Runtime + preview abstraction.
-*Accept: edit HTML/CSS/JS across files, see live preview, `console.log` appears in the
-console panel, runtime errors are caught and shown with a line number.*
+**M1 — Web workspace.** Smallest complete win; proves the Runtime + preview abstraction.
+*Accept: multi-file HTML/CSS/JS renders live; `console.log` reaches the console panel; a
+runtime error is caught and shown with a line number.*
 
-**M2 — Luau core.** `LuaWorker` in a worker, console, `AnalysisWorker` diagnostics with
-debounce, Roblox value types + `Instance` tree — **no rendering yet**.
-*Accept: a script using `Vector3`/`Color3`/`Instance` runs; `print` streams; an infinite loop
-is killed in ~1s; a type error shows a squiggle at the right line.*
+**M2 — Luau core (no rendering yet).** `LuaWorker`, console, `AnalysisWorker` diagnostics with
+debounce, Roblox value types + `Instance` tree.
+*Accept: the §3 spike-3 script runs; `print` streams; an infinite loop dies in ~1s; a type
+error squiggles the right line.*
 
-**M3 — Roblox viewport.** three.js scene driven by the prelude's render bridge.
-*Accept: the §2 spike script draws a baseplate plus 5 colored blocks; orbit camera works.*
+**M3 — Roblox viewport (A1).** three.js scene from the render bridge; orbit camera.
+*Accept: spike-3 script draws a baseplate + 5 colored blocks with correct size, position, color.*
 
-**M4 — Services, signals, modules, export.** `RunService` ticks, `task.*`, `.Touched`,
-`require()`, and `.rbxlx` export.
-*Accept: a spinning part via `RunService.Heartbeat`; a two-file project using `require`;
-exported `.rbxlx` opens in Roblox Studio.*
+**M4 — Roblox physics (A2).** Rapier integration, `.Touched`, movers.
+*Accept: an unanchored Part falls and rests on the baseplate (spike 7), and `.Touched` fires
+on the Roblox side.*
 
-**M5 — Games.** JS game runtime with injectable libraries and asset upload.
-*Accept: a Kaplay or three.js starter runs and hot-reloads on save.*
+**M5 — Roblox services + modules.** `RunService` ticks, `task.*`, `require()`, `TweenService`,
+`Debris`, `Players`, `UserInputService`.
+*Accept: a part spins via `RunService.Heartbeat`; a tween moves it; a two-file project using
+`require` runs.*
 
-**M6 — Python + more languages.** Pyodide, lazy-loaded; then WASM toolchains.
-*Accept: a Python script prints output; `import numpy` works; matplotlib renders to preview.*
+**M6 — Roblox lighting, GUI, particles (A3–A5).**
+*Accept: `Lighting.ClockTime` changes the scene; a `ScreenGui` with a `TextButton` renders as
+DOM overlay and fires `.Activated`; a `ParticleEmitter` draws.*
 
-**M7 — Polish.** Share links, export bundles, theming, keyboard map, mobile layout.
+**M7 — Visual game builder.** ECS + Pixi, editor UI, property inspector, script hooks,
+transport, asset upload, templates.
+*Accept: place a sprite, attach an `onUpdate` script that moves it, press play, see it move;
+reload and the scene persists.*
+
+**M8 — Python + other languages.** Pyodide lazy-loaded.
+*Accept: a Python script prints; `import numpy` works; matplotlib output renders.*
+
+**M9 — Polish.** `.rbxlx` export, project export/import, theming, keyboard map, mobile layout.
 
 ---
 
-## 10. Risks & unknowns
+## 10. Risks
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| Roblox API surface too large to emulate | High | Documented subset (§6); loud named errors; Tier C export |
-| Simulator misleads users about real behaviour | High | Permanent "simulation" badge in the viewport |
-| `@luau-rs/luau` is v0.x — API may shift | Medium | Pin version; isolate behind `Runtime` interface |
-| Analysis wasm + runtime wasm ≈ 8.4 MB | Medium | Lazy-load analysis on first Luau project |
-| Monaco's 101 MB package bloats the bundle | Medium | Tree-shake to used languages; else CodeMirror 6 |
-| WebContainers need COOP/COEP + secure context | Medium | Set headers in Vite config; Node is a later milestone |
-| **WebContainers commercial licensing** | Medium | **Unchecked** — terms not verified here; confirm before shipping |
-| `AnalysisWorker` at 316 ms/check | Low | Debounce 400 ms; run in worker |
-| Physics fidelity | Medium | Ship static geometry first; label physics as approximate |
+| **Roblox simulator scope creep** — physics/lighting/GUI/particles is a large build | **High** | Split across M3–M6 with hard acceptance tests; ship M3 usable before starting M4 |
+| Simulator diverges from real Roblox and misleads users | High | Permanent "simulation" badge; named errors for unsupported APIs; `.rbxlx` export in M9 |
+| Roblox API surface is enormous | High | Documented subset (§5); loud named errors instead of silent `nil` |
+| **Total deps ≈ 250 MB unpacked** | High | Lazy-load per workspace; tree-shake Monaco; budget gate in CI |
+| `@luau-rs/luau` is v0.x — API may shift | Medium | Pin version; isolate behind `Runtime` |
+| Rapier ≠ Roblox physics solver | Medium | Label as approximate; don't promise parity |
+| Pixi's 76 MB hurts the builder's first load | Medium | Lazy-load; Canvas2D fallback |
+| Monaco's 101 MB bloats the bundle | Medium | Tree-shake to used languages; else CodeMirror 6 |
+| IndexedDB loss on cleared profile | Medium | Prominent export/import; autosave |
+| Analysis at 307 ms/check | Low | Debounce 400 ms in a worker |
 
-**Not verified in this session:** browser-bundle size after Vite build; `@luau-rs/luau`
-inside a real Web Worker under Vite's wasm handling; WebContainers licensing terms;
-`.rbxlx` round-trip into Studio (no Studio in this environment).
+**Not verified in this session:** Vite-bundled browser sizes; `@luau-rs/luau` and
+`rapier3d-compat` inside a real Web Worker under Vite's wasm handling; three.js actual
+on-screen rendering (spike 8 exercised scene-graph math, not WebGL); `.rbxlx` round-trip into
+Roblox Studio (no Studio here). Each becomes an early task in its milestone rather than an
+assumption.
 
 ---
 
-## 11. Open decisions
+## 11. Immediate next step
 
-Four choices materially change the build. Recommendations are marked; see the questions
-asked alongside this document.
-
-1. **Roblox preview fidelity** → recommend **A + B + C** (simulate, validate, export).
-2. **Where code executes** → recommend **fully client-side** (WASM only, no server). Deployable
-   anywhere, no per-user sandbox cost, works offline. A backend only becomes necessary for
-   languages without a WASM build.
-3. **What "Games" means** as a category.
-4. **Single-user local tool vs. hosted product** with accounts, saved projects, and sharing.
+**M0 scaffold**, then **M1 (Web workspace)** because it is the smallest complete proof of the
+Runtime + preview abstraction that everything else reuses. M2–M6 then build the Roblox
+simulator incrementally, each milestone demo-able on its own.

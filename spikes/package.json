@@ -1,1 +1,1 @@
-{ "name": "luau-spike", "private": true, "type": "module", "dependencies": { "@luau-rs/luau": "^0.739.0" } }
+{"name":"luau-spike","private":true,"type":"module","dependencies":{"@dimforge/rapier3d-compat":"^0.21.0","@luau-rs/luau":"^0.739.0","three":"^0.187.0"}}
