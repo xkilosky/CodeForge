@@ -18,6 +18,7 @@ import { TEMPLATES } from '../core/templates';
 import type { Project } from '../core/types';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL, describeAge } from './labels';
+import { BrandMark } from './BrandMark';
 
 interface ProjectsHomeProps {
   recent: Project[];
@@ -136,10 +137,7 @@ export function ProjectsHome({
       <div className="home-inner">
         <header className="home-head">
           <h1>
-            <span className="brand-mark" aria-hidden="true">
-              ⚒
-            </span>{' '}
-            CodeForge
+            <BrandMark size={30} /> CodeForge
           </h1>
           <p className="muted">
             A coding environment that runs entirely in this browser. Everything is stored on this

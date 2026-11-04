@@ -67,7 +67,18 @@ button, input, select { font: inherit; color: inherit; }
 }
 
 .brand { display: flex; align-items: center; gap: 7px; font-weight: 650; letter-spacing: 0.2px; }
-.brand-mark { color: var(--accent); font-size: 15px; }
+/* The mark is dark artwork on a transparent background; without a plate it
+   disappears against this app's chrome. The plate is CSS rather than baked into
+   the PNG so the in-app copy stays sharp at any size. */
+.brand-mark {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 26%;
+  background: #f1f5fb;
+  object-fit: contain;
+  /* A hairline lifts the plate off the bar without reading as a border. */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
 .topbar-spacer { flex: 1; }
 
 .workspace-tabs { display: flex; gap: 4px; }

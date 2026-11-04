@@ -158,3 +158,35 @@ describe('builder state wiring', () => {
     expect(vi.isMockFunction(vi.fn())).toBe(true);
   });
 });
+
+// ── branding ─────────────────────────────────────────────────────────────
+describe('BrandMark', () => {
+  it('renders the mark at the requested size with a decorative default', async () => {
+    const { BrandMark } = await import('../src/ui/BrandMark');
+    const html = renderToStaticMarkup(<BrandMark size={22} />);
+    expect(html).toContain('src="/brand/mark.png"');
+    expect(html).toContain('width="22"');
+    expect(html).toContain('aria-hidden="true"');
+    // Decorative by default: both call sites already name themselves, so a
+    // second accessible name would read "CodeForge CodeForge".
+    expect(html).not.toContain('alt="CodeForge"');
+  });
+
+  it('becomes a real image when given alt text', async () => {
+    const { BrandMark } = await import('../src/ui/BrandMark');
+    const html = renderToStaticMarkup(<BrandMark size={30} alt="CodeForge" />);
+    expect(html).toContain('alt="CodeForge"');
+    expect(html).not.toContain('aria-hidden');
+  });
+
+  it('is used by both the top bar and the projects home', async () => {
+    // These two places used to hold their own copy of the "⚒" character, which
+    // is why the logo could change in one and not the other.
+    const { readFileSync } = await import('node:fs');
+    for (const file of ['src/ui/TopBar.tsx', 'src/ui/ProjectsHome.tsx']) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, file).toContain('BrandMark');
+      expect(source, file).not.toContain('⚒');
+    }
+  });
+});

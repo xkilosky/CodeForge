@@ -3,6 +3,7 @@ import type { Project, WorkspaceId } from '../core/types';
 import { TEMPLATES } from '../core/templates';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL } from './labels';
+import { BrandMark } from './BrandMark';
 
 interface TopBarProps {
   project: Project | null;
@@ -127,9 +128,7 @@ export function TopBar({
         title={project ? 'Back to your projects' : 'Projects'}
         aria-label={project ? 'Back to your projects' : 'Projects'}
       >
-        <span className="brand-mark" aria-hidden="true">
-          ⚒
-        </span>
+        <BrandMark size={22} />
         <span className="brand-name">CodeForge</span>
       </button>
 
