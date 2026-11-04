@@ -50,13 +50,22 @@ function scheduleSave(project: Project): void {
 }
 
 export const projectActions = {
+  /**
+   * Loads the project list. Deliberately does **not** open anything.
+   *
+   * It used to open the most recent project on every launch. That made the
+   * projects list unreachable (the home screen only rendered when no project was
+   * open) and it made the app look like it only had one project: whatever you
+   * last touched was reopened, and everything else might as well not exist.
+   * The app now always starts on the projects home.
+   */
   async init(): Promise<void> {
     try {
       const recent = await db.listProjects();
       projectStore.set((prev) => ({
         ...prev,
         recent,
-        project: prev.project ?? recent[0] ?? null,
+        project: null,
         loading: false,
       }));
     } catch (err) {

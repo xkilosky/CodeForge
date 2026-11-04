@@ -31,6 +31,7 @@ import { createPhysicsWorld, initPhysics } from './physics';
 import type { SolvedPart, TouchEvent } from './physics';
 import { startPhysicsLoop } from './physicsLoop';
 import { applyPhysicsFrame } from './physicsBridge';
+import { serializeRuns } from './runGate';
 import type { ScenePart } from '../../core/types';
 
 /** Budgets for one execution. Mirrors the library defaults, stated explicitly. */
@@ -88,6 +89,16 @@ export const luauRuntime: Runtime = {
     // Captured as a const: the closures below lose the narrowing otherwise.
     const scriptPath: string = entryPath;
 
+    /**
+     * Whether a script error has already been reported for this run.
+     *
+     * A failing script used to log the same error on every simulation tick —
+     * ten identical lines a second, forever. `tickFailures` bounded how long
+     * that went on but not how much it printed; the first failure is the one
+     * that matters, the rest is noise.
+     */
+    let reportedError = false;
+
     const onPrint = (event: Event) => {
       const text = (event as Event & { text?: string }).text ?? '';
       io.log({ kind: 'log', text, file: entryPath });
@@ -96,6 +107,13 @@ export const luauRuntime: Runtime = {
 
     io.log({ kind: 'system', text: `Running ${entryPath}` });
 
+    /** True once the handle has been stopped: no further executions. */
+    let stopped = false;
+    const isAbort = (err: unknown): boolean =>
+      controller.signal.aborted ||
+      (err instanceof DOMException && err.name === 'AbortError') ||
+      (err instanceof Error && err.name === 'AbortError');
+
     /**
      * One script execution. `physicsState` is spliced into the bootstrap so the
      * script sees solved positions and can receive touch events in the same run
@@ -103,7 +121,7 @@ export const luauRuntime: Runtime = {
      */
     async function executeOnce(
       physics?: { solved: SolvedPart[]; touches: TouchEvent[]; time: number },
-    ): Promise<{ ok: boolean; parts: ScenePart[] }> {
+    ): Promise<{ ok: boolean; parts: ScenePart[]; error?: unknown }> {
       const bootstrap = buildBootstrapSource({
         requirePath: requireSpecifierFor(scriptPath),
         displayName: scriptPath,
@@ -116,12 +134,15 @@ export const luauRuntime: Runtime = {
           : undefined,
       });
 
-      const result = await worker.execute(bootstrap, {
-        entryName: BOOTSTRAP_DISPLAY_NAME,
-        signal: controller.signal,
-        modules,
-        ...EXECUTION_LIMITS,
-      });
+      // Queued, never dropped: the worker rejects concurrent calls outright.
+      const result = await serializeRuns(() =>
+        worker.execute(bootstrap, {
+          entryName: BOOTSTRAP_DISPLAY_NAME,
+          signal: controller.signal,
+          modules,
+          ...EXECUTION_LIMITS,
+        }),
+      );
 
       if (result.outputTruncated) {
         io.log({
@@ -136,26 +157,36 @@ export const luauRuntime: Runtime = {
 
       if (result.error) {
         const parsed = parseLuauError(result.error.message);
-        // A bootstrap failure has no user-visible filename of its own;
-        // attribute it to the script that was required. A genuine script error
-        // is already attributed by the engine and keeps its file and line.
-        if (parsed.kind === 'syntax' || parsed.kind === 'compile') {
-          reportSceneError(formatLuauError(parsed));
+        if (!reportedError) {
+          reportedError = true;
+          // A bootstrap failure has no user-visible filename of its own;
+          // attribute it to the script that was required. A genuine script
+          // error is already attributed by the engine and keeps its file and
+          // line.
+          if (parsed.kind === 'syntax' || parsed.kind === 'compile') {
+            reportSceneError(formatLuauError(parsed));
+          }
+          io.log({
+            kind: 'error',
+            text: `${parsed.kind} error: ${formatLuauError(parsed)}`,
+            file: parsed.file ?? scriptPath,
+            line: parsed.line,
+          });
         }
-        io.log({
-          kind: 'error',
-          text: `${parsed.kind} error: ${formatLuauError(parsed)}`,
-          file: parsed.file ?? scriptPath,
-          line: parsed.line,
-        });
       }
-      return { ok: false, parts: [] };
+      return { ok: false, parts: [], error: result.error };
     }
 
     try {
       // --- phase 0: build the scene -------------------------------------
       const first = await executeOnce();
       if (!first.ok) {
+        // executeOnce reports its own error. The one case worth adding is a
+        // first run that failed without saying so (an abort), because a blank
+        // console over an empty viewport explains nothing.
+        if (!reportedError && !stopped) {
+          io.log({ kind: 'error', text: `Could not run ${scriptPath}.` });
+        }
         return { stop() { controller.abort(); } };
       }
 
@@ -181,17 +212,35 @@ export const luauRuntime: Runtime = {
       sceneStore.set((prev) => ({ ...prev, simulationNote: null }));
 
       let tickFailures = 0;
+      // The most recent frame, so a slow script tick reads current positions.
+      let solvedLatest: SolvedPart[] | null = null;
       const loop = startPhysicsLoop({
         world,
         onFrame: (solved) => {
+          solvedLatest = solved;
           applyPhysicsFrame(solved);
         },
         onTick: async (solved, touches, time) => {
-          const tick = await executeOnce({ solved, touches, time });
+          // Scheduled but never started? Drop it: an execution that begins
+          // after the user pressed Stop would publish a scene into a viewport
+          // that has already been torn down.
+          if (stopped) return;
+
+          // `solved` describes the frame this tick was queued for. By the time
+          // a slow tick gets its turn the world has moved on, so the freshest
+          // positions are used instead of stale ones.
+          const tick = await executeOnce({
+            solved: solvedLatest ?? solved,
+            touches,
+            time,
+          });
+
           if (!tick.ok) {
+            // A stopped run is not a failing script: aborting the in-flight
+            // execution is how Stop works, and counting it would stop the
+            // simulation with a message about a script that is fine.
+            if (stopped || isAbort(tick.error)) return;
             tickFailures += 1;
-            // A script that fails every tick would spam the console and the
-            // budget; stop after a few rather than filling the log forever.
             if (tickFailures >= 3) {
               io.log({
                 kind: 'error',
@@ -201,6 +250,9 @@ export const luauRuntime: Runtime = {
             }
             return;
           }
+
+          tickFailures = 0;
+          if (stopped) return;
           // New instances can appear mid-run (a Touched handler spawning one),
           // so the scene is republished each tick.
           if (tick.parts.length !== lastPublishedCount) {
@@ -211,23 +263,31 @@ export const luauRuntime: Runtime = {
       });
 
       let lastPublishedCount = first.parts.length;
-      let stopped = false;
-
+      // Idempotent: Stop, a crash, and a new Run can all arrive for the same
+      // session, and the loop must only be torn down once.
+      let loopStopped = false;
       const stopLoop = () => {
-        if (stopped) return;
-        stopped = true;
+        if (loopStopped) return;
+        loopStopped = true;
         loop.stop();
       };
 
       return {
         stop() {
-          controller.abort();
+          if (stopped) return;
+          stopped = true;
           stopLoop();
+          // Aborting last: the signal is what interrupts an in-flight
+          // execution, and `stopped` must already be set when it does.
+          controller.abort();
+          io.log({ kind: 'system', text: 'Stopped.' });
         },
       };
     } catch (err) {
-      if (controller.signal.aborted) {
-        io.log({ kind: 'system', text: 'Stopped.' });
+      if (isAbort(err) || controller.signal.aborted) {
+        // Stop is not an error and must not be reported as one. Saying so once
+        // is enough; the user pressed the button.
+        if (!stopped) io.log({ kind: 'system', text: 'Stopped.' });
       } else {
         io.log({
           kind: 'error',
@@ -235,7 +295,7 @@ export const luauRuntime: Runtime = {
         });
         reportSceneError(err instanceof Error ? err.message : String(err));
       }
-      return { stop() { controller.abort(); } };
+      return { stop() { stopped = true; controller.abort(); } };
     } finally {
       worker.removeEventListener('print', onPrint);
     }
