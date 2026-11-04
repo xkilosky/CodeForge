@@ -2,8 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the app paint into the notch/home-indicator
+         area; env(safe-area-inset-*) in styles.css keeps content out of it. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#161b22" />
+    <!-- Standalone launch on iOS (Android uses manifest.webmanifest). -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CodeForge" />
+    <meta
+      name="description"
+      content="A local-first coding environment in the browser: Web, Luau/Roblox simulation, and more."
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>CodeForge</title>
   </head>
   <body>

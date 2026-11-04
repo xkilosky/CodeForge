@@ -117,7 +117,10 @@ export function RobloxViewport() {
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Phones report devicePixelRatio 3, which triples the fragment count for no
+    // visible gain on a small screen. Cap lower when the screen is small.
+    const smallScreen = Math.min(window.innerWidth, window.innerHeight) < 820;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, smallScreen ? 1.5 : 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
@@ -145,6 +148,10 @@ export function RobloxViewport() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
+    // Touch: one finger orbits, two fingers pan and pinch-zoom. The defaults do
+    // this, but `touch-action: none` in CSS is what stops the browser claiming
+    // the gesture for page scroll — without it dragging pans the page instead.
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
     sceneRef.current = scene;
     cameraRef.current = camera;

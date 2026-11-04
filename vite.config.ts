@@ -42,7 +42,7 @@ export default defineConfig({
   // included) in Node, where there is no browser to run it in.
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
     testTimeout: 30_000,
   },
   // Monaco is large; keep chunks predictable so the bundle budget is visible.

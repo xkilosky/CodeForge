@@ -12,8 +12,13 @@ import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { EditorPane } from './ui/EditorPane';
 import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
+import { MobileNav } from './ui/MobileNav';
+import { MobileOutputHint } from './ui/MobileOutputHint';
+import type { MobileTab } from './ui/MobileNav';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
+import { useLayoutMode } from './ui/useLayoutMode';
+import { consoleStore } from './core/consoleStore';
 
 function Welcome({ onCreate }: { onCreate: (templateId: string) => void }) {
   return (
@@ -54,7 +59,15 @@ function Welcome({ onCreate }: { onCreate: (templateId: string) => void }) {
 export default function App() {
   const projectState = useStore(projectStore);
   const runState = useStore(runStore);
+  const diagnosticsState = useStore(diagnosticsStore);
+  const consoleState = useStore(consoleStore);
+  const layout = useLayoutMode();
   const [runSignal, setRunSignal] = useState(0);
+  /**
+   * Which single pane the phone layout shows. Defaults to the code editor:
+   * opening a project and landing on anything else makes the app look empty.
+   */
+  const [mobileTab, setMobileTab] = useState<MobileTab>('code');
 
   useEffect(() => {
     void projectActions.init();
@@ -83,7 +96,6 @@ export default function App() {
   }, [files, analysisMode, runtime]);
 
   // Push results into Monaco as squiggles.
-  const diagnosticsState = useStore(diagnosticsStore);
   useEffect(() => {
     applyMarkers(diagnosticsState.diagnostics);
   }, [diagnosticsState.diagnostics]);
@@ -95,8 +107,11 @@ export default function App() {
       return;
     }
     setRunSignal((n) => n + 1);
+    // On a phone the preview is behind a tab. Pressing Run means "show me the
+    // result", so bring it into view rather than leaving the user on Files.
+    if (layout === 'compact') setMobileTab('preview');
     void startRun((bridge) => runtime.run(project.files, project.activeFile, bridge));
-  }, [project, runtime]);
+  }, [project, runtime, layout]);
 
   const handleStop = useCallback(() => stopRun(), []);
 
@@ -148,6 +163,86 @@ export default function App() {
           }}
         />
       ) : (
+        layout === 'compact' ? (
+          /* One pane at a time, with the tab bar underneath. */
+          <div className="workspace workspace-compact">
+            <div className="mobile-pane">
+              {mobileTab === 'files' ? (
+                <aside className="sidebar sidebar-full">
+                  <Explorer
+                    files={project.files}
+                    activeFile={activePath}
+                    onSelect={(path) => {
+                      projectActions.setActiveFile(path);
+                      // Picking a file on a phone means "I want to edit this".
+                      setMobileTab('code');
+                    }}
+                    onAdd={(path) => projectActions.addFile(path)}
+                    onRemove={projectActions.removeFile}
+                  />
+                </aside>
+              ) : null}
+
+              {mobileTab === 'code' ? (
+                <main className="center">
+                  <Tabs
+                    files={project.files}
+                    activeFile={activePath}
+                    onSelect={projectActions.setActiveFile}
+                  />
+                  <EditorPane
+                    path={activePath}
+                    content={activeFile?.content ?? ''}
+                    language={activeFile?.language ?? 'plaintext'}
+                    theme={project.settings.theme}
+                    onChange={(value) => projectActions.updateFile(activePath, value)}
+                  />
+                </main>
+              ) : null}
+
+              {mobileTab === 'preview' ? (
+                <section className="right">
+                  <PreviewPane
+                    runtime={runtime}
+                    files={project.files}
+                    autorun={project.settings.autorun}
+                    runSignal={runSignal}
+                    onRun={handleRun}
+                  />
+                </section>
+              ) : null}
+
+              {mobileTab === 'output' ? (
+                <footer className="bottom bottom-full">
+                  <div className="bottom-panes">
+                    <ConsolePanel onClear={() => io.clear()} />
+                    <DiagnosticsPanel
+                      onOpen={(file) => {
+                        projectActions.setActiveFile(file);
+                        setMobileTab('code');
+                      }}
+                    />
+                  </div>
+                </footer>
+              ) : null}
+            </div>
+
+            <MobileOutputHint
+              console={consoleState}
+              diagnostics={diagnosticsState}
+              visible={mobileTab !== 'output'}
+              onOpen={() => setMobileTab('output')}
+            />
+
+            <MobileNav
+              active={mobileTab}
+              onChange={setMobileTab}
+              console={consoleState}
+              diagnostics={diagnosticsState}
+              running={runState.running}
+            />
+          </div>
+        ) : (
         <div className="workspace">
           <aside className="sidebar">
             <Explorer
@@ -189,6 +284,7 @@ export default function App() {
             </div>
           </footer>
         </div>
+        )
       )}
 
       {projectState.error ? (
