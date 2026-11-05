@@ -1281,14 +1281,14 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   border-radius: 9px; cursor: pointer; color: inherit;
 }
 .theme-option:hover { border-color: #3f4663; }
-.theme-option.active { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+.theme-option.active { border-color: var(--text-dim); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
 .theme-swatch {
   width: 34px; height: 24px; border-radius: 5px; flex: 0 0 auto;
   border: 1px solid var(--border);
-  background-image: linear-gradient(90deg, transparent 22%, #bb9af7 22% 34%, transparent 34% 40%, #9ece6a 40% 62%, transparent 62% 68%, #ff9e64 68% 80%, transparent 80%);
+  background-image: linear-gradient(90deg, transparent 18%, #f0f0f0 18% 30%, transparent 30% 40%, #bdbdbd 40% 62%, transparent 62% 68%, #777777 68% 80%, transparent 80%);
 }
-.theme-swatch.tokyo-night { background-color: #1a1b26; }
-.theme-swatch.tokyo-storm { background-color: #24283b; }
+.theme-swatch.tokyo-night { background-color: #111111; }
+.theme-swatch.tokyo-storm { background-color: #1e1e1e; }
 .theme-text { display: flex; flex-direction: column; gap: 1px; }
 .theme-name { font-size: 12.5px; font-weight: 600; }
 .theme-note { font-size: 11px; color: var(--muted); }

@@ -1,11 +1,11 @@
 /**
  * The palette, in one place.
  *
- * Tokyo Night is a set of hex values, not a mood: the app chrome, the Monaco
- * editor and the canvas all have to agree on what `#7aa2f7` means, or the editor
- * ends up looking pasted into the app. This module is the single source for
- * those values; `styles.css` mirrors them as custom properties and a test
- * compares the two so they cannot drift silently.
+ * The app chrome and canvas use Tokyo Night tokens; the Monaco editor has its
+ * own intentionally neutral Black and Graphite themes so syntax stays readable
+ * without neon hues. This module is the single source for both palettes;
+ * `styles.css` mirrors the chrome tokens and a test compares them so they
+ * cannot drift silently.
  *
  * "Liquid" is a treatment, not a colour: translucent surfaces over a lit
  * background, a one-pixel top highlight, and long soft shadows. The tokens for
@@ -66,16 +66,16 @@ export function accentHex(id: string | undefined): string {
 /**
  * Editor themes.
  *
- * Two variants of the same scheme rather than a dark/light pair: the chrome is
- * dark by design, and a light editor inside dark chrome reads as a bug. `night`
- * is the true `#1a1b26`; `storm` lifts the editor to `#24283b` so it separates
- * from the app background when the drawer is open.
+ * Two neutral dark variants rather than a dark/light pair: pure near-black for
+ * focused editing, and graphite for a softer VS Code-like surface. Syntax uses
+ * grayscale contrast instead of bright semantic hues; the app's project accent
+ * remains separate from editor token colors.
  */
 export type EditorThemeId = 'tokyo-night' | 'tokyo-storm';
 
 export const EDITOR_THEMES: { id: EditorThemeId; label: string; note: string }[] = [
-  { id: 'tokyo-night', label: 'Night', note: 'Deep #1a1b26 editor' },
-  { id: 'tokyo-storm', label: 'Storm', note: 'Lifted #24283b editor' },
+  { id: 'tokyo-night', label: 'Black', note: 'Near-black with grayscale syntax' },
+  { id: 'tokyo-storm', label: 'Graphite', note: 'Soft charcoal with grayscale syntax' },
 ];
 
 /**
@@ -106,53 +106,53 @@ export const MONACO_THEMES: { id: EditorThemeId; data: MonacoThemeData }[] = [
       base: 'vs-dark',
       inherit: false,
       rules: [
-        { token: '', foreground: hex(TOKYO.text) },
-        { token: 'comment', foreground: hex('#565f89'), fontStyle: 'italic' },
-        { token: 'keyword', foreground: hex(TOKYO.purple) },
-        { token: 'keyword.control', foreground: hex(TOKYO.purple) },
-        { token: 'storage', foreground: hex(TOKYO.purple) },
-        { token: 'string', foreground: hex(TOKYO.green) },
-        { token: 'string.escape', foreground: hex(TOKYO.cyan) },
-        { token: 'number', foreground: hex(TOKYO.orange) },
-        { token: 'constant', foreground: hex(TOKYO.orange) },
-        { token: 'regexp', foreground: hex('#b4f9f8') },
-        { token: 'type', foreground: hex('#2ac3de') },
-        { token: 'type.identifier', foreground: hex('#2ac3de') },
-        { token: 'entity.name.tag', foreground: hex(TOKYO.red) },
-        { token: 'entity.other.attribute-name', foreground: hex(TOKYO.yellow) },
-        { token: 'attribute.name', foreground: hex(TOKYO.yellow) },
-        { token: 'tag', foreground: hex(TOKYO.red) },
-        { token: 'metatag', foreground: hex(TOKYO.purple) },
-        { token: 'variable', foreground: hex(TOKYO.text) },
-        { token: 'variable.predefined', foreground: hex(TOKYO.cyan) },
-        { token: 'identifier', foreground: hex(TOKYO.text) },
-        { token: 'function', foreground: hex(TOKYO.accent) },
-        { token: 'delimiter', foreground: hex('#89ddff') },
-        { token: 'operator', foreground: hex('#89ddff') },
-        { token: 'key', foreground: hex(TOKYO.cyan) },
+        { token: '', foreground: 'e6e6e6' },
+        { token: 'comment', foreground: '777777', fontStyle: 'italic' },
+        { token: 'keyword', foreground: 'f2f2f2', fontStyle: 'bold' },
+        { token: 'keyword.control', foreground: 'f2f2f2', fontStyle: 'bold' },
+        { token: 'storage', foreground: 'ededed' },
+        { token: 'string', foreground: 'c9c9c9' },
+        { token: 'string.escape', foreground: 'f0f0f0' },
+        { token: 'number', foreground: 'bdbdbd' },
+        { token: 'constant', foreground: 'bdbdbd' },
+        { token: 'regexp', foreground: 'd8d8d8' },
+        { token: 'type', foreground: 'ededed' },
+        { token: 'type.identifier', foreground: 'ededed' },
+        { token: 'entity.name.tag', foreground: 'f0f0f0' },
+        { token: 'entity.other.attribute-name', foreground: 'c2c2c2' },
+        { token: 'attribute.name', foreground: 'c2c2c2' },
+        { token: 'tag', foreground: 'f0f0f0' },
+        { token: 'metatag', foreground: 'd0d0d0' },
+        { token: 'variable', foreground: 'e6e6e6' },
+        { token: 'variable.predefined', foreground: 'd0d0d0' },
+        { token: 'identifier', foreground: 'e6e6e6' },
+        { token: 'function', foreground: 'ffffff' },
+        { token: 'delimiter', foreground: 'a8a8a8' },
+        { token: 'operator', foreground: 'b0b0b0' },
+        { token: 'key', foreground: 'd0d0d0' },
       ],
       colors: {
-        'editor.background': TOKYO.bgRaise,
-        'editor.foreground': TOKYO.text,
-        'editorLineNumber.foreground': TOKYO.gutter,
-        'editorLineNumber.activeForeground': TOKYO.muted,
-        'editor.selectionBackground': '#3d59a166',
-        'editor.inactiveSelectionBackground': '#3d59a133',
-        'editor.lineHighlightBackground': '#1e2030',
-        'editorCursor.foreground': TOKYO.accent,
-        'editorIndentGuide.background1': '#2a2e42',
-        'editorIndentGuide.activeBackground1': '#3b4261',
-        'editorWidget.background': TOKYO.bgRaise2,
-        'editorWidget.border': TOKYO.border,
-        'editorSuggestWidget.background': TOKYO.bgRaise2,
-        'editorSuggestWidget.selectedBackground': '#2e3550',
-        'editorHoverWidget.background': TOKYO.bgRaise2,
-        'editorBracketMatch.background': '#3d59a144',
-        'editorBracketMatch.border': TOKYO.accent,
-        'editorWhitespace.foreground': '#2a2e42',
-        'scrollbarSlider.background': '#3b426166',
-        'scrollbarSlider.hoverBackground': '#3b4261aa',
-        'scrollbarSlider.activeBackground': '#3b4261dd',
+        'editor.background': '#111111',
+        'editor.foreground': '#e6e6e6',
+        'editorLineNumber.foreground': '#555555',
+        'editorLineNumber.activeForeground': '#b8b8b8',
+        'editor.selectionBackground': '#45454588',
+        'editor.inactiveSelectionBackground': '#38383855',
+        'editor.lineHighlightBackground': '#1a1a1a',
+        'editorCursor.foreground': '#f2f2f2',
+        'editorIndentGuide.background1': '#292929',
+        'editorIndentGuide.activeBackground1': '#505050',
+        'editorWidget.background': '#1b1b1b',
+        'editorWidget.border': '#343434',
+        'editorSuggestWidget.background': '#1b1b1b',
+        'editorSuggestWidget.selectedBackground': '#333333',
+        'editorHoverWidget.background': '#1b1b1b',
+        'editorBracketMatch.background': '#35353566',
+        'editorBracketMatch.border': '#888888',
+        'editorWhitespace.foreground': '#303030',
+        'scrollbarSlider.background': '#50505055',
+        'scrollbarSlider.hoverBackground': '#68686888',
+        'scrollbarSlider.activeBackground': '#808080aa',
       },
     },
   },
@@ -162,45 +162,47 @@ export const MONACO_THEMES: { id: EditorThemeId; data: MonacoThemeData }[] = [
       base: 'vs-dark',
       inherit: false,
       rules: [
-        { token: '', foreground: hex(TOKYO.text) },
-        { token: 'comment', foreground: hex('#565f89'), fontStyle: 'italic' },
-        { token: 'keyword', foreground: hex(TOKYO.purple) },
-        { token: 'storage', foreground: hex(TOKYO.purple) },
-        { token: 'string', foreground: hex(TOKYO.green) },
-        { token: 'number', foreground: hex(TOKYO.orange) },
-        { token: 'constant', foreground: hex(TOKYO.orange) },
-        { token: 'type', foreground: hex('#2ac3de') },
-        { token: 'entity.name.tag', foreground: hex(TOKYO.red) },
-        { token: 'attribute.name', foreground: hex(TOKYO.yellow) },
-        { token: 'variable', foreground: hex(TOKYO.text) },
-        { token: 'function', foreground: hex(TOKYO.accent) },
-        { token: 'delimiter', foreground: hex('#89ddff') },
-        { token: 'operator', foreground: hex('#89ddff') },
+        { token: '', foreground: 'e0e0e0' },
+        { token: 'comment', foreground: '777777', fontStyle: 'italic' },
+        { token: 'keyword', foreground: 'f0f0f0', fontStyle: 'bold' },
+        { token: 'storage', foreground: 'ededed' },
+        { token: 'string', foreground: 'c9c9c9' },
+        { token: 'number', foreground: 'bdbdbd' },
+        { token: 'constant', foreground: 'bdbdbd' },
+        { token: 'type', foreground: 'ededed' },
+        { token: 'entity.name.tag', foreground: 'f0f0f0' },
+        { token: 'attribute.name', foreground: 'c2c2c2' },
+        { token: 'variable', foreground: 'e0e0e0' },
+        { token: 'function', foreground: 'ffffff' },
+        { token: 'delimiter', foreground: 'a8a8a8' },
+        { token: 'operator', foreground: 'b0b0b0' },
       ],
       colors: {
-        'editor.background': '#24283b',
-        'editor.foreground': TOKYO.text,
-        'editorLineNumber.foreground': '#414868',
-        'editorLineNumber.activeForeground': TOKYO.textDim,
-        'editor.selectionBackground': '#3d59a166',
-        'editor.lineHighlightBackground': '#292e42',
-        'editorCursor.foreground': TOKYO.accent,
-        'editorIndentGuide.background1': '#3b4261',
-        'editorWidget.background': '#1f2335',
-        'editorWidget.border': '#3b4261',
-        'editorSuggestWidget.background': '#1f2335',
-        'editorHoverWidget.background': '#1f2335',
-        'editorWhitespace.foreground': '#3b4261',
-        'scrollbarSlider.background': '#3b426166',
+        'editor.background': '#1e1e1e',
+        'editor.foreground': '#e0e0e0',
+        'editorLineNumber.foreground': '#666666',
+        'editorLineNumber.activeForeground': '#c0c0c0',
+        'editor.selectionBackground': '#4a4a4a88',
+        'editor.inactiveSelectionBackground': '#38383855',
+        'editor.lineHighlightBackground': '#252525',
+        'editorCursor.foreground': '#f0f0f0',
+        'editorIndentGuide.background1': '#333333',
+        'editorIndentGuide.activeBackground1': '#5a5a5a',
+        'editorWidget.background': '#252525',
+        'editorWidget.border': '#414141',
+        'editorSuggestWidget.background': '#252525',
+        'editorSuggestWidget.selectedBackground': '#383838',
+        'editorHoverWidget.background': '#252525',
+        'editorBracketMatch.background': '#41414166',
+        'editorBracketMatch.border': '#999999',
+        'editorWhitespace.foreground': '#3a3a3a',
+        'scrollbarSlider.background': '#55555555',
+        'scrollbarSlider.hoverBackground': '#70707088',
+        'scrollbarSlider.activeBackground': '#888888aa',
       },
     },
   },
 ];
-
-/** `#7aa2f7` → `7aa2f7`, which is how Monaco wants token colours. */
-function hex(value: string): string {
-  return value.replace('#', '');
-}
 
 /**
  * The subset of the palette that `styles.css` must declare verbatim.

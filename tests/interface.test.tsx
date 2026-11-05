@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import {
   ACCENTS,
   CSS_TOKENS,
+  EDITOR_THEMES,
   TOKYO,
   accentHex,
   resolveEditorTheme,
@@ -110,7 +111,16 @@ describe('theme', () => {
     for (const theme of MONACO_THEMES) {
       expect(theme.data.colors['editor.background']).toMatch(/^#[0-9a-f]{6}$/i);
       expect(theme.data.rules.length).toBeGreaterThan(3);
+      for (const rule of theme.data.rules) {
+        const color = rule.foreground;
+        if (!color) continue;
+        expect(color.slice(0, 2).toLowerCase()).toBe(color.slice(2, 4).toLowerCase());
+        expect(color.slice(2, 4).toLowerCase()).toBe(color.slice(4, 6).toLowerCase());
+      }
     }
+    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-night')!.data.colors['editor.background']).toBe('#111111');
+    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!.data.colors['editor.background']).toBe('#1e1e1e');
+    expect(EDITOR_THEMES.map((theme) => theme.label)).toEqual(['Black', 'Graphite']);
   });
 });
 
