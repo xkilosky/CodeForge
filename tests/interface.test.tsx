@@ -84,17 +84,21 @@ describe('theme', () => {
     expect(TOKYO.purple).toBe('#bb9af7');
   });
 
-  it('resolves an accent id, and falls back instead of rendering nothing', () => {
-    expect(accentHex('teal')).toBe(TOKYO.teal);
-    expect(accentHex(undefined)).toBe(TOKYO.accent);
+  it('resolves a grayscale interface accent and falls back safely', () => {
+    expect(accentHex('teal')).toBe('#adadad');
+    expect(accentHex(undefined)).toBe('#e6e6e6');
     // A project saved by a future build with an accent this one does not know.
-    expect(accentHex('chartreuse')).toBe(TOKYO.accent);
+    expect(accentHex('chartreuse')).toBe('#e6e6e6');
   });
 
-  it('gives every accent the same shape of id', () => {
+  it('keeps every project interface accent in grayscale', () => {
     const ids = ACCENTS.map((accent) => accent.id);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const accent of ACCENTS) expect(accent.hex).toMatch(/^#[0-9a-f]{6}$/);
+    for (const accent of ACCENTS) {
+      expect(accent.hex).toMatch(/^#[0-9a-f]{6}$/);
+      expect(accent.hex.slice(1, 3)).toBe(accent.hex.slice(3, 5));
+      expect(accent.hex.slice(3, 5)).toBe(accent.hex.slice(5, 7));
+    }
   });
 
   it('maps an old Monaco theme id forward', () => {
@@ -105,22 +109,24 @@ describe('theme', () => {
     expect(resolveEditorTheme(undefined)).toBe('tokyo-night');
   });
 
-  it('registers a Monaco theme for every theme id the UI offers', () => {
+  it('keeps colored syntax highlighting separate from the neutral interface palette', () => {
     const ids = MONACO_THEMES.map((theme) => theme.id).sort();
     expect(ids).toEqual(['tokyo-night', 'tokyo-storm']);
     for (const theme of MONACO_THEMES) {
       expect(theme.data.colors['editor.background']).toMatch(/^#[0-9a-f]{6}$/i);
       expect(theme.data.rules.length).toBeGreaterThan(3);
-      for (const rule of theme.data.rules) {
-        const color = rule.foreground;
-        if (!color) continue;
-        expect(color.slice(0, 2).toLowerCase()).toBe(color.slice(2, 4).toLowerCase());
-        expect(color.slice(2, 4).toLowerCase()).toBe(color.slice(4, 6).toLowerCase());
-      }
     }
-    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-night')!.data.colors['editor.background']).toBe('#111111');
-    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!.data.colors['editor.background']).toBe('#1e1e1e');
-    expect(EDITOR_THEMES.map((theme) => theme.label)).toEqual(['Black', 'Graphite']);
+    const night = MONACO_THEMES.find((theme) => theme.id === 'tokyo-night')!;
+    expect(night.data.colors['editor.background']).toBe('#1a1b26');
+    expect(night.data.rules.map((rule) => rule.foreground)).toContain('bb9af7');
+    expect(night.data.rules.map((rule) => rule.foreground)).toContain('9ece6a');
+    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!.data.colors['editor.background']).toBe('#24283b');
+    expect(EDITOR_THEMES.map((theme) => theme.label)).toEqual(['Night', 'Storm']);
+
+    for (const token of CSS_TOKENS) {
+      expect(token.value.slice(1, 3)).toBe(token.value.slice(3, 5));
+      expect(token.value.slice(3, 5)).toBe(token.value.slice(5, 7));
+    }
   });
 });
 

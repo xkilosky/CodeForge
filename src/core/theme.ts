@@ -1,18 +1,16 @@
 /**
  * The palette, in one place.
  *
- * The app chrome and canvas use Tokyo Night tokens; the Monaco editor has its
- * own intentionally neutral Black and Graphite themes so syntax stays readable
- * without neon hues. This module is the single source for both palettes;
- * `styles.css` mirrors the chrome tokens and a test compares them so they
- * cannot drift silently.
+ * CodeForge's interface palette is neutral black and white. Monaco keeps a
+ * separate semantic syntax palette so code remains easy to scan. Keeping both
+ * here prevents app chrome choices from washing out language highlighting.
  *
  * "Liquid" is a treatment, not a colour: translucent surfaces over a lit
  * background, a one-pixel top highlight, and long soft shadows. The tokens for
  * that live here too so a component never invents its own blur radius.
  */
 
-/** Core hex values. Keys are camelCase; styles.css declares them kebab-case. */
+/** Tokyo Night semantic syntax colors; Monaco token rules consume these values. */
 export const TOKYO = {
   bg: '#16161e',
   bgRaise: '#1a1b26',
@@ -38,20 +36,38 @@ export const TOKYO = {
 
 export type TokyoToken = keyof typeof TOKYO;
 
+/** Neutral colors for the app interface, independent from syntax highlighting. */
+export const INTERFACE = {
+  bg: '#090909',
+  bgRaise: '#111111',
+  bgRaise2: '#1b1b1b',
+  bgSunken: '#050505',
+  border: '#303030',
+  borderSoft: '#222222',
+  text: '#f2f2f2',
+  textDim: '#c7c7c7',
+  muted: '#888888',
+  accent: '#e6e6e6',
+  accentSoft: '#4a4a4a',
+  purple: '#d4d4d4',
+  cyan: '#cccccc',
+  teal: '#bdbdbd',
+  green: '#b5b5b5',
+  yellow: '#a8a8a8',
+  red: '#eeeeee',
+} as const;
+
 /**
- * Project accents.
- *
- * Stored on the project as an **id**, not a hex string: a saved hex would keep
- * pointing at a colour after the palette is retuned, which is exactly the kind
- * of stale value this codebase keeps having to remove.
+ * Project accents are stored by id, never by hex. Keep the historical ids so
+ * existing projects load, but expose neutral grayscale swatches for the UI.
  */
 export const ACCENTS = [
-  { id: 'blue', label: 'Blue', hex: TOKYO.accent },
-  { id: 'purple', label: 'Purple', hex: TOKYO.purple },
-  { id: 'teal', label: 'Teal', hex: TOKYO.teal },
-  { id: 'green', label: 'Green', hex: TOKYO.green },
-  { id: 'orange', label: 'Orange', hex: TOKYO.orange },
-  { id: 'red', label: 'Red', hex: TOKYO.red },
+  { id: 'blue', label: 'White', hex: '#e6e6e6' },
+  { id: 'purple', label: 'Silver', hex: '#c7c7c7' },
+  { id: 'teal', label: 'Light gray', hex: '#adadad' },
+  { id: 'green', label: 'Soft gray', hex: '#969696' },
+  { id: 'orange', label: 'Dark gray', hex: '#737373' },
+  { id: 'red', label: 'Charcoal', hex: '#505050' },
 ] as const;
 
 export type AccentId = (typeof ACCENTS)[number]['id'];
@@ -60,22 +76,20 @@ export const DEFAULT_ACCENT: AccentId = 'blue';
 
 /** The colour for an accent id, falling back rather than rendering `undefined`. */
 export function accentHex(id: string | undefined): string {
-  return ACCENTS.find((accent) => accent.id === id)?.hex ?? TOKYO.accent;
+  return ACCENTS.find((accent) => accent.id === id)?.hex ?? ACCENTS[0].hex;
 }
 
 /**
  * Editor themes.
  *
- * Two neutral dark variants rather than a dark/light pair: pure near-black for
- * focused editing, and graphite for a softer VS Code-like surface. Syntax uses
- * grayscale contrast instead of bright semantic hues; the app's project accent
- * remains separate from editor token colors.
+ * Two Tokyo Night surfaces for the editor. Syntax uses its own semantic color
+ * palette; project accents are applied to the surrounding interface only.
  */
 export type EditorThemeId = 'tokyo-night' | 'tokyo-storm';
 
 export const EDITOR_THEMES: { id: EditorThemeId; label: string; note: string }[] = [
-  { id: 'tokyo-night', label: 'Black', note: 'Near-black with grayscale syntax' },
-  { id: 'tokyo-storm', label: 'Graphite', note: 'Soft charcoal with grayscale syntax' },
+  { id: 'tokyo-night', label: 'Night', note: 'Deep #1a1b26 editor' },
+  { id: 'tokyo-storm', label: 'Storm', note: 'Lifted #24283b editor' },
 ];
 
 /**
@@ -106,53 +120,53 @@ export const MONACO_THEMES: { id: EditorThemeId; data: MonacoThemeData }[] = [
       base: 'vs-dark',
       inherit: false,
       rules: [
-        { token: '', foreground: 'e6e6e6' },
-        { token: 'comment', foreground: '777777', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'f2f2f2', fontStyle: 'bold' },
-        { token: 'keyword.control', foreground: 'f2f2f2', fontStyle: 'bold' },
-        { token: 'storage', foreground: 'ededed' },
-        { token: 'string', foreground: 'c9c9c9' },
-        { token: 'string.escape', foreground: 'f0f0f0' },
-        { token: 'number', foreground: 'bdbdbd' },
-        { token: 'constant', foreground: 'bdbdbd' },
-        { token: 'regexp', foreground: 'd8d8d8' },
-        { token: 'type', foreground: 'ededed' },
-        { token: 'type.identifier', foreground: 'ededed' },
-        { token: 'entity.name.tag', foreground: 'f0f0f0' },
-        { token: 'entity.other.attribute-name', foreground: 'c2c2c2' },
-        { token: 'attribute.name', foreground: 'c2c2c2' },
-        { token: 'tag', foreground: 'f0f0f0' },
-        { token: 'metatag', foreground: 'd0d0d0' },
-        { token: 'variable', foreground: 'e6e6e6' },
-        { token: 'variable.predefined', foreground: 'd0d0d0' },
-        { token: 'identifier', foreground: 'e6e6e6' },
-        { token: 'function', foreground: 'ffffff' },
-        { token: 'delimiter', foreground: 'a8a8a8' },
-        { token: 'operator', foreground: 'b0b0b0' },
-        { token: 'key', foreground: 'd0d0d0' },
+        { token: '', foreground: hex(TOKYO.text) },
+        { token: 'comment', foreground: hex('#565f89'), fontStyle: 'italic' },
+        { token: 'keyword', foreground: hex(TOKYO.purple) },
+        { token: 'keyword.control', foreground: hex(TOKYO.purple) },
+        { token: 'storage', foreground: hex(TOKYO.purple) },
+        { token: 'string', foreground: hex(TOKYO.green) },
+        { token: 'string.escape', foreground: hex(TOKYO.cyan) },
+        { token: 'number', foreground: hex(TOKYO.orange) },
+        { token: 'constant', foreground: hex(TOKYO.orange) },
+        { token: 'regexp', foreground: hex('#b4f9f8') },
+        { token: 'type', foreground: hex('#2ac3de') },
+        { token: 'type.identifier', foreground: hex('#2ac3de') },
+        { token: 'entity.name.tag', foreground: hex(TOKYO.red) },
+        { token: 'entity.other.attribute-name', foreground: hex(TOKYO.yellow) },
+        { token: 'attribute.name', foreground: hex(TOKYO.yellow) },
+        { token: 'tag', foreground: hex(TOKYO.red) },
+        { token: 'metatag', foreground: hex(TOKYO.purple) },
+        { token: 'variable', foreground: hex(TOKYO.text) },
+        { token: 'variable.predefined', foreground: hex(TOKYO.cyan) },
+        { token: 'identifier', foreground: hex(TOKYO.text) },
+        { token: 'function', foreground: hex(TOKYO.accent) },
+        { token: 'delimiter', foreground: hex('#89ddff') },
+        { token: 'operator', foreground: hex('#89ddff') },
+        { token: 'key', foreground: hex(TOKYO.cyan) },
       ],
       colors: {
-        'editor.background': '#111111',
-        'editor.foreground': '#e6e6e6',
-        'editorLineNumber.foreground': '#555555',
-        'editorLineNumber.activeForeground': '#b8b8b8',
-        'editor.selectionBackground': '#45454588',
-        'editor.inactiveSelectionBackground': '#38383855',
-        'editor.lineHighlightBackground': '#1a1a1a',
-        'editorCursor.foreground': '#f2f2f2',
-        'editorIndentGuide.background1': '#292929',
-        'editorIndentGuide.activeBackground1': '#505050',
-        'editorWidget.background': '#1b1b1b',
-        'editorWidget.border': '#343434',
-        'editorSuggestWidget.background': '#1b1b1b',
-        'editorSuggestWidget.selectedBackground': '#333333',
-        'editorHoverWidget.background': '#1b1b1b',
-        'editorBracketMatch.background': '#35353566',
-        'editorBracketMatch.border': '#888888',
-        'editorWhitespace.foreground': '#303030',
-        'scrollbarSlider.background': '#50505055',
-        'scrollbarSlider.hoverBackground': '#68686888',
-        'scrollbarSlider.activeBackground': '#808080aa',
+        'editor.background': TOKYO.bgRaise,
+        'editor.foreground': TOKYO.text,
+        'editorLineNumber.foreground': TOKYO.gutter,
+        'editorLineNumber.activeForeground': TOKYO.muted,
+        'editor.selectionBackground': '#3d59a166',
+        'editor.inactiveSelectionBackground': '#3d59a133',
+        'editor.lineHighlightBackground': '#1e2030',
+        'editorCursor.foreground': TOKYO.accent,
+        'editorIndentGuide.background1': '#2a2e42',
+        'editorIndentGuide.activeBackground1': '#3b4261',
+        'editorWidget.background': TOKYO.bgRaise2,
+        'editorWidget.border': TOKYO.border,
+        'editorSuggestWidget.background': TOKYO.bgRaise2,
+        'editorSuggestWidget.selectedBackground': '#2e3550',
+        'editorHoverWidget.background': TOKYO.bgRaise2,
+        'editorBracketMatch.background': '#3d59a144',
+        'editorBracketMatch.border': TOKYO.accent,
+        'editorWhitespace.foreground': '#2a2e42',
+        'scrollbarSlider.background': '#3b426166',
+        'scrollbarSlider.hoverBackground': '#3b4261aa',
+        'scrollbarSlider.activeBackground': '#3b4261dd',
       },
     },
   },
@@ -162,69 +176,66 @@ export const MONACO_THEMES: { id: EditorThemeId; data: MonacoThemeData }[] = [
       base: 'vs-dark',
       inherit: false,
       rules: [
-        { token: '', foreground: 'e0e0e0' },
-        { token: 'comment', foreground: '777777', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'f0f0f0', fontStyle: 'bold' },
-        { token: 'storage', foreground: 'ededed' },
-        { token: 'string', foreground: 'c9c9c9' },
-        { token: 'number', foreground: 'bdbdbd' },
-        { token: 'constant', foreground: 'bdbdbd' },
-        { token: 'type', foreground: 'ededed' },
-        { token: 'entity.name.tag', foreground: 'f0f0f0' },
-        { token: 'attribute.name', foreground: 'c2c2c2' },
-        { token: 'variable', foreground: 'e0e0e0' },
-        { token: 'function', foreground: 'ffffff' },
-        { token: 'delimiter', foreground: 'a8a8a8' },
-        { token: 'operator', foreground: 'b0b0b0' },
+        { token: '', foreground: hex(TOKYO.text) },
+        { token: 'comment', foreground: hex('#565f89'), fontStyle: 'italic' },
+        { token: 'keyword', foreground: hex(TOKYO.purple) },
+        { token: 'storage', foreground: hex(TOKYO.purple) },
+        { token: 'string', foreground: hex(TOKYO.green) },
+        { token: 'number', foreground: hex(TOKYO.orange) },
+        { token: 'constant', foreground: hex(TOKYO.orange) },
+        { token: 'type', foreground: hex('#2ac3de') },
+        { token: 'entity.name.tag', foreground: hex(TOKYO.red) },
+        { token: 'attribute.name', foreground: hex(TOKYO.yellow) },
+        { token: 'variable', foreground: hex(TOKYO.text) },
+        { token: 'function', foreground: hex(TOKYO.accent) },
+        { token: 'delimiter', foreground: hex('#89ddff') },
+        { token: 'operator', foreground: hex('#89ddff') },
       ],
       colors: {
-        'editor.background': '#1e1e1e',
-        'editor.foreground': '#e0e0e0',
-        'editorLineNumber.foreground': '#666666',
-        'editorLineNumber.activeForeground': '#c0c0c0',
-        'editor.selectionBackground': '#4a4a4a88',
-        'editor.inactiveSelectionBackground': '#38383855',
-        'editor.lineHighlightBackground': '#252525',
-        'editorCursor.foreground': '#f0f0f0',
-        'editorIndentGuide.background1': '#333333',
-        'editorIndentGuide.activeBackground1': '#5a5a5a',
-        'editorWidget.background': '#252525',
-        'editorWidget.border': '#414141',
-        'editorSuggestWidget.background': '#252525',
-        'editorSuggestWidget.selectedBackground': '#383838',
-        'editorHoverWidget.background': '#252525',
-        'editorBracketMatch.background': '#41414166',
-        'editorBracketMatch.border': '#999999',
-        'editorWhitespace.foreground': '#3a3a3a',
-        'scrollbarSlider.background': '#55555555',
-        'scrollbarSlider.hoverBackground': '#70707088',
-        'scrollbarSlider.activeBackground': '#888888aa',
+        'editor.background': '#24283b',
+        'editor.foreground': TOKYO.text,
+        'editorLineNumber.foreground': '#414868',
+        'editorLineNumber.activeForeground': TOKYO.textDim,
+        'editor.selectionBackground': '#3d59a166',
+        'editor.lineHighlightBackground': '#292e42',
+        'editorCursor.foreground': TOKYO.accent,
+        'editorIndentGuide.background1': '#3b4261',
+        'editorWidget.background': '#1f2335',
+        'editorWidget.border': '#3b4261',
+        'editorSuggestWidget.background': '#1f2335',
+        'editorHoverWidget.background': '#1f2335',
+        'editorWhitespace.foreground': '#3b4261',
+        'scrollbarSlider.background': '#3b426166',
       },
     },
   },
 ];
 
 /**
- * The subset of the palette that `styles.css` must declare verbatim.
- *
- * Everything else is a treatment value (blur radius, gradient stop) and has no
- * business being asserted against a stylesheet.
+ * The interface values that `styles.css` mirrors as custom properties.
+ * Keeping this list separate from Tokyo syntax colors prevents chrome styles
+ * from accidentally recoloring code.
  */
+/** `#7aa2f7` → `7aa2f7`, which is how Monaco wants token colours. */
+function hex(value: string): string {
+  return value.replace('#', '');
+}
+
 export const CSS_TOKENS: { name: string; value: string }[] = [
-  { name: 'bg', value: TOKYO.bg },
-  { name: 'bg-raise', value: TOKYO.bgRaise },
-  { name: 'bg-raise-2', value: TOKYO.bgRaise2 },
-  { name: 'bg-sunken', value: TOKYO.bgSunken },
-  { name: 'border', value: TOKYO.border },
-  { name: 'border-soft', value: TOKYO.borderSoft },
-  { name: 'text', value: TOKYO.text },
-  { name: 'muted', value: TOKYO.muted },
-  { name: 'accent', value: TOKYO.accent },
-  { name: 'accent-soft', value: TOKYO.accentSoft },
-  { name: 'purple', value: TOKYO.purple },
-  { name: 'cyan', value: TOKYO.cyan },
-  { name: 'teal', value: TOKYO.teal },
-  { name: 'ok', value: TOKYO.green },
-  { name: 'warn', value: TOKYO.yellow },
-  { name: 'error', value: TOKYO.red },
+  { name: 'bg', value: INTERFACE.bg },
+  { name: 'bg-raise', value: INTERFACE.bgRaise },
+  { name: 'bg-raise-2', value: INTERFACE.bgRaise2 },
+  { name: 'bg-sunken', value: INTERFACE.bgSunken },
+  { name: 'border', value: INTERFACE.border },
+  { name: 'border-soft', value: INTERFACE.borderSoft },
+  { name: 'text', value: INTERFACE.text },
+  { name: 'muted', value: INTERFACE.muted },
+  { name: 'accent', value: INTERFACE.accent },
+  { name: 'accent-soft', value: INTERFACE.accentSoft },
+  { name: 'purple', value: INTERFACE.purple },
+  { name: 'cyan', value: INTERFACE.cyan },
+  { name: 'teal', value: INTERFACE.teal },
+  { name: 'ok', value: INTERFACE.green },
+  { name: 'warn', value: INTERFACE.yellow },
+  { name: 'error', value: INTERFACE.red },
 ];

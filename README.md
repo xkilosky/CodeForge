@@ -26,11 +26,10 @@ rather than continue the milestone sequence.
 
 ## The interface (Forge S1.6)
 
-**One source, separate roles.** `src/core/theme.ts` holds the Tokyo Night values for the app
-chrome; `styles.css` mirrors those values as custom properties and a test compares them. Monaco
-uses two separate, monochrome editor themes — near-black **Black** and softer **Graphite** — with
-grayscale syntax highlighting rather than neon token colors. A project stores an accent **id**
-(`blue`, `purple`, …), never a hex, so the chrome accent can be retuned without recoloring code.
+**Separate interface and syntax palettes.** The app chrome uses a neutral black-and-white
+interface palette, mirrored from `src/core/theme.ts` into `styles.css`; project accents are
+restrained grayscale. Monaco retains its Tokyo Night semantic syntax colors so code keeps clear
+language highlighting instead of becoming monochrome.
 
 **The drawer is the navigation.** Sections and the file tree live in it. Pinned on a wide screen
 it is a grid column; unpinned it overlays and collapses its column to zero. On a phone it is
