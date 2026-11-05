@@ -279,10 +279,13 @@ describe('the file tree markup', () => {
     expect(html).toContain('empty');
   });
 
-  it('offers file and folder creation', () => {
-    const html = renderExplorer({ 'index.html': '' });
-    expect(html).toContain('New file');
-    expect(html).toContain('New folder');
+  it('keeps toolbar creation at project root and nests only from a folder plus', () => {
+    const html = renderExplorer({ 'src/index.html': '' });
+    const source = readFileSync('src/ui/Explorer.tsx', 'utf8');
+    expect(html).toContain('New file at project root');
+    expect(html).toContain('New folder at project root');
+    expect(source).toContain("onClick={() => beginCreate('file', '')}");
+    expect(source).toContain("beginCreate('file', node.path)");
   });
 
   it('has a labelled control for every row action', () => {

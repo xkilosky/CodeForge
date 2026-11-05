@@ -127,8 +127,6 @@ export function Explorer({
   );
 
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  /** The row the user last touched; new files land beside it. */
-  const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: string } | null>(null);
   const [draft, setDraft] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -154,36 +152,12 @@ export function Explorer({
     }
   }, [renaming]);
 
-  // A rename or delete of the selected row leaves a selection pointing at
-  // something that no longer exists; the next "New file" would then target a
-  // folder that is gone.
-  useEffect(() => {
-    if (selected && selected !== activeFile) return;
-  }, [selected, activeFile]);
-
-  const selectedFolder = useMemo(() => {
-    const target = selected ?? activeFile;
-    if (!target) return '';
-    const folderPaths = new Set<string>();
-    const walk = (nodes: TreeNode[]) => {
-      for (const node of nodes) {
-        if (node.kind === 'folder') {
-          folderPaths.add(node.path);
-          walk(node.children);
-        }
-      }
-    };
-    walk(tree);
-    if (folderPaths.has(target)) return target;
-    return parentOf(target);
-  }, [selected, activeFile, tree]);
-
-  function beginCreate(kind: 'file' | 'folder', parent?: string) {
+  function beginCreate(kind: 'file' | 'folder', parent = '') {
     setError(null);
     setRenaming(null);
     setConfirmDelete(null);
     setDraft('');
-    setCreating({ kind, parent: parent ?? selectedFolder });
+    setCreating({ kind, parent });
   }
 
   function submitCreate(event: React.FormEvent) {
@@ -227,7 +201,6 @@ export function Explorer({
     const target = raw.includes('/') ? raw : folder ? `${folder}/${raw}` : raw;
     if (target !== renaming) onRename(renaming, target);
     setRenaming(null);
-    setSelected(target);
   }
 
   /**
@@ -295,7 +268,6 @@ export function Explorer({
           type="button"
           className="tree-row-main"
           onClick={() => {
-            setSelected(node.path);
             setConfirmDelete(null);
             onSelect(node.path);
           }}
@@ -327,7 +299,6 @@ export function Explorer({
               if (confirming) {
                 onDeleteFile(node.path);
                 setConfirmDelete(null);
-                if (selected === node.path) setSelected(null);
               } else setConfirmDelete(node.path);
             }}
           >
@@ -344,7 +315,6 @@ export function Explorer({
               onClick={() => {
                 onDeleteFile(node.path);
                 setConfirmDelete(null);
-                if (selected === node.path) setSelected(null);
               }}
             >
               delete
@@ -418,7 +388,6 @@ export function Explorer({
             type="button"
             className="tree-row-main"
             onClick={() => {
-              setSelected(node.path);
               setConfirmDelete(null);
               // Clicking the name toggles too: it is the obvious target, and
               // selecting a folder with no visible effect feels broken.
@@ -463,8 +432,7 @@ export function Explorer({
                 if (confirming) {
                   onDeleteFolder(node.path);
                   setConfirmDelete(null);
-                  if (selected === node.path) setSelected(null);
-                } else setConfirmDelete(node.path);
+                  } else setConfirmDelete(node.path);
               }}
             >
               <TrashIcon size={14} />
@@ -480,8 +448,7 @@ export function Explorer({
                 onClick={() => {
                   onDeleteFolder(node.path);
                   setConfirmDelete(null);
-                  if (selected === node.path) setSelected(null);
-                }}
+                  }}
               >
                 delete all
               </button>
@@ -574,8 +541,8 @@ export function Explorer({
         <button
           type="button"
           className="tree-tool"
-          onClick={() => beginCreate('file')}
-          title={selectedFolder ? `New file in ${selectedFolder}` : 'New file'}
+          onClick={() => beginCreate('file', '')}
+          title="New file at project root"
         >
           <PlusIcon size={14} />
           <span>File</span>
@@ -583,8 +550,8 @@ export function Explorer({
         <button
           type="button"
           className="tree-tool"
-          onClick={() => beginCreate('folder')}
-          title={selectedFolder ? `New folder in ${selectedFolder}` : 'New folder'}
+          onClick={() => beginCreate('folder', '')}
+          title="New folder at project root"
         >
           <FolderPlusIcon size={14} />
           <span>Folder</span>
