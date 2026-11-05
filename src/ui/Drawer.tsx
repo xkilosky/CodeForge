@@ -104,19 +104,22 @@ export function Drawer({
   onOpenSearch,
 }: DrawerProps) {
   const panelRef = useRef<HTMLElement | null>(null);
+  // Pinning is a desktop layout preference only. On compact screens the drawer
+  // is always an overlay, even if the preference persisted from a desktop.
+  const pinnedDesktop = layout === 'desktop' && pinned;
 
-  // Escape closes an overlay. Not bound while pinned: there is nothing to
-  // dismiss, and swallowing Escape would break closing a Monaco suggestion.
+  // Escape closes an overlay. Not bound while desktop-pinned: there is nothing
+  // to dismiss, and swallowing Escape would break closing a Monaco suggestion.
   useEffect(() => {
-    if (!open || pinned) return;
+    if (!open || pinnedDesktop) return;
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, pinned, onClose]);
+  }, [open, pinnedDesktop, onClose]);
 
-  const overlay = open && !pinned;
+  const overlay = open && !pinnedDesktop;
   const visibleSections = SECTIONS.filter(
     (section) => section.id !== 'objects' || (layout === 'compact' && project?.workspace === 'game'),
   );
@@ -136,7 +139,7 @@ export function Drawer({
         ref={panelRef}
         className={`drawer${open ? ' open' : ''}${pinned && layout === 'desktop' ? ' pinned' : ''}`}
         aria-label="Workspace"
-        aria-hidden={!open && !(pinned && layout === 'desktop') ? true : undefined}
+        aria-hidden={!open && !pinnedDesktop ? true : undefined}
       >
         <div className="drawer-head">
           <button className="drawer-brand" onClick={onExit} title={`${release.title} — back to your projects`}>

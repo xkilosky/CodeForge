@@ -26,6 +26,8 @@ import { Explorer } from '../src/ui/Explorer';
 import { Palette } from '../src/ui/Palette';
 import { NoticeBar } from '../src/ui/NoticeBar';
 import { DesktopWorkspace } from '../src/ui/DesktopWorkspace';
+import { Drawer } from '../src/ui/Drawer';
+import { currentRelease } from '../src/core/release';
 
 /*
  * `DesktopWorkspace` renders the real Monaco editor, which touches `window` at
@@ -280,6 +282,45 @@ describe('the file tree markup', () => {
     // which is the point: nothing in this markup deletes on the first click.
     const html = renderExplorer({ 'index.html': '' });
     expect(html).not.toContain('tree-confirm');
+  });
+});
+
+describe('mobile drawer overlay', () => {
+  const base = {
+    open: true,
+    onClose: noop,
+    pinned: true,
+    onTogglePin: noop,
+    layout: 'compact' as const,
+    project: null,
+    release: currentRelease(),
+    activeSection: 'code' as const,
+    onSection: noop,
+    running: false,
+    onRun: noop,
+    onStop: noop,
+    onExit: noop,
+    onSelectFile: noop,
+    onCreateFile: noop,
+    onCreateFolder: noop,
+    onRename: noop,
+    onDeleteFile: noop,
+    onDeleteFolder: noop,
+    onDuplicateFile: noop,
+    onOpenSearch: noop,
+  };
+
+  it('uses an overlay and backdrop on mobile even when desktop pinning persisted', () => {
+    const html = renderToStaticMarkup(<Drawer {...base} />);
+    expect(html).toContain('class="drawer-scrim"');
+    expect(html).toContain('class="drawer open"');
+    expect(html).not.toContain('drawer open pinned');
+  });
+
+  it('does not add an overlay backdrop for a pinned desktop drawer', () => {
+    const html = renderToStaticMarkup(<Drawer {...base} layout="desktop" />);
+    expect(html).not.toContain('drawer-scrim');
+    expect(html).toContain('drawer open pinned');
   });
 });
 
