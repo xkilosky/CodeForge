@@ -32,6 +32,14 @@ function svgProps(size: number, className?: string) {
   };
 }
 
+export function ArrowLeftIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
 export function ChevronIcon({ size = 14, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

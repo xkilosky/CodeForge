@@ -3,7 +3,7 @@ import type { Project } from '../core/types';
 import { WORKSPACE_LABEL } from './labels';
 import { BrandMark } from './BrandMark';
 import { currentRelease } from '../core/release';
-import { MenuIcon, PlayIcon, SearchIcon, StopIcon } from './icons';
+import { ArrowLeftIcon, MenuIcon, PlayIcon, SearchIcon, StopIcon } from './icons';
 import { accentHex } from '../core/theme';
 
 interface TopBarProps {
@@ -37,17 +37,6 @@ export function TopBar({
 
   return (
     <header className={`topbar${project ? ' has-project' : ''}`} style={style}>
-      {project ? (
-        <button
-          className="btn ghost exit-btn"
-          onClick={onExit}
-          title="Close this project and return to your projects"
-          aria-label="Exit project and return to Projects"
-        >
-          <span aria-hidden="true">←</span><span className="exit-label">Projects</span>
-        </button>
-      ) : null}
-
       <button
         className="drawer-btn"
         onClick={onOpenDrawer}
@@ -57,16 +46,23 @@ export function TopBar({
         <MenuIcon size={17} />
       </button>
 
-      <button
-        className="brand brand-btn"
-        onClick={onExit}
-        title={`${release.title} — ${release.channel}. ${project ? 'Back to your projects' : 'Your projects'}`}
-        aria-label={`${release.title}. ${project ? 'Back to your projects' : 'Projects'}`}
-      >
+      {project ? (
+        <button
+          className="project-back-btn"
+          onClick={onExit}
+          title="Back to your projects"
+          aria-label="Back to Projects"
+        >
+          <ArrowLeftIcon size={16} />
+          <span className="project-back-label">Projects</span>
+        </button>
+      ) : null}
+
+      <div className="brand" aria-label={`${release.title} ${release.tag}`}>
         <BrandMark size={22} />
         <span className="brand-name">CodeForge</span>
         <span className="brand-version">{release.tag}</span>
-      </button>
+      </div>
 
       {project ? (
         <div className="topbar-file">

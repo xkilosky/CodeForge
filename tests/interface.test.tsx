@@ -27,6 +27,7 @@ import { Palette } from '../src/ui/Palette';
 import { NoticeBar } from '../src/ui/NoticeBar';
 import { DesktopWorkspace } from '../src/ui/DesktopWorkspace';
 import { Drawer } from '../src/ui/Drawer';
+import { TopBar } from '../src/ui/TopBar';
 import { currentRelease } from '../src/core/release';
 
 /*
@@ -381,6 +382,29 @@ describe('desktop arrangements', () => {
     );
     expect(html).toContain('section-badge error');
     expect(html).toContain('>2<');
+  });
+});
+
+describe('top bar project navigation', () => {
+  it('uses a clean back control with an explicit Projects destination', () => {
+    const project = projectFromTemplate(templateById('web-starter')!, 'Starter');
+    const html = renderToStaticMarkup(
+      <TopBar
+        project={project}
+        dirty={false}
+        running={false}
+        onRename={noop}
+        onRun={noop}
+        onStop={noop}
+        onNewProject={noop}
+        onExit={noop}
+        onOpenDrawer={noop}
+        onOpenSearch={noop}
+      />,
+    );
+    expect(html).toContain('class="project-back-btn"');
+    expect(html).toContain('aria-label="Back to Projects"');
+    expect(html).toContain('class="project-back-label">Projects</span>');
   });
 });
 
