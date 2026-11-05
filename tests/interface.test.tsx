@@ -487,3 +487,20 @@ describe('notice', () => {
     expect(renderToStaticMarkup(<NoticeBar />)).toBe('');
   });
 });
+
+describe('interaction motion foundation', () => {
+  const css = readFileSync('src/styles.css', 'utf8');
+
+  it('gives buttons tactile hover and press feedback with visible keyboard focus', () => {
+    expect(css).toContain('--motion-ui: 190ms');
+    expect(css).toContain('.btn:hover:not(:disabled)');
+    expect(css).toContain('transform: translateY(0) scale(0.98)');
+    expect(css).toContain('button:focus-visible');
+  });
+
+  it('respects reduced-motion preferences across the interface', () => {
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(css).toContain('transition-duration: 0.01ms !important');
+    expect(css).toContain('animation-duration: 0.01ms !important');
+  });
+});

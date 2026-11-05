@@ -6,6 +6,14 @@ game builder. Python is planned.
 **Live:** https://codeforge-ten-flame.vercel.app
 **Source release:** **CodeForge - Forge S1.9** (Platform Release)
 
+## Forge S2 — design direction
+
+Forge S2 is taking shape around interface quality and creator workflow: restrained, tactile
+interaction motion; clear keyboard focus; reduced-motion support; and more consistent feedback
+across navigation and project actions. This pass establishes the shared motion and button-feedback
+foundation. It is a design direction, not a release-tag change: the shipped release remains S1.9
+until the next milestone is complete.
+
 ## Versioning
 
 Every release is named **Forge S<season>.<milestone>** and carries a channel:

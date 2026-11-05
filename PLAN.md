@@ -352,6 +352,14 @@ Night palette with per-project accents, and `.codeforge.json` export/import.
 folders, and a keyboard map. Export/import and per-project theming shipped early, in S1.6,
 because without a backup path the data model was one cleared browser profile away from gone.
 
+**Forge S2 — experience direction (proposed, not release-tagged).** The next design track focuses
+on making the browser IDE feel more intentional and responsive without losing its graphite/slate
+character or Monaco's colorful syntax themes. The first foundation is in place: subtle button
+hover/press feedback, shared motion timing, clear keyboard focus, and system reduced-motion support.
+Further polish can carry that language through navigation, project actions, and long-running task
+feedback. Forge S2 becomes a release label only when its milestones are scoped and shipped; this
+work does not prematurely change the current S1.9 release tag.
+
 ---
 
 ## 10. Risks
