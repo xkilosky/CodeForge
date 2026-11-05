@@ -216,12 +216,12 @@ export function UploadIcon({ size = 15, className }: IconProps) {
 /**
  * Icons by section id.
  *
- * One registry rather than an `icon:` on each row: the drawer, the bottom nav
- * and the palette all name the same four sections, and letting each of them
- * carry its own reference is how the same section ends up with two glyphs.
+ * One registry rather than an `icon:` on each row: the drawer and palette
+ * share section ids, so a section cannot end up with two different glyphs.
  */
 export const SECTION_ICONS = {
   files: FolderIcon,
+  objects: LayoutIcon,
   code: CodeIcon,
   preview: PlayIcon,
   output: TerminalIcon,

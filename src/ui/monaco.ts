@@ -10,6 +10,12 @@
  * set of editing features. Nothing that starts a language service.
  */
 import * as monaco from 'monaco-editor/editor/editor.api';
+import { MONACO_THEMES } from '../core/theme';
+// Monaco accepts unknown theme ids by silently falling back to its light theme.
+// Register the ids that projects store before EditorPane can create an editor.
+for (const theme of MONACO_THEMES) {
+  monaco.editor.defineTheme(theme.id, theme.data);
+}
 // Monaco 0.57's exports map is "./*": "./esm/vs/*.js", so bare subpaths below
 // resolve into esm/vs/. editor.worker.js is the self-contained worker entry.
 import editorWorker from 'monaco-editor/editor/editor.worker?worker';

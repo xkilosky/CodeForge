@@ -6,10 +6,9 @@ import { summarizeIssues } from './MobileNav';
  * The one thing a single-pane layout can genuinely lose.
  *
  * On desktop the console is always on screen, so a failing run is visible the
- * moment it happens. On a phone it is one tab away, which means a user who
- * pressed Run and got a blank scene would see nothing explaining why. This
- * strip appears only when there is something wrong AND the output tab is not
- * the one being shown.
+ * moment it happens. On a phone it is below the stage and editor, which means a user who
+ * pressed Run and got a blank scene could miss what happened. This
+ * strip appears only when there is something wrong AND the output section is not currently in view.
  */
 export function MobileOutputHint({
   console: consoleState,

@@ -38,7 +38,7 @@ import {
  * `id` is also the `scrollIntoView` target in the phone layout, so the existing
  * `pane-*` ids are reused rather than inventing a second naming scheme.
  */
-export type SectionId = 'files' | 'code' | 'preview' | 'output' | 'look' | 'backup';
+export type SectionId = 'files' | 'objects' | 'code' | 'preview' | 'output' | 'look' | 'backup';
 
 export const SECTIONS: {
   id: SectionId;
@@ -46,6 +46,7 @@ export const SECTIONS: {
   hint: string;
 }[] = [
   { id: 'files', label: 'Files', hint: 'Tree, folders, rename' },
+  { id: 'objects', label: 'Objects', hint: 'Stage inspector' },
   { id: 'code', label: 'Code', hint: 'Editor and tabs' },
   { id: 'preview', label: 'Preview', hint: 'Live output' },
   { id: 'output', label: 'Output', hint: 'Console and problems' },
@@ -116,6 +117,9 @@ export function Drawer({
   }, [open, pinned, onClose]);
 
   const overlay = open && !pinned;
+  const visibleSections = SECTIONS.filter(
+    (section) => section.id !== 'objects' || (layout === 'compact' && project?.workspace === 'game'),
+  );
 
   return (
     <>
@@ -162,7 +166,7 @@ export function Drawer({
         </div>
 
         <nav className="drawer-sections" aria-label="Sections">
-          {SECTIONS.map((section) => {
+          {visibleSections.map((section) => {
             const Icon = SECTION_ICONS[section.id];
             const active = section.id === activeSection;
             return (

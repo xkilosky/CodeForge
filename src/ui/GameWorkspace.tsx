@@ -34,9 +34,6 @@ import { Tabs } from './Tabs';
 import { ConsolePanel } from './ConsolePanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { gameRuntime, isGameMessage } from '../runtimes/game';
-import { MobileNav } from './MobileNav';
-import { consoleStore } from '../core/consoleStore';
-import { diagnosticsStore } from '../core/diagnosticsStore';
 import { buildGameDocument } from '../game/preview';
 
 interface GameWorkspaceProps {
@@ -103,8 +100,6 @@ function GamePreview({
 export function GameWorkspace({ project, compact, onSelectEntity }: GameWorkspaceProps) {
   const store = useStore(projectStore);
   const runState = useStore(runStore);
-  const consoleState = useStore(consoleStore);
-  const diagnosticsState = useStore(diagnosticsStore);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     try {
       return sessionStorage.getItem(SELECTED_KEY);
@@ -341,18 +336,6 @@ export function GameWorkspace({ project, compact, onSelectEntity }: GameWorkspac
             {output}
           </section>
         </div>
-        <MobileNav
-          active="preview"
-          onChange={(tab) => {
-            // `files` maps to the stage here: a game project's "files" are the
-            // objects on its stage.
-            const section = tab === 'files' ? 'inspector' : tab;
-            document.getElementById(`pane-${section}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-          }}
-          console={consoleState}
-          diagnostics={diagnosticsState}
-          running={playing}
-        />
       </div>
     );
   }

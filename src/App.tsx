@@ -11,7 +11,7 @@ import { runtimeForWorkspace } from './runtimes/registry';
 import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
 import { EditorPane } from './ui/EditorPane';
 import { PreviewPane } from './ui/PreviewPane';
-import { MobileNav, summarizeIssues } from './ui/MobileNav';
+import { summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
 import { GameWorkspace } from './ui/GameWorkspace';
 import { ProjectsHome } from './ui/ProjectsHome';
@@ -45,6 +45,7 @@ function scrollToPane(id: string): void {
 /** Where a drawer section lands on a wide screen: a column section, or none. */
 const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer'> = {
   files: 'drawer',
+  objects: 'preview',
   code: 'code',
   preview: 'preview',
   output: 'output',
@@ -73,7 +74,7 @@ export default function App() {
     mode: 'file',
   });
   /** Which extra section a wide screen is showing, if any. */
-  const [extraSection, setExtraSection] = useState<'look' | 'backup' | null>(null);
+  const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'objects' | null>(null);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
 
   const issues = useMemo(
@@ -214,6 +215,14 @@ export default function App() {
     (section: SectionId) => {
       layoutActions.markDrawerSeen();
       const target = DESKTOP_SECTION[section];
+
+      if (section === 'objects') {
+        setExtraSection('objects');
+        setDrawerOpen(false);
+        requestAnimationFrame(() => scrollToPane('pane-inspector'));
+        return;
+      }
+      setExtraSection(null);
 
       if (layout === 'compact') {
         if (target === 'drawer') setDrawerOpen(true);
@@ -457,17 +466,6 @@ export default function App() {
               />
             </section>
           </div>
-
-          <MobileNav
-            active={mobileTab}
-            onChange={(tab) => {
-              setMobileTab(tab);
-              scrollToPane(`pane-${tab}`);
-            }}
-            console={consoleState}
-            diagnostics={diagnosticsState}
-            running={runState.running}
-          />
         </div>
       ) : (
         <div className="workspace workspace-split">

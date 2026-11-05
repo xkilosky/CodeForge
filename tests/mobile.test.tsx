@@ -11,13 +11,14 @@
  * and the app must not crash on a browser that lacks it entirely.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ConsoleEntry } from '../src/core/types';
 import type { ConsoleState } from '../src/core/consoleStore';
 import type { Diagnostic } from '../src/core/types';
 import type { DiagnosticsState } from '../src/core/diagnosticsStore';
 import { COMPACT_QUERY } from '../src/ui/useLayoutMode';
-import { MobileNav, summarizeIssues } from '../src/ui/MobileNav';
+import { summarizeIssues } from '../src/ui/MobileNav';
 import { MobileOutputHint } from '../src/ui/MobileOutputHint';
 
 function entry(kind: ConsoleEntry['kind'], text = 'x'): ConsoleEntry {
@@ -47,6 +48,18 @@ function diagState(diagnostics: Partial<Diagnostic>[]): DiagnosticsState {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
+});
+
+describe('compact navigation', () => {
+  it('uses the drawer instead of the retired bottom button bar', () => {
+    const app = readFileSync('src/App.tsx', 'utf8');
+    const game = readFileSync('src/ui/GameWorkspace.tsx', 'utf8');
+    const css = readFileSync('src/styles.css', 'utf8');
+    expect(app).not.toContain('<MobileNav');
+    expect(game).not.toContain('<MobileNav');
+    expect(css).not.toContain('.mobile-nav {');
+    expect(app).toContain('<Drawer');
+  });
 });
 
 describe('layout tier', () => {
@@ -105,92 +118,6 @@ describe('summarizeIssues', () => {
     );
     // info diagnostics and log/system entries are not problems.
     expect(result).toEqual({ errors: 2, warnings: 2 });
-  });
-});
-
-describe('MobileNav badges', () => {
-  const render = (props: Parameters<typeof MobileNav>[0]) =>
-    renderToStaticMarkup(<MobileNav {...props} />);
-
-  it('shows no badge when clean', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    expect(html).not.toContain('mobile-nav-badge');
-  });
-
-  it('shows an error badge on the output tab', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([entry('error')]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    expect(html).toContain('mobile-nav-badge error');
-  });
-
-  it('prefers the error badge over the warning badge', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([entry('warn'), entry('error')]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    expect(html).toContain('mobile-nav-badge error');
-    expect(html).not.toContain('mobile-nav-badge warn');
-  });
-
-  it('falls back to a warning badge when there are only warnings', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([entry('warn')]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    expect(html).toContain('mobile-nav-badge warn');
-  });
-
-  it('marks the active pane for assistive tech', () => {
-    const html = render({
-      active: 'preview',
-      onChange: () => {},
-      console: consoleState([]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    expect(html).toContain('aria-current="page"');
-    expect(html).toContain('mobile-nav-btn active');
-  });
-
-  it('shows a running dot on the preview tab', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([]),
-      diagnostics: diagState([]),
-      running: true,
-    });
-    expect(html).toContain('mobile-nav-dot');
-  });
-
-  it('renders all four panes', () => {
-    const html = render({
-      active: 'code',
-      onChange: () => {},
-      console: consoleState([]),
-      diagnostics: diagState([]),
-      running: false,
-    });
-    for (const label of ['Files', 'Code', 'Run', 'Output']) {
-      expect(html).toContain(label);
-    }
   });
 });
 

@@ -1,37 +1,13 @@
 import type { ConsoleState } from '../core/consoleStore';
 import type { DiagnosticsState } from '../core/diagnosticsStore';
-import { CodeIcon, FolderIcon, PlayIcon, TerminalIcon } from './icons';
 
-/** The four panes reachable on a phone, one at a time. */
+/** The panes available in the compact workspace. */
 export type MobileTab = 'files' | 'code' | 'preview' | 'output';
 
-interface MobileNavProps {
-  active: MobileTab;
-  onChange: (tab: MobileTab) => void;
-  console: ConsoleState;
-  diagnostics: DiagnosticsState;
-  running: boolean;
-}
-
-const TABS: { id: MobileTab; label: string; Icon: typeof CodeIcon }[] = [
-  { id: 'files', label: 'Files', Icon: FolderIcon },
-  { id: 'code', label: 'Code', Icon: CodeIcon },
-  { id: 'preview', label: 'Run', Icon: PlayIcon },
-  { id: 'output', label: 'Output', Icon: TerminalIcon },
-];
-
-/**
- * Bottom tab bar for the compact layout.
- *
- * Badges are the point: on a phone the console is hidden behind a tab, so
- * without a count an error message would scroll past unseen. Problems and
- * errors surface here instead, and the tab bar is also where "is it running?"
- * lives.
- */
 /**
  * Counts everything the user needs to be told about, from both sources: a
- * runtime error reaches the console, a type error reaches diagnostics, and on a
- * phone both are behind a tab where nobody would see them.
+ * Runtime errors reach the console and type errors reach diagnostics;
+ * the count is reused by the compact output hint.
  */
 export function summarizeIssues(
   consoleState: ConsoleState,
@@ -48,38 +24,4 @@ export function summarizeIssues(
     else if (diagnostic.severity === 'warning') warnings += 1;
   }
   return { errors, warnings };
-}
-
-export function MobileNav({ active, onChange, console: consoleState, diagnostics, running }: MobileNavProps) {
-  const { errors, warnings } = summarizeIssues(consoleState, diagnostics);
-
-  return (
-    <nav className="mobile-nav" aria-label="Panels">
-      {TABS.map((tab) => {
-        const isActive = tab.id === active;
-        // Output carries the shared error/warning count; the others stay clean.
-        const badge = tab.id === 'output' ? errors : 0;
-        const warnBadge = tab.id === 'output' ? warnings : 0;
-        return (
-          <button
-            key={tab.id}
-            className={`mobile-nav-btn${isActive ? ' active' : ''}`}
-            aria-current={isActive ? 'page' : undefined}
-            onClick={() => onChange(tab.id)}
-          >
-            <span className="mobile-nav-glyph" aria-hidden="true">
-              <tab.Icon size={17} />
-              {tab.id === 'preview' && running ? <span className="mobile-nav-dot" /> : null}
-            </span>
-            <span className="mobile-nav-label">{tab.label}</span>
-            {badge > 0 ? (
-              <span className="mobile-nav-badge error">{badge > 99 ? '99+' : badge}</span>
-            ) : warnBadge > 0 ? (
-              <span className="mobile-nav-badge warn">{warnBadge > 99 ? '99+' : warnBadge}</span>
-            ) : null}
-          </button>
-        );
-      })}
-    </nav>
-  );
 }
