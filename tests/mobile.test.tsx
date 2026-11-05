@@ -55,10 +55,13 @@ describe('compact navigation', () => {
     const app = readFileSync('src/App.tsx', 'utf8');
     const game = readFileSync('src/ui/GameWorkspace.tsx', 'utf8');
     const css = readFileSync('src/styles.css', 'utf8');
+    const editor = readFileSync('src/ui/EditorPane.tsx', 'utf8');
     expect(app).not.toContain('<MobileNav');
     expect(game).not.toContain('<MobileNav');
     expect(css).not.toContain('.mobile-nav {');
     expect(app).toContain('<Drawer');
+    expect(editor).toContain("wordWrap: layout === 'compact' ? 'on' : 'off'");
+    expect(editor).toContain('if (layout === \'compact\') editor.setScrollLeft(0);');
   });
 });
 

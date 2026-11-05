@@ -49,9 +49,9 @@ function getSnapshot(): boolean {
 }
 
 /**
- * `compact` means "one pane at a time". Driven by actual viewport width rather
- * than a user agent string, so a narrow desktop window behaves the same way and
- * a tablet in landscape gets the full layout.
+ * `compact` means a stacked, drawer-navigated workspace. Driven by actual
+ * viewport width rather than a user agent string, so a narrow desktop window
+ * behaves the same way and a tablet in landscape gets the full layout.
  */
 export function useLayoutMode(): LayoutMode {
   const compact = useSyncExternalStore(subscribe, getSnapshot, () => false);

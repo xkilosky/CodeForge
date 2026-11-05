@@ -220,7 +220,7 @@ button, input, select { font: inherit; color: inherit; }
 .tab-name { font-family: var(--font-mono); font-size: 12px; }
 
 /* ── editor / preview ─────────────────────────────────── */
-.editor-host { flex: 1; min-height: 0; }
+.editor-host { flex: 1; min-height: 0; min-width: 0; width: 100%; }
 .preview-frame { flex: 1; width: 100%; border: 0; background: #fff; }
 
 .pane-empty {
@@ -482,6 +482,9 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 .mobile-editor {
   height: min(58vh, 460px);
   min-height: 260px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }

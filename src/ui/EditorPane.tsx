@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { monaco, monacoLanguageFor } from './monaco';
 import { resolveEditorTheme } from '../core/theme';
 import { modelUriFor } from './monacoMarkers';
+import { useLayoutMode } from './useLayoutMode';
 
 interface EditorPaneProps {
   /** Recreating the editor per path keeps models simple and avoids stale state. */
@@ -28,6 +29,7 @@ const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
 export function EditorPane({ path, content, language, theme, onChange }: EditorPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const layout = useLayoutMode();
   // Keep the latest callback without re-creating the editor on every keystroke.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -38,6 +40,9 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
 
     const editor = monaco.editor.create(host, {
       ...EDITOR_OPTIONS,
+      // A finger swipe should not leave a phone looking at the middle of every
+      // line. Wrapping keeps the code's left edge visible at compact widths.
+      wordWrap: layout === 'compact' ? 'on' : 'off',
       theme: resolveEditorTheme(theme),
     });
 
@@ -61,6 +66,16 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
     // `content` is intentionally not a dependency: it is the initial value only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
+
+  // When a phone rotates or the window crosses the breakpoint, switch wrapping
+  // without recreating the editor. Reset the horizontal position on compact
+  // layouts so old scroll state cannot hide the start of every line.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.updateOptions({ wordWrap: layout === 'compact' ? 'on' : 'off' });
+    if (layout === 'compact') editor.setScrollLeft(0);
+  }, [layout]);
 
   // Sync externally-driven changes (template switch, file revert) without
   // clobbering what the user is typing.
