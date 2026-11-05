@@ -28,6 +28,7 @@ import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { NoticeBar } from './ui/NoticeBar';
 import { useLayoutMode } from './ui/useLayoutMode';
 import { currentRelease } from './core/release';
+import { CreateProjectDialog, type NewProjectOptions } from './ui/CreateProjectDialog';
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
 const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer'> = {
@@ -60,6 +61,10 @@ export default function App() {
   /** Extra destinations (Look, Backup, or game Objects) outside the main panes. */
   const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'objects' | null>(null);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
+  const [createDialog, setCreateDialog] = useState<{ open: boolean; templateId: string | null }>({
+    open: false,
+    templateId: null,
+  });
 
   const issues = useMemo(
     () => summarizeIssues(consoleState, diagnosticsState),
@@ -90,19 +95,26 @@ export default function App() {
    * project replaces the list, and from the top bar it replaces the open one.
    * Both entry points go through here so they cannot diverge.
    */
-  const handleCreate = useCallback((templateId: string) => {
+  const openCreateDialog = useCallback((templateId: string | null = null) => {
+    setCreateDialog({ open: true, templateId });
+  }, []);
+
+  const closeCreateDialog = useCallback(() => {
+    setCreateDialog({ open: false, templateId: null });
+  }, []);
+
+  const handleCreate = useCallback((templateId: string, name: string, options: NewProjectOptions) => {
     const template = templateById(templateId);
     if (!template) {
-      // Never a silent no-op: a missing template id is a bug, and swallowing it
-      // is how the "New…" menu created nothing for several milestones.
       io.log({ kind: 'error', text: `Unknown template "${templateId}".` });
       return;
     }
-    projectActions.createFromTemplate(template);
+    projectActions.createFromTemplate(template, name, options);
+    closeCreateDialog();
     setMobileTab('code');
     setDesktopTab('code');
     setExtraSection(null);
-  }, []);
+  }, [closeCreateDialog]);
 
   const handleExit = useCallback(() => {
     setLastProjectId(project?.id ?? null);
@@ -282,13 +294,19 @@ export default function App() {
         onRename={projectActions.rename}
         onRun={handleRun}
         onStop={handleStop}
-        onCreate={handleCreate}
+        onNewProject={() => openCreateDialog()}
         onExit={handleExit}
         onOpenDrawer={() => {
           layoutActions.markDrawerSeen();
           setDrawerOpen((open) => !open);
         }}
         onOpenSearch={() => openPalette('file')}
+      />
+      <CreateProjectDialog
+        open={createDialog.open}
+        initialTemplateId={createDialog.templateId}
+        onClose={closeCreateDialog}
+        onCreate={handleCreate}
       />
 
       {project ? (
@@ -356,7 +374,7 @@ export default function App() {
             const copy = await projectActions.duplicate(id);
             if (copy) setLastProjectId(copy.id);
           }}
-          onCreate={handleCreate}
+          onCreate={(templateId) => openCreateDialog(templateId ?? null)}
           onImport={handleImport}
           onDismissError={projectActions.dismissError}
         />

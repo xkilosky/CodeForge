@@ -209,8 +209,21 @@ export const projectActions = {
     }
   },
 
-  createFromTemplate(template: Template, name?: string): Project {
-    const project = settleProject(projectFromTemplate(template, name));
+  createFromTemplate(
+    template: Template,
+    name?: string,
+    options: { accent?: AccentId; theme?: EditorThemeId; autorun?: boolean } = {},
+  ): Project {
+    const base = projectFromTemplate(template, name);
+    const project = settleProject({
+      ...base,
+      accent: options.accent ?? base.accent,
+      settings: {
+        ...base.settings,
+        ...(options.theme ? { theme: options.theme } : {}),
+        ...(options.autorun !== undefined ? { autorun: options.autorun } : {}),
+      },
+    });
     projectStore.set((prev) => ({ ...prev, project }));
     void persist(project);
     return project;

@@ -34,6 +34,7 @@ vi.mock('../src/core/idb', () => ({
 
 const { projectActions, projectStore } = await import('../src/core/projectStore');
 const { ProjectsHome } = await import('../src/ui/ProjectsHome');
+const { CreateProjectDialog } = await import('../src/ui/CreateProjectDialog');
 const { describeAge, WORKSPACE_LABEL } = await import('../src/ui/labels');
 
 function seed(templateId: string, name?: string): Project {
@@ -80,6 +81,21 @@ describe('close — the way out of a project', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(rows.get(project.id)!.files['index.html'].content).toBe('<h1>edited</h1>');
+  });
+});
+
+describe('createFromTemplate options', () => {
+  it('creates a named project with the selected advanced preferences', () => {
+    const project = projectActions.createFromTemplate(
+      templateById('web-starter')!,
+      'Portfolio site',
+      { accent: 'purple', theme: 'tokyo-storm', autorun: false },
+    );
+
+    expect(project.name).toBe('Portfolio site');
+    expect(project.accent).toBe('purple');
+    expect(project.settings).toEqual({ theme: 'tokyo-storm', autorun: false });
+    expect(projectStore.get().project?.id).toBe(project.id);
   });
 });
 
@@ -193,6 +209,26 @@ describe('WORKSPACE_LABEL', () => {
   });
 });
 
+describe('CreateProjectDialog', () => {
+  it('asks for a project name, a starter, and optional editor/preview preferences', () => {
+    const html = renderToStaticMarkup(
+      <CreateProjectDialog
+        open
+        initialTemplateId="web-blank"
+        onClose={() => {}}
+        onCreate={() => {}}
+      />,
+    );
+    expect(html).toContain('Create a project');
+    expect(html).toContain('aria-label="Project name"');
+    expect(html).toContain('Project template');
+    expect(html).toContain('Advanced options');
+    expect(html).toContain('Project accent');
+    expect(html).toContain('Editor theme');
+    expect(html).toContain('Update the preview automatically while I edit');
+  });
+});
+
 describe('ProjectsHome', () => {
   const noop = () => {};
 
@@ -214,10 +250,12 @@ describe('ProjectsHome', () => {
     );
   }
 
-  it('offers a way in when there is nothing saved yet', () => {
+  it('offers a named project creation path as well as starter templates', () => {
     const html = render();
     expect(html).toContain('Nothing here yet');
     expect(html).toContain('Start something new');
+    expect(html).toContain('Create project');
+    expect(html).toContain('Give it a name and make it yours.');
   });
 
   it('lists saved projects with their workspace and age', () => {

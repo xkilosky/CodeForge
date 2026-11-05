@@ -31,7 +31,7 @@ interface ProjectsHomeProps {
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onCreate: (templateId: string) => void;
+  onCreate: (templateId?: string) => void;
   /** Brings a `.codeforge.json` back as a new project. */
   onImport: (file: File) => void;
   onDismissError: () => void;
@@ -234,6 +234,15 @@ export function ProjectsHome({
               />
             </span>
           </h2>
+          <div className="create-project-prompt">
+            <div>
+              <strong>Give it a name and make it yours.</strong>
+              <p className="muted">Choose a starter, name your project, then set editor and preview preferences.</p>
+            </div>
+            <button className="btn primary" onClick={() => onCreate()}>
+              + Create project
+            </button>
+          </div>
           <div className="template-grid">
             {TEMPLATES.map((template) => {
               // Availability comes from the runtime registry, never from the

@@ -600,6 +600,67 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 
 
+/* ── named project creation ───────────────────────────────────────────── */
+.new-btn-short { display: none; }
+.exit-btn { flex: 0 0 auto; }
+.create-project-prompt {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 10px 0 14px; padding: 15px 16px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: linear-gradient(120deg, var(--bg-raise), var(--bg));
+}
+.create-project-prompt strong { font-size: 14px; }
+.create-project-prompt p { margin: 4px 0 0; font-size: 12px; }
+.create-project-scrim {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px; background: rgba(5, 7, 12, 0.72);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.create-project-dialog {
+  width: min(100%, 540px); max-height: min(88dvh, 760px); overflow: auto;
+  padding: 22px; border: 1px solid var(--border); border-radius: 15px;
+  background: var(--bg-raise); box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+.create-project-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 19px; }
+.create-project-kicker { margin: 0 0 5px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.2px; }
+.create-project-head h2 { margin: 0; font-size: 21px; }
+.create-project-close { min-width: 34px; min-height: 34px; font-size: 22px; line-height: 1; }
+.create-project-dialog form { display: flex; flex-direction: column; gap: 14px; }
+.create-project-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; }
+.create-project-field input, .create-project-field select {
+  width: 100%; min-height: 42px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text);
+}
+.create-project-field input:focus, .create-project-field select:focus { outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent); border-color: var(--accent); }
+.create-project-template-note { display: flex; align-items: flex-start; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.create-project-unavailable, .create-project-validation { margin: 0; color: var(--error); font-size: 12px; }
+.create-project-advanced-toggle {
+  width: 100%; display: flex; justify-content: space-between; gap: 10px;
+  padding: 12px 0; border: 0; border-top: 1px solid var(--border-soft);
+  background: transparent; color: var(--text); text-align: left; cursor: pointer;
+}
+.create-project-advanced-toggle > span:first-child { font-weight: 650; }
+.create-project-advanced-toggle .muted { font-size: 11px; }
+.create-project-advanced { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.create-project-check { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 12px; }
+.create-project-check input { width: 16px; height: 16px; accent-color: var(--accent); }
+.create-project-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 5px; }
+@media (max-width: 820px) {
+  .topbar.has-project { gap: 4px; }
+  .topbar.has-project .exit-btn { padding: 0 5px; gap: 3px; font-size: 12px; }
+  .topbar.has-project .exit-label { display: inline; }
+  .topbar.has-project .new-btn-label { display: none; }
+  .topbar.has-project .new-btn-short { display: inline; }
+  .new-btn-short { display: none; }
+  .create-project-prompt { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .create-project-prompt .btn { width: 100%; justify-content: center; }
+  .create-project-scrim { align-items: flex-end; padding: 0; }
+  .create-project-dialog { width: 100%; max-height: min(92dvh, 780px); padding: 20px 16px max(18px, env(safe-area-inset-bottom)); border-radius: 16px 16px 0 0; }
+  .create-project-advanced { grid-template-columns: 1fr; }
+  .create-project-check { grid-column: auto; }
+}
+
 /* ── game builder ───────────────────────────────────────────────────────
    The stage is the point of this workspace, so it gets the upper two thirds
    and the code sits underneath. On a phone the drawer selects one full-height
