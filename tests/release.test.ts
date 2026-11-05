@@ -20,12 +20,12 @@ import { TEMPLATES } from '../src/core/templates';
 import { readFileSync } from 'node:fs';
 
 describe('release identity', () => {
-  it('names the current release Forge S1.6', () => {
+  it('names the current release Forge S1.9', () => {
     const release = currentRelease();
-    expect(release.tag).toBe('S1.6');
-    expect(release.title).toBe('CodeForge - Forge S1.6');
+    expect(release.tag).toBe('S1.9');
+    expect(release.title).toBe('CodeForge - Forge S1.9');
     expect(release.channel).toBe('Platform Release');
-    expect(release.milestone).toBe('M6 — Files, folders and a new interface');
+    expect(release.milestone).toBe('M9 — GitHub source control');
   });
 
   it('derives the number from the last shipped milestone', () => {
@@ -34,9 +34,9 @@ describe('release identity', () => {
   });
 
   it('points at the next milestone for work that has not shipped', () => {
-    expect(nextReleaseTag()).toBe('S1.7');
-    expect(arrivesIn()).toBe('Arrives in Forge S1.7.');
-    expect(arrivesInPhrase()).toBe('arrives in Forge S1.7.');
+    expect(nextReleaseTag()).toBe('S1.10');
+    expect(arrivesIn()).toBe('Arrives in Forge S1.10.');
+    expect(arrivesInPhrase()).toBe('arrives in Forge S1.10.');
   });
 
   it('lists only milestones whose runtime exists', () => {

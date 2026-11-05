@@ -3,8 +3,8 @@
 A coding environment that runs entirely in your browser — HTML, CSS and JavaScript, plus a visual
 game builder. Python is planned.
 
-**Live:** https://codeforge-ten-flame.vercel.app — currently **CodeForge - Forge S1.5**
-(Platform Release)
+**Live:** https://codeforge-ten-flame.vercel.app
+**Source release:** **CodeForge - Forge S1.9** (Platform Release)
 
 ## Versioning
 
@@ -12,9 +12,9 @@ Every release is named **Forge S<season>.<milestone>** and carries a channel:
 
 | | |
 | --- | --- |
-| Title | `CodeForge - Forge S1.6` |
+| Title | `CodeForge - Forge S1.9` |
 | Channel | `Platform Release` |
-| Milestone | M6 — files, folders and a new interface |
+| Milestone | M9 — GitHub source control |
 
 The number after the dot is the highest **shipped** milestone, and it is derived from
 `SHIPPED_MILESTONES` in `src/core/release.ts` — not typed into a component. Shipping a milestone
@@ -23,6 +23,31 @@ means adding one line to that list; the top bar tag, the home screen, the tab ti
 
 Season (`S1`) is a decision rather than a count, because a season can open a new product line
 rather than continue the milestone sequence.
+
+## Development workflow (Forge S1.7)
+
+**The command palette** (`Ctrl/Cmd+Shift+P`) searches and runs project and navigation actions
+without menu-hopping. It can open workspace sections, run or stop the current project, change the
+workspace layout, clear output, or return to Projects. In Quick Open (`Ctrl/Cmd+P`), type `>` to
+switch directly into command search. The same dialog also keeps project-wide replace (`Ctrl/Cmd+K`)
+close at hand.
+
+## Global project search (Forge S1.8)
+
+**Search every file's contents** (`Ctrl/Cmd+Shift+F`) for text, function names, variables, or any
+other source string. Results show the file, line, and matching snippet; selecting a result opens
+that file in the editor and jumps to the exact match. Search is case-insensitive and literal, and
+large result sets are capped in the palette while still reporting the total.
+
+## Source control (Forge S1.9)
+
+**GitHub panel** in the project drawer. Connect a repository using a fine-grained personal access
+token limited to that repository with Contents read/write permission. The token is held in memory
+only and is never saved with the project; re-enter it after leaving the panel or reloading. Stage
+and unstage file snapshots, fetch remote status, pull when the working tree is clean, and commit
+and push. Push checks for remote changes and preserves non-overlapping remote updates; it stops
+when a remote change conflicts with a staged file. This panel tracks text files in CodeForge
+projects; binary and oversized tree entries on GitHub are kept out of the editor and left untouched by commits.
 
 ## The interface (Forge S1.6)
 
@@ -58,14 +83,16 @@ sandboxed iframe, and the whole thing is a static site.
 - **Out of a project** — the brand button in the drawer, or the CodeForge mark in the top bar,
   closes the project and returns home. Pending edits are written before it closes.
 - **+ New** — creates a project from any template, from anywhere.
-- **The drawer** (`☰`, or Ctrl+B) — sections and the file tree. Pin it with the layout button to
+- **The drawer** (`☰`, or Ctrl/Cmd+B) — sections and the file tree. Pin it with the layout button to
   keep the tree beside the editor.
-- **Files** — `+ File` / `+ Folder` in the tree toolbar create beside the current selection; every
-  row has duplicate, rename and delete. Drag a row onto a folder to move it.
-- **Quick open** (`Ctrl+P`) finds a file by name anywhere in the project; `Ctrl+K` replaces a
-  string across every file.
+- **Files** — `+ File` / `+ Folder` in the tree toolbar create at the project root; a folder's own
+  `+` creates inside it. Every row has duplicate, rename and delete. Drag a row onto a folder to move it.
+- **Quick open** (`Ctrl/Cmd+P`) finds a file by name anywhere in the project; type `>` for
+  commands. `Ctrl/Cmd+Shift+P` opens the command palette directly, `Ctrl/Cmd+Shift+F` searches
+  project contents, and `Ctrl/Cmd+K` replaces a string across every file.
 - **Look** — accent and editor theme, per project.
 - **Backup** — export the project as `.codeforge.json`, or import one as a new project.
+- **Source Control** — connect GitHub, stage changes, fetch/pull, and commit/push from the project drawer.
 
 The workspace tabs that used to live in the top bar are gone. Retargeting a project's workspace
 by replacing its files was a destructive action presented as navigation; a new project from a
@@ -77,7 +104,7 @@ template does the same job without overwriting anything.
 | --- | --- | --- |
 | Web | HTML/CSS/JS in a sandboxed iframe | live page, console forwarded |
 | Games | canvas stage + gravity + a per-frame script | the stage, playable |
-| Languages | *planned* (Forge S1.7) | — |
+| Languages | *planned* (Forge S1.10) | — |
 
 ### The game builder
 

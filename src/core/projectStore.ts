@@ -2,7 +2,7 @@ import { db } from './idb';
 import { Store } from './store';
 import { TEMPLATES, projectFromTemplate, type Template } from './templates';
 import { runtimeForWorkspace } from '../runtimes/registry';
-import type { FileMap, Project, ProjectSettings } from './types';
+import type { FileMap, GitHubSourceControl, Project, ProjectSettings } from './types';
 import { languageForPath, newId } from './types';
 import { DEFAULT_ACCENT, type AccentId, type EditorThemeId } from './theme';
 import { exportFileName, parseProject, serializeProject } from './transfer';
@@ -446,6 +446,34 @@ export const projectActions = {
       [path]: { content, language: languageForPath(path) },
     };
     scheduleSave(touch({ ...current, files }));
+  },
+
+  replaceFiles(contents: Record<string, string>): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    const files: FileMap = Object.fromEntries(
+      Object.entries(contents).map(([path, content]) => [
+        path,
+        { content, language: languageForPath(path) },
+      ]),
+    );
+    const keys = Object.keys(files).sort();
+    scheduleSave(
+      touch({
+        ...current,
+        files,
+        activeFile: current.activeFile in files ? current.activeFile : (keys[0] ?? ''),
+      }),
+    );
+  },
+
+  updateSourceControl(sourceControl: GitHubSourceControl | undefined): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    const next = { ...current };
+    if (sourceControl) next.sourceControl = sourceControl;
+    else delete next.sourceControl;
+    scheduleSave(touch(next));
   },
 
   addFile(path: string, content = ''): boolean {

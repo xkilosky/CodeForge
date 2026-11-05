@@ -29,7 +29,7 @@ import type { Project } from '../core/types';
 import { useStore } from './useStore';
 import { StageEditor } from './StageEditor';
 import { BuilderToolbar, SceneInspector } from './SceneInspector';
-import { EditorPane } from './EditorPane';
+import { EditorPane, type EditorReveal } from './EditorPane';
 import { Tabs } from './Tabs';
 import { ConsolePanel } from './ConsolePanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
@@ -42,6 +42,7 @@ interface GameWorkspaceProps {
   project: Project;
   compact: boolean;
   compactSection?: GameCompactSection;
+  reveal?: EditorReveal;
   onOpenFile?: (path: string) => void;
   /** Publishes the selected object id so the phone layout can scroll to it. */
   onSelectEntity?: (id: string | null) => void;
@@ -105,6 +106,7 @@ export function GameWorkspace({
   project,
   compact,
   compactSection = 'code',
+  reveal,
   onOpenFile,
   onSelectEntity,
 }: GameWorkspaceProps) {
@@ -308,6 +310,7 @@ export function GameWorkspace({
         language={project.files[project.activeFile]?.language ?? 'plaintext'}
         theme={project.settings.theme}
         onChange={(value) => projectActions.updateFile(project.activeFile, value)}
+        reveal={reveal}
       />
     </>
   );

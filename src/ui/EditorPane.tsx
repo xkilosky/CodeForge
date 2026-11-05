@@ -4,6 +4,14 @@ import { resolveEditorTheme } from '../core/theme';
 import { modelUriFor } from './monacoMarkers';
 import { useLayoutMode } from './useLayoutMode';
 
+export interface EditorReveal {
+  path: string;
+  line: number;
+  column: number;
+  length: number;
+  sequence: number;
+}
+
 interface EditorPaneProps {
   /** Recreating the editor per path keeps models simple and avoids stale state. */
   path: string;
@@ -12,6 +20,7 @@ interface EditorPaneProps {
   /** Any theme id a project might hold; older builds stored Monaco's own ids. */
   theme: string;
   onChange: (value: string) => void;
+  reveal?: EditorReveal;
 }
 
 const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
@@ -26,9 +35,10 @@ const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   padding: { top: 10 },
 };
 
-export function EditorPane({ path, content, language, theme, onChange }: EditorPaneProps) {
+export function EditorPane({ path, content, language, theme, onChange, reveal }: EditorPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const lastRevealSequence = useRef<number | null>(null);
   const layout = useLayoutMode();
   // Keep the latest callback without re-creating the editor on every keystroke.
   const onChangeRef = useRef(onChange);
@@ -98,6 +108,32 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
   useEffect(() => {
     monaco.editor.setTheme(resolveEditorTheme(theme));
   }, [theme]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (
+      !editor ||
+      !model ||
+      !reveal ||
+      reveal.path !== path ||
+      lastRevealSequence.current === reveal.sequence
+    ) return;
+    lastRevealSequence.current = reveal.sequence;
+
+    const line = Math.max(1, Math.min(reveal.line, model.getLineCount()));
+    const maxColumn = model.getLineMaxColumn(line);
+    const column = Math.max(1, Math.min(reveal.column, maxColumn));
+    const endColumn = Math.max(column, Math.min(column + reveal.length, maxColumn));
+    editor.revealPositionInCenter({ lineNumber: line, column });
+    editor.setSelection({
+      startLineNumber: line,
+      startColumn: column,
+      endLineNumber: line,
+      endColumn,
+    });
+    editor.focus();
+  }, [path, reveal?.sequence]);
 
   if (!path) {
     return (

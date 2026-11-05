@@ -25,6 +25,21 @@ export type FileMap = Record<string, SourceFile>;
 
 export type WorkspaceId = 'web' | 'game' | 'python' | 'blank';
 
+export interface GitHubSourceControl {
+  owner: string;
+  repo: string;
+  branch: string;
+  baseCommit: string;
+  baseTree: string;
+  /** Text files at the last synchronized commit, retained locally for status/diffs. */
+  baseFiles: Record<string, string>;
+  /** Git blob ids and modes preserve binary assets and executable scripts on push. */
+  baseBlobShas?: Record<string, string>;
+  baseModes?: Record<string, string>;
+  /** Staged file contents; `null` represents a staged deletion. */
+  staged: Record<string, string | null>;
+}
+
 export interface ProjectSettings {
   /**
    * Editor scheme id. Typed loosely on purpose: a project saved by an older
@@ -60,6 +75,8 @@ export interface Project {
    * the game builder existed must still open.
    */
   scene?: Scene;
+  /** Optional GitHub remote and the local base/index used for source control. */
+  sourceControl?: GitHubSourceControl;
   createdAt: number;
   updatedAt: number;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { consoleStore, io } from './core/consoleStore';
 import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
@@ -9,7 +9,7 @@ import { loadLayout, layoutActions, layoutStore } from './core/layoutStore';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
 import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
-import { EditorPane } from './ui/EditorPane';
+import { EditorPane, type EditorReveal } from './ui/EditorPane';
 import { PreviewPane } from './ui/PreviewPane';
 import { summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
@@ -20,19 +20,21 @@ import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
 import { Drawer } from './ui/Drawer';
 import type { SectionId } from './ui/Drawer';
-import { Palette } from './ui/Palette';
+import { Palette, type PaletteCommand, type PaletteMode } from './ui/Palette';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { BackupPanel } from './ui/BackupPanel';
+import { SourceControlPanel } from './ui/SourceControlPanel';
 import { DesktopWorkspace } from './ui/DesktopWorkspace';
 import { ConsolePanel } from './ui/ConsolePanel';
 import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { NoticeBar } from './ui/NoticeBar';
 import { useLayoutMode } from './ui/useLayoutMode';
 import { currentRelease } from './core/release';
+import type { ProjectTextMatch } from './core/search';
 import { CreateProjectDialog, type NewProjectOptions } from './ui/CreateProjectDialog';
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
-const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer'> = {
+const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'source' | 'drawer'> = {
   files: 'drawer',
   objects: 'preview',
   code: 'code',
@@ -40,6 +42,7 @@ const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer
   output: 'output',
   look: 'look',
   backup: 'backup',
+  source: 'source',
 };
 
 export default function App() {
@@ -55,12 +58,14 @@ export default function App() {
   /** The project the user most recently had open, for the home screen. */
   const [lastProjectId, setLastProjectId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [palette, setPalette] = useState<{ open: boolean; mode: 'file' | 'replace' }>({
+  const [editorReveal, setEditorReveal] = useState<EditorReveal>();
+  const revealSequence = useRef(0);
+  const [palette, setPalette] = useState<{ open: boolean; mode: PaletteMode }>({
     open: false,
     mode: 'file',
   });
-  /** Extra destinations (Look, Backup, or game Objects) outside the main panes. */
-  const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'objects' | null>(null);
+  /** Extra destinations (Look, Backup, Source Control, or game Objects). */
+  const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | null>(null);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
   const [createDialog, setCreateDialog] = useState<{ open: boolean; templateId: string | null }>({
     open: false,
@@ -179,12 +184,13 @@ export default function App() {
 
   const handleStop = useCallback(() => stopRun(), []);
 
-  const openPalette = useCallback((mode: 'file' | 'replace' = 'file') => {
+  const openPalette = useCallback((mode: PaletteMode = 'file') => {
     setPalette({ open: true, mode });
   }, []);
 
-  // Ctrl+Enter runs, Ctrl+S flushes, Ctrl+B toggles the drawer, Ctrl+P opens a
-  // file, Ctrl+K replaces across the project.
+  // Ctrl/Cmd+Shift+P opens commands; Ctrl/Cmd+Shift+F searches the project;
+  // Ctrl/Cmd+P opens a file; Ctrl/Cmd+K replaces.
+  // Ctrl/Cmd+Enter runs, Ctrl/Cmd+S flushes, and Ctrl/Cmd+B toggles the drawer.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
@@ -205,6 +211,12 @@ export default function App() {
         e.preventDefault();
         if (layout === 'desktop') layoutActions.toggleDrawerPinned();
         else setDrawerOpen((open) => !open);
+      } else if (key === 'f' && e.shiftKey) {
+        e.preventDefault();
+        openPalette('search');
+      } else if (key === 'p' && e.shiftKey) {
+        e.preventDefault();
+        openPalette('command');
       } else if (key === 'p') {
         e.preventDefault();
         openPalette('file');
@@ -219,6 +231,12 @@ export default function App() {
 
   const activePath = project?.activeFile ?? '';
   const activeFile = project && activePath ? project.files[activePath] : undefined;
+
+  useEffect(() => {
+    if (!editorReveal || editorReveal.path !== activePath) return;
+    const frame = requestAnimationFrame(() => setEditorReveal(undefined));
+    return () => cancelAnimationFrame(frame);
+  }, [activePath, editorReveal]);
 
   /** Drawer sections become full-page destinations on mobile. */
   const handleSection = useCallback(
@@ -237,7 +255,7 @@ export default function App() {
           setExtraSection(null);
           setMobileTab('files');
           setDrawerOpen(false);
-        } else if (target === 'look' || target === 'backup') {
+        } else if (target === 'look' || target === 'backup' || target === 'source') {
           setExtraSection(target);
           setDrawerOpen(false);
         } else {
@@ -256,12 +274,158 @@ export default function App() {
         setDrawerOpen(true);
         return;
       }
-      if (target === 'look' || target === 'backup') setExtraSection(target);
+      if (target === 'look' || target === 'backup' || target === 'source') setExtraSection(target);
       else setDesktopTab(target);
       if (!pinned) setDrawerOpen(false);
     },
     [layout, pinned],
   );
+
+  const handleOpenSourceFile = useCallback((path: string) => {
+    projectActions.setActiveFile(path);
+    setExtraSection(null);
+    setDesktopTab('code');
+    setMobileTab('code');
+  }, []);
+
+  const handleOpenSearchResult = useCallback(
+    (result: ProjectTextMatch) => {
+      projectActions.setActiveFile(result.path);
+      setExtraSection(null);
+      setDesktopTab('code');
+      setMobileTab('code');
+      setEditorReveal({ ...result, sequence: ++revealSequence.current });
+    },
+    [],
+  );
+
+  const paletteCommands = useMemo<PaletteCommand[]>(() => {
+    const commands: PaletteCommand[] = [
+      {
+        id: 'new-project',
+        label: 'Create new project',
+        description: 'Choose a starter or create a blank project',
+        run: () => openCreateDialog(),
+      },
+    ];
+    if (!project) return commands;
+
+    commands.push(
+      {
+        id: 'global-search',
+        label: 'Search Project',
+        description: 'Find text in every project file',
+        shortcut: 'Ctrl/Cmd+Shift+F',
+        run: () => openPalette('search'),
+      },
+      {
+        id: 'files',
+        label: 'Open Files',
+        description: 'Browse project files and folders',
+        run: () => handleSection('files'),
+      },
+      {
+        id: 'code',
+        label: 'Open Code',
+        description: 'Return to the editor',
+        run: () => handleSection('code'),
+      },
+      {
+        id: 'preview',
+        label: 'Open Preview',
+        description: 'Show the live preview or game stage',
+        run: () => handleSection('preview'),
+      },
+      {
+        id: 'output',
+        label: 'Open Output',
+        description: 'Inspect console messages and diagnostics',
+        run: () => handleSection('output'),
+      },
+      {
+        id: 'look',
+        label: 'Open Look settings',
+        description: 'Change interface accents and editor theme',
+        run: () => handleSection('look'),
+      },
+      {
+        id: 'backup',
+        label: 'Open Backup',
+        description: 'Export or import a project backup',
+        run: () => handleSection('backup'),
+      },
+      {
+        id: 'source-control',
+        label: 'Open Source Control',
+        description: 'Review changes and manage GitHub commits',
+        run: () => handleSection('source'),
+      },
+      {
+        id: 'toggle-files',
+        label:
+          layout === 'desktop'
+            ? pinned
+              ? 'Unpin Files drawer'
+              : 'Pin Files drawer'
+            : 'Toggle Files drawer',
+        description: 'Show or hide the project file tree',
+        shortcut: 'Ctrl/Cmd+B',
+        run: () => {
+          layoutActions.markDrawerSeen();
+          if (layout === 'desktop') layoutActions.toggleDrawerPinned();
+          else setDrawerOpen((open) => !open);
+        },
+      },
+      {
+        id: 'clear-output',
+        label: 'Clear Output',
+        description: 'Clear console messages',
+        run: () => io.clear(),
+      },
+      {
+        id: 'back-to-projects',
+        label: 'Back to Projects',
+        description: 'Close this project and return home',
+        run: handleExit,
+      },
+    );
+
+    if (project.workspace === 'game') {
+      commands.push({
+        id: 'game-stage',
+        label: 'Open Game Stage',
+        description: 'Switch to the game builder stage',
+        run: () => handleSection('preview'),
+      });
+    } else {
+      commands.push({
+        id: 'run-project',
+        label: runState.running ? 'Stop Current Run' : 'Run Current Project',
+        description: runState.running ? 'Stop the running preview' : 'Build and show the current preview',
+        shortcut: runState.running ? undefined : 'Ctrl/Cmd+Enter',
+        run: runState.running ? handleStop : handleRun,
+      });
+    }
+
+    if (layout === 'desktop') {
+      commands.push(
+        { id: 'layout-split', label: 'Use Split Layout', description: 'Show code and preview side by side', run: () => layoutActions.setArrangement('split') },
+        { id: 'layout-focus', label: 'Use Focus Layout', description: 'Show one workspace section at a time', run: () => layoutActions.setArrangement('focus') },
+      );
+    }
+    return commands;
+  }, [
+    project,
+    layout,
+    pinned,
+    runState.running,
+    handleSection,
+    handleExit,
+    handleRun,
+    handleStop,
+    openCreateDialog,
+    openPalette,
+  ]);
 
   const handleImport = useCallback((file: File) => {
     void file.text().then((text) => projectActions.importProject(text));
@@ -270,6 +434,14 @@ export default function App() {
   const handleAccent = useCallback((accent: AccentId) => projectActions.setAccent(accent), []);
   const handleTheme = useCallback((theme: EditorThemeId) => projectActions.setEditorTheme(theme), []);
 
+  const sourceControlPanel = project ? (
+    <SourceControlPanel
+      project={project}
+      onUpdate={projectActions.updateSourceControl}
+      onReplaceFiles={projectActions.replaceFiles}
+      onOpenFile={handleOpenSourceFile}
+    />
+  ) : null;
 
   const release = currentRelease();
 
@@ -412,20 +584,22 @@ export default function App() {
             </div>
           </section>
         </div>
-      ) : project.workspace === 'game' && (extraSection === 'look' || extraSection === 'backup') ? (
+      ) : project.workspace === 'game' && (extraSection === 'look' || extraSection === 'backup' || extraSection === 'source') ? (
         layout === 'compact' ? (
           <div className="workspace workspace-compact">
             <section className="mobile-section mobile-section-settings">
-              <div className="mobile-section-head">{extraSection === 'look' ? 'Look' : 'Backup'}</div>
+              <div className="mobile-section-head">
+                {extraSection === 'look' ? 'Look' : extraSection === 'backup' ? 'Backup' : 'Source Control'}
+              </div>
               {extraSection === 'look' ? (
                 <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
-              ) : (
+              ) : extraSection === 'backup' ? (
                 <BackupPanel
                   project={project}
                   onExport={() => void projectActions.exportProject()}
                   onImport={handleImport}
                 />
-              )}
+              ) : sourceControlPanel}
             </section>
           </div>
         ) : (
@@ -434,13 +608,13 @@ export default function App() {
               <div className="section-pane">
                 {extraSection === 'look' ? (
                   <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
-                ) : (
+                ) : extraSection === 'backup' ? (
                   <BackupPanel
                     project={project}
                     onExport={() => void projectActions.exportProject()}
                     onImport={handleImport}
                   />
-                )}
+                ) : sourceControlPanel}
               </div>
             </main>
           </div>
@@ -449,6 +623,7 @@ export default function App() {
         <GameWorkspace
           project={project}
           compact={layout === 'compact'}
+          reveal={editorReveal}
           compactSection={
             extraSection === 'objects'
               ? 'objects'
@@ -481,6 +656,11 @@ export default function App() {
                 onImport={handleImport}
               />
             </section>
+          ) : extraSection === 'source' ? (
+            <section className="mobile-section mobile-section-settings">
+              <div className="mobile-section-head">Source Control</div>
+              {sourceControlPanel}
+            </section>
           ) : mobileTab === 'code' ? (
             <section id="pane-code" className="mobile-section mobile-section-code">
               <div className="mobile-section-head">
@@ -498,6 +678,7 @@ export default function App() {
                   language={activeFile?.language ?? 'plaintext'}
                   theme={project.settings.theme}
                   onChange={(value) => projectActions.updateFile(activePath, value)}
+                  reveal={editorReveal}
                 />
               </div>
             </section>
@@ -551,6 +732,8 @@ export default function App() {
                   onImport={handleImport}
                 />
               </div>
+            ) : extraSection === 'source' ? (
+              <div className="section-pane">{sourceControlPanel}</div>
             ) : (
               <DesktopWorkspace
                 tab={desktopTab}
@@ -578,6 +761,7 @@ export default function App() {
                 console={consoleState}
                 diagnostics={diagnosticsState}
                 running={runState.running}
+                reveal={editorReveal}
               />
             )}
           </main>
@@ -588,7 +772,9 @@ export default function App() {
         open={palette.open}
         mode={palette.mode}
         files={project?.files ?? {}}
+        commands={paletteCommands}
         onClose={() => setPalette((prev) => ({ ...prev, open: false }))}
+        onOpenSearchResult={handleOpenSearchResult}
         onOpenFile={(path) => {
           projectActions.setActiveFile(path);
           setExtraSection(null);

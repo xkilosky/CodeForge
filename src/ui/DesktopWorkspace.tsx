@@ -23,7 +23,7 @@ import type { Scene } from '../core/scene';
 import type { MobileTab } from './MobileNav';
 import { ConsolePanel } from './ConsolePanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { EditorPane } from './EditorPane';
+import { EditorPane, type EditorReveal } from './EditorPane';
 import { PreviewPane } from './PreviewPane';
 import { Tabs } from './Tabs';
 import { ChevronIcon } from './icons';
@@ -54,6 +54,7 @@ interface DesktopWorkspaceProps {
   console: ConsoleState;
   diagnostics: DiagnosticsState;
   running: boolean;
+  reveal?: EditorReveal;
 }
 
 const SECTION_LABEL: Record<Section, string> = {
@@ -85,6 +86,7 @@ export function DesktopWorkspace(props: DesktopWorkspaceProps) {
         language={props.language}
         theme={props.theme}
         onChange={props.onEdit}
+        reveal={props.reveal}
       />
     </div>
   );

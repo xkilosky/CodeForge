@@ -1,5 +1,5 @@
 /**
- * The Forge S1.6 interface: the palette, the theme, export/import and the
+ * The Forge S1.9 interface: source control, global search, palette, themes, export/import and the
  * components that replaced the flat file list.
  *
  * Two kinds of assertion here. The first are behavioural — does the tree show
@@ -21,7 +21,7 @@ import {
   resolveEditorTheme,
   MONACO_THEMES,
 } from '../src/core/theme';
-import { highlight, rankFiles, scoreMatch } from '../src/core/search';
+import { highlight, rankFiles, scoreMatch, searchProjectFiles } from '../src/core/search';
 import { exportFileName, parseProject, serializeProject } from '../src/core/transfer';
 import { projectFromTemplate, templateById } from '../src/core/templates';
 import { Explorer } from '../src/ui/Explorer';
@@ -165,6 +165,31 @@ describe('quick open', () => {
     expect(rankFiles(['a.js'], 'qqqq')).toHaveLength(0);
   });
 
+  it('searches literal text across files and reports exact source locations', () => {
+    const result = searchProjectFiles(
+      {
+        'src/app.ts': { content: 'const user = "Ada";\nuseUser(user);', language: 'typescript' },
+        'index.html': { content: '<h1>USER</h1>', language: 'html' },
+      },
+      'user',
+    );
+    expect(result.total).toBe(4);
+    expect(result.truncated).toBe(false);
+    expect(result.matches.map(({ path, line, column }) => [path, line, column])).toEqual([
+      ['index.html', 1, 5],
+      ['src/app.ts', 1, 7],
+      ['src/app.ts', 2, 4],
+      ['src/app.ts', 2, 9],
+    ]);
+  });
+
+  it('caps rendered search results but reports that more matches exist', () => {
+    const result = searchProjectFiles({ 'many.txt': { content: 'x x x x', language: 'typescript' } }, 'x', 2);
+    expect(result.matches).toHaveLength(2);
+    expect(result.total).toBe(4);
+    expect(result.truncated).toBe(true);
+  });
+
   it('splits a name into highlighted runs without losing a character', () => {
     const runs = highlight('main.js', [0, 1]);
     expect(runs.map((run) => run.text).join('')).toBe('main.js');
@@ -178,14 +203,43 @@ describe('quick open', () => {
         open
         mode="file"
         files={{ 'src/a.ts': { content: '', language: 'typescript' } }}
+        commands={[]}
         onClose={noop}
         onOpenFile={noop}
+        onOpenSearchResult={noop}
         onReplace={noop}
       />,
     );
     expect(html).toContain('Open a file');
     expect(html).toContain('a.ts');
     expect(html).toContain('src');
+  });
+
+  it('supports the global project search shortcut', () => {
+    const app = readFileSync('src/App.tsx', 'utf8');
+    expect(app).toContain("key === 'f' && e.shiftKey");
+    expect(app).toContain("openPalette('search')");
+  });
+
+  it('renders searchable commands in command mode', () => {
+    const html = renderToStaticMarkup(
+      <Palette
+        open
+        mode="command"
+        files={{}}
+        commands={[
+          { id: 'files', label: 'Open Files', description: 'Browse project files', shortcut: 'Ctrl+B', run: noop },
+        ]}
+        onClose={noop}
+        onOpenFile={noop}
+        onOpenSearchResult={noop}
+        onReplace={noop}
+      />,
+    );
+    expect(html).toContain('Command palette');
+    expect(html).toContain('Open Files');
+    expect(html).toContain('Browse project files');
+    expect(html).toContain('Ctrl+B');
   });
 
   it('renders nothing at all when closed', () => {
@@ -195,8 +249,10 @@ describe('quick open', () => {
           open={false}
           mode="file"
           files={{}}
+          commands={[]}
           onClose={noop}
           onOpenFile={noop}
+        onOpenSearchResult={noop}
           onReplace={noop}
         />,
       ),

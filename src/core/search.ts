@@ -1,5 +1,5 @@
 /**
- * Filtering for the quick-open palette, and for replace-in-project.
+ * Matching for quick open, global project search, and replace-in-project.
  *
  * A plain `includes` is the wrong answer for a file list: typing `mnjs` finds
  * `js/main.js` and typing `mn` finds `main.js`, and neither is a regex anyone
@@ -7,6 +7,7 @@
  * one a person can predict from the result order.
  */
 import { nameOf } from './workspace';
+import type { FileMap } from './types';
 
 export interface Scored<T> {
   item: T;
@@ -54,6 +55,58 @@ export function scoreMatch(label: string, query: string): { score: number; match
     cursor = found + 1;
   }
   return { score: score - haystack.length, matches };
+}
+
+export interface ProjectTextMatch {
+  path: string;
+  line: number;
+  column: number;
+  length: number;
+  text: string;
+}
+
+export interface ProjectSearchResults {
+  matches: ProjectTextMatch[];
+  total: number;
+  truncated: boolean;
+}
+
+/** Case-insensitive literal search through every file's text. */
+export function searchProjectFiles(
+  files: FileMap,
+  query: string,
+  limit = 250,
+): ProjectSearchResults {
+  const trimmed = query.trim();
+  const needle = trimmed.toLowerCase();
+  if (!needle) return { matches: [], total: 0, truncated: false };
+
+  const matches: ProjectTextMatch[] = [];
+  let total = 0;
+  for (const path of Object.keys(files).sort()) {
+    const lines = files[path].content.split(/\r?\n/);
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const text = lines[lineIndex];
+      const haystack = text.toLowerCase();
+      let from = 0;
+      let at = haystack.indexOf(needle, from);
+      while (at !== -1) {
+        total += 1;
+        if (matches.length < limit) {
+          matches.push({
+            path,
+            line: lineIndex + 1,
+            column: at + 1,
+            length: trimmed.length,
+            text,
+          });
+        }
+        from = at + Math.max(needle.length, 1);
+        at = haystack.indexOf(needle, from);
+      }
+    }
+  }
+  return { matches, total, truncated: total > matches.length };
 }
 
 export interface FileChoice {

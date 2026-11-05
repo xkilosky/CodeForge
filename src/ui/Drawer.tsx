@@ -38,7 +38,7 @@ import {
  * `id` is also the `scrollIntoView` target in the phone layout, so the existing
  * `pane-*` ids are reused rather than inventing a second naming scheme.
  */
-export type SectionId = 'files' | 'objects' | 'code' | 'preview' | 'output' | 'look' | 'backup';
+export type SectionId = 'files' | 'objects' | 'code' | 'preview' | 'output' | 'look' | 'backup' | 'source';
 
 export const SECTIONS: {
   id: SectionId;
@@ -52,6 +52,7 @@ export const SECTIONS: {
   { id: 'output', label: 'Output', hint: 'Console and problems' },
   { id: 'look', label: 'Look', hint: 'Accent and editor theme' },
   { id: 'backup', label: 'Backup', hint: 'Export and import' },
+  { id: 'source', label: 'Source Control', hint: 'GitHub changes and commits' },
 ];
 
 interface DrawerProps {
