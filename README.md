@@ -26,10 +26,10 @@ rather than continue the milestone sequence.
 
 ## The interface (Forge S1.6)
 
-**Separate interface and syntax palettes.** The app chrome uses a neutral black-and-white
-interface palette, mirrored from `src/core/theme.ts` into `styles.css`; project accents are
-restrained grayscale. Monaco retains its Tokyo Night semantic syntax colors so code keeps clear
-language highlighting instead of becoming monochrome.
+**Separate interface and syntax palettes.** The app chrome uses layered graphite surfaces,
+cool slate text, and restrained steel-blue and muted color accents, mirrored from
+`src/core/theme.ts` into `styles.css`. Monaco retains its Tokyo Night semantic syntax colors, so
+code stays expressive while the surrounding interface remains quiet and low-glare.
 
 **The drawer is the navigation.** Sections and the file tree live in it. Pinned on a wide screen
 it is a grid column; unpinned it overlays and collapses its column to zero. On a phone it is

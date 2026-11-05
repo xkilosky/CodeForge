@@ -98,6 +98,6 @@ export function currentRelease(): Release {
     channel: 'Platform Release',
     milestone: latest ? `${latest.id} — ${latest.name}` : 'M0 — Scaffold',
     summary:
-      'A drawer for files and folders, a Tokyo Night interface, and projects you can export.',
+      'A graphite interface with a file drawer and projects you can export.',
   };
 }

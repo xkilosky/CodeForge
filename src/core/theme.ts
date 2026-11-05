@@ -1,9 +1,9 @@
 /**
  * The palette, in one place.
  *
- * CodeForge's interface palette is neutral black and white. Monaco keeps a
- * separate semantic syntax palette so code remains easy to scan. Keeping both
- * here prevents app chrome choices from washing out language highlighting.
+ * CodeForge's interface uses layered graphite surfaces and a restrained,
+ * cool accent palette. Monaco keeps its separate Tokyo Night syntax colors.
+ * Keeping both here prevents chrome choices from washing out code highlighting.
  *
  * "Liquid" is a treatment, not a colour: translucent surfaces over a lit
  * background, a one-pixel top highlight, and long soft shadows. The tokens for
@@ -38,36 +38,36 @@ export type TokyoToken = keyof typeof TOKYO;
 
 /** Neutral colors for the app interface, independent from syntax highlighting. */
 export const INTERFACE = {
-  bg: '#090909',
-  bgRaise: '#111111',
-  bgRaise2: '#1b1b1b',
-  bgSunken: '#050505',
-  border: '#303030',
-  borderSoft: '#222222',
-  text: '#f2f2f2',
-  textDim: '#c7c7c7',
-  muted: '#888888',
-  accent: '#e6e6e6',
-  accentSoft: '#4a4a4a',
-  purple: '#d4d4d4',
-  cyan: '#cccccc',
-  teal: '#bdbdbd',
-  green: '#b5b5b5',
-  yellow: '#a8a8a8',
-  red: '#eeeeee',
+  bg: '#111318',
+  bgRaise: '#181b22',
+  bgRaise2: '#222630',
+  bgSunken: '#0c0e12',
+  border: '#303643',
+  borderSoft: '#252a34',
+  text: '#d9dde6',
+  textDim: '#aab1bf',
+  muted: '#77808f',
+  accent: '#8ca7d2',
+  accentSoft: '#394965',
+  purple: '#aa9bc4',
+  cyan: '#91afbd',
+  teal: '#82a99b',
+  green: '#93a88f',
+  yellow: '#b9a17a',
+  red: '#c9878e',
 } as const;
 
 /**
  * Project accents are stored by id, never by hex. Keep the historical ids so
- * existing projects load, but expose neutral grayscale swatches for the UI.
+ * existing projects load, with muted shades that complement the graphite UI.
  */
 export const ACCENTS = [
-  { id: 'blue', label: 'White', hex: '#e6e6e6' },
-  { id: 'purple', label: 'Silver', hex: '#c7c7c7' },
-  { id: 'teal', label: 'Light gray', hex: '#adadad' },
-  { id: 'green', label: 'Soft gray', hex: '#969696' },
-  { id: 'orange', label: 'Dark gray', hex: '#737373' },
-  { id: 'red', label: 'Charcoal', hex: '#505050' },
+  { id: 'blue', label: 'Steel blue', hex: INTERFACE.accent },
+  { id: 'purple', label: 'Lavender', hex: INTERFACE.purple },
+  { id: 'teal', label: 'Teal', hex: INTERFACE.teal },
+  { id: 'green', label: 'Sage', hex: INTERFACE.green },
+  { id: 'orange', label: 'Amber', hex: INTERFACE.yellow },
+  { id: 'red', label: 'Rose', hex: INTERFACE.red },
 ] as const;
 
 export type AccentId = (typeof ACCENTS)[number]['id'];

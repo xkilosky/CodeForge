@@ -15,6 +15,7 @@ import {
   ACCENTS,
   CSS_TOKENS,
   EDITOR_THEMES,
+  INTERFACE,
   TOKYO,
   accentHex,
   resolveEditorTheme,
@@ -84,21 +85,20 @@ describe('theme', () => {
     expect(TOKYO.purple).toBe('#bb9af7');
   });
 
-  it('resolves a grayscale interface accent and falls back safely', () => {
-    expect(accentHex('teal')).toBe('#adadad');
-    expect(accentHex(undefined)).toBe('#e6e6e6');
+  it('resolves a muted interface accent and falls back safely', () => {
+    expect(accentHex('teal')).toBe('#82a99b');
+    expect(accentHex(undefined)).toBe(INTERFACE.accent);
     // A project saved by a future build with an accent this one does not know.
-    expect(accentHex('chartreuse')).toBe('#e6e6e6');
+    expect(accentHex('chartreuse')).toBe(INTERFACE.accent);
   });
 
-  it('keeps every project interface accent in grayscale', () => {
+  it('offers distinct, low-key project accents for the graphite interface', () => {
     const ids = ACCENTS.map((accent) => accent.id);
+    const colors = ACCENTS.map((accent) => accent.hex);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const accent of ACCENTS) {
-      expect(accent.hex).toMatch(/^#[0-9a-f]{6}$/);
-      expect(accent.hex.slice(1, 3)).toBe(accent.hex.slice(3, 5));
-      expect(accent.hex.slice(3, 5)).toBe(accent.hex.slice(5, 7));
-    }
+    expect(new Set(colors).size).toBe(colors.length);
+    for (const accent of ACCENTS) expect(accent.hex).toMatch(/^#[0-9a-f]{6}$/);
+    expect(ACCENTS[0].hex).toBe(INTERFACE.accent);
   });
 
   it('maps an old Monaco theme id forward', () => {
@@ -109,7 +109,7 @@ describe('theme', () => {
     expect(resolveEditorTheme(undefined)).toBe('tokyo-night');
   });
 
-  it('keeps colored syntax highlighting separate from the neutral interface palette', () => {
+  it('keeps colored syntax highlighting separate from the graphite interface palette', () => {
     const ids = MONACO_THEMES.map((theme) => theme.id).sort();
     expect(ids).toEqual(['tokyo-night', 'tokyo-storm']);
     for (const theme of MONACO_THEMES) {
@@ -123,10 +123,9 @@ describe('theme', () => {
     expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!.data.colors['editor.background']).toBe('#24283b');
     expect(EDITOR_THEMES.map((theme) => theme.label)).toEqual(['Night', 'Storm']);
 
-    for (const token of CSS_TOKENS) {
-      expect(token.value.slice(1, 3)).toBe(token.value.slice(3, 5));
-      expect(token.value.slice(3, 5)).toBe(token.value.slice(5, 7));
-    }
+    expect(INTERFACE.bg).not.toBe(INTERFACE.bgRaise);
+    expect(INTERFACE.bgRaise).not.toBe(INTERFACE.bgRaise2);
+    for (const token of CSS_TOKENS) expect(token.value).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });
 
