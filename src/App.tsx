@@ -14,6 +14,7 @@ import { PreviewPane } from './ui/PreviewPane';
 import { summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
 import { GameWorkspace } from './ui/GameWorkspace';
+import { Explorer } from './ui/Explorer';
 import { ProjectsHome } from './ui/ProjectsHome';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
@@ -234,7 +235,8 @@ export default function App() {
       if (layout === 'compact') {
         if (target === 'drawer') {
           setExtraSection(null);
-          setDrawerOpen(true);
+          setMobileTab('files');
+          setDrawerOpen(false);
         } else if (target === 'look' || target === 'backup') {
           setExtraSection(target);
           setDrawerOpen(false);
@@ -248,8 +250,9 @@ export default function App() {
 
       setExtraSection(null);
       if (target === 'drawer') {
-        // "Files" on a wide screen means the drawer itself; when it is hidden,
-        // show it, and when it is already showing, keep it.
+        // On desktop the tree is the Files view. Keep it open and mark the
+        // section active; compact screens use the dedicated full-height tree.
+        setDesktopTab('files');
         setDrawerOpen(true);
         return;
       }
@@ -378,6 +381,37 @@ export default function App() {
           onImport={handleImport}
           onDismissError={projectActions.dismissError}
         />
+      ) : layout === 'compact' && mobileTab === 'files' ? (
+        <div className="workspace workspace-compact">
+          <section id="pane-files" className="mobile-section mobile-section-files">
+            <div className="mobile-section-head">Files</div>
+            <div className="mobile-files-list">
+              <Explorer
+                bare
+                files={project.files}
+                folders={project.folders}
+                activeFile={project.activeFile}
+                onSelect={(path) => {
+                  projectActions.setActiveFile(path);
+                  setMobileTab('code');
+                  setDesktopTab('code');
+                  setExtraSection(null);
+                }}
+                onCreateFile={(path) => {
+                  projectActions.addFile(path);
+                  setMobileTab('code');
+                  setDesktopTab('code');
+                  setExtraSection(null);
+                }}
+                onCreateFolder={(path) => void projectActions.createFolder(path)}
+                onRename={(from, to) => void projectActions.renamePath(from, to)}
+                onDeleteFile={projectActions.removeFile}
+                onDeleteFolder={projectActions.removeFolder}
+                onDuplicate={(path) => void projectActions.duplicateFile(path)}
+              />
+            </div>
+          </section>
+        </div>
       ) : project.workspace === 'game' && (extraSection === 'look' || extraSection === 'backup') ? (
         layout === 'compact' ? (
           <div className="workspace workspace-compact">

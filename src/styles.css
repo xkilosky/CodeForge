@@ -447,6 +447,8 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .mobile-section-objects,
 .mobile-section-settings { overflow-y: auto; }
+.mobile-files-list { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px 12px; }
+.mobile-files-list .explorer { padding: 0; }
 
 .mobile-section-head {
   position: relative;

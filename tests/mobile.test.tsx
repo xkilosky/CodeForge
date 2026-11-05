@@ -62,6 +62,9 @@ describe('compact navigation', () => {
     expect(game).not.toContain('mobile-stack');
     expect(css).not.toContain('.mobile-nav {');
     expect(app).toContain('<Drawer');
+    expect(app).toContain("mobileTab === 'files'");
+    expect(app).toContain("setMobileTab('files')");
+    expect(app).toContain('id="pane-files"');
     expect(app).toContain("mobileTab === 'code'");
     expect(app).toContain("mobileTab === 'preview'");
     expect(game).toContain("compactSection === 'objects'");
