@@ -6,6 +6,9 @@
 > feasibility results, the measured costs, and the reasoning are still accurate history, and the
 > remaining milestones (visual game builder, Python) are renumbered from it.
 >
+> **M6 — files, folders and the new interface — is built (Forge S1.6).** A drawer, a real file
+> tree, the Tokyo Night palette, quick open, project-wide replace and export/import.
+>
 > **M5 — the visual game builder — is built.** It was scoped down from the Pixi/ECS design below:
 > an AABB platformer on a 2D canvas, not a general engine. See §9.
 
@@ -329,11 +332,16 @@ frame would emit 120 identical errors a second and bury the first — and module
 survives between frames, which is why the script is compiled once rather than per tick.
 Scope was cut deliberately: AABB collision and one driven entity, not rigid-body physics.*
 
-**M6 — Python + other languages.** Pyodide lazy-loaded.
+**M6 — Files, folders and the interface.** ✅ *Done (Forge S1.6).* Drawer navigation, a real file
+tree with folders, create/rename/move/delete/duplicate, quick open, project-wide replace, the Tokyo
+Night palette with per-project accents, and `.codeforge.json` export/import.
+
+**M7 — Python + other languages.** Pyodide lazy-loaded.
 *Accept: a Python script prints; `import numpy` works; matplotlib output renders.*
 
-**M7 — Polish.** Project export/import, theming, keyboard map, asset upload, more game
-primitives (sprites, tilemaps), and the mobile pass over the builder.
+**M8 — Polish.** Asset upload, more game primitives (sprites, tilemaps), undo/redo for files and
+folders, and a keyboard map. Export/import and per-project theming shipped early, in S1.6,
+because without a backup path the data model was one cleared browser profile away from gone.
 
 ---
 
@@ -370,4 +378,6 @@ exercised in a real browser. That is the first thing to click through manually.
 **M0 scaffold**, then **M1 (Web workspace)** because it is the smallest complete proof of the
 Runtime + preview abstraction that everything else reuses. The Roblox pillar that followed was
 retired; the **visual game builder (M5)** now occupies the same slot and reuses the same
-Runtime + preview contract. Next is **M6 (Python)**, then M7 polish.
+Runtime + preview contract. **M6 (files and the interface)** shipped ahead of Python because the
+flat file list was becoming the reason projects were hard to navigate. Next is **M7 (Python)**,
+then M8 polish.

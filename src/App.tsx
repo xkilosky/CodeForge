@@ -4,13 +4,12 @@ import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnos
 import { projectActions, projectStore } from './core/projectStore';
 import { runStore, startRun, stopRun } from './core/runSession';
 import { templateById } from './core/templates';
+import { accentHex, type AccentId, type EditorThemeId } from './core/theme';
+import { loadLayout, layoutActions, layoutStore } from './core/layoutStore';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
 import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
-import { ConsolePanel } from './ui/ConsolePanel';
-import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { EditorPane } from './ui/EditorPane';
-import { Explorer } from './ui/Explorer';
 import { PreviewPane } from './ui/PreviewPane';
 import { MobileNav, summarizeIssues } from './ui/MobileNav';
 import type { MobileTab } from './ui/MobileNav';
@@ -18,7 +17,18 @@ import { GameWorkspace } from './ui/GameWorkspace';
 import { ProjectsHome } from './ui/ProjectsHome';
 import { Tabs } from './ui/Tabs';
 import { TopBar } from './ui/TopBar';
+import { Drawer } from './ui/Drawer';
+import type { SectionId } from './ui/Drawer';
+import { Palette } from './ui/Palette';
+import { SettingsPanel } from './ui/SettingsPanel';
+import { BackupPanel } from './ui/BackupPanel';
+import { DesktopWorkspace } from './ui/DesktopWorkspace';
+import { ConsolePanel } from './ui/ConsolePanel';
+import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
+import { Explorer } from './ui/Explorer';
+import { NoticeBar } from './ui/NoticeBar';
 import { useLayoutMode } from './ui/useLayoutMode';
+import { currentRelease } from './core/release';
 
 /**
  * Scrolls a stacked section into view on the phone layout.
@@ -32,36 +42,63 @@ function scrollToPane(id: string): void {
   el.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
+/** Where a drawer section lands on a wide screen: a column section, or none. */
+const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer'> = {
+  files: 'drawer',
+  code: 'code',
+  preview: 'preview',
+  output: 'output',
+  look: 'look',
+  backup: 'backup',
+};
+
 export default function App() {
   const projectState = useStore(projectStore);
   const runState = useStore(runStore);
   const diagnosticsState = useStore(diagnosticsStore);
   const consoleState = useStore(consoleStore);
+  const layoutState = useStore(layoutStore);
   const layout = useLayoutMode();
   const [runSignal, setRunSignal] = useState(0);
   /**
-   * Which single pane the phone layout shows. Defaults to the code editor:
+   * Which pane the phone navigator highlights. Defaults to the code editor:
    * opening a project and landing on anything else makes the app look empty.
    */
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
   /** The project the user most recently had open, for the home screen. */
   const [lastProjectId, setLastProjectId] = useState<string | null>(null);
-  // Issues are counted once here because both the section header and the tab
-  // bar show them.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [palette, setPalette] = useState<{ open: boolean; mode: 'file' | 'replace' }>({
+    open: false,
+    mode: 'file',
+  });
+  /** Which extra section a wide screen is showing, if any. */
+  const [extraSection, setExtraSection] = useState<'look' | 'backup' | null>(null);
+  const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
+
   const issues = useMemo(
     () => summarizeIssues(consoleState, diagnosticsState),
     [consoleState, diagnosticsState],
   );
 
+  const project = projectState.project;
+  const pinned = layoutState.drawerPinned;
+
+  /**
+   * Pinned on a wide screen means the drawer is simply part of the layout; on a
+   * phone it is always an overlay, because 300px of tree on a 390px screen is
+   * not a sidebar, it is the whole app.
+   */
+  const drawerVisible = layout === 'desktop' ? pinned || drawerOpen : drawerOpen;
+
   useEffect(() => {
+    loadLayout();
     void projectActions.init();
     // Persist on the way out so a debounce in flight is not lost.
     const flush = () => projectActions.flush();
     window.addEventListener('beforeunload', flush);
     return () => window.removeEventListener('beforeunload', flush);
   }, []);
-
-  const project = projectState.project;
 
   /**
    * Creating a project always means "open it": from the home screen the new
@@ -78,16 +115,18 @@ export default function App() {
     }
     projectActions.createFromTemplate(template);
     setMobileTab('code');
+    setDesktopTab('code');
+    setExtraSection(null);
   }, []);
 
   const handleExit = useCallback(() => {
-    // Remember which project was open so the list can mark it — coming back
-    // from a project, "the one I was just in" is the useful row to see first.
     setLastProjectId(project?.id ?? null);
     projectActions.close();
     void projectActions.refreshRecent();
     setMobileTab('code');
+    setExtraSection(null);
   }, [project?.id]);
+
   const runtime = useMemo(
     () => runtimeForWorkspace(project?.workspace ?? 'web'),
     [project?.workspace],
@@ -118,44 +157,148 @@ export default function App() {
     // A game project is driven by the builder's own Play button. Rebuilding the
     // preview from here would fight it: two transports, one stage.
     if (project.workspace === 'game') {
-      io.log({
-        kind: 'system',
-        text: 'Use ▶ Play above the stage to run a game project.',
-      });
+      io.log({ kind: 'system', text: 'Use ▶ Play above the stage to run a game project.' });
       if (layout === 'compact') setMobileTab('preview');
       return;
     }
     setRunSignal((n) => n + 1);
-    // On a phone the preview is behind a tab. Pressing Run means "show me the
-    // result", so bring it into view rather than leaving the user on Files.
     if (layout === 'compact') setMobileTab('preview');
     void startRun((bridge) => runtime.run(project.files, project.activeFile, bridge));
   }, [project, runtime, layout]);
 
   const handleStop = useCallback(() => stopRun(), []);
 
-  // Ctrl+Enter runs, Ctrl+S flushes the autosave debounce.
+  const openPalette = useCallback((mode: 'file' | 'replace' = 'file') => {
+    setPalette({ open: true, mode });
+  }, []);
+
+  // Ctrl+Enter runs, Ctrl+S flushes, Ctrl+B toggles the drawer, Ctrl+P opens a
+  // file, Ctrl+K replaces across the project.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
-      if (e.key === 'Enter') {
+      const key = e.key.toLowerCase();
+      if (key === 'enter') {
         e.preventDefault();
         handleRun();
-      } else if (e.key.toLowerCase() === 's') {
+      } else if (key === 's') {
         e.preventDefault();
         projectActions.flush();
+      } else if (key === 'b') {
+        // Monaco does not use Ctrl+B, and it is the shortcut every editor with
+        // a sidebar uses, so it is bound globally here. On a wide screen the
+        // key toggles the *pin*: an overlay drawer over a desktop layout is
+        // the wrong shape, and toggling `drawerOpen` there would look like
+        // nothing happened while the drawer stayed pinned open.
+        e.preventDefault();
+        if (layout === 'desktop') layoutActions.toggleDrawerPinned();
+        else setDrawerOpen((open) => !open);
+      } else if (key === 'p') {
+        e.preventDefault();
+        openPalette('file');
+      } else if (key === 'k') {
+        e.preventDefault();
+        openPalette('replace');
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleRun]);
+  }, [handleRun, openPalette, layout]);
 
   const activePath = project?.activeFile ?? '';
   const activeFile = project && activePath ? project.files[activePath] : undefined;
 
+  /** Section clicks: on a phone they scroll; on a wide screen they swap a pane. */
+  const handleSection = useCallback(
+    (section: SectionId) => {
+      layoutActions.markDrawerSeen();
+      const target = DESKTOP_SECTION[section];
+
+      if (layout === 'compact') {
+        if (target === 'drawer') setDrawerOpen(true);
+        else if (target === 'look' || target === 'backup') {
+          // Both live in the Look section on a phone: one sheet, two headings.
+          setDrawerOpen(false);
+          setMobileTab('code');
+          requestAnimationFrame(() => scrollToPane('pane-look'));
+        } else {
+          setDrawerOpen(false);
+          setMobileTab(target);
+          requestAnimationFrame(() => scrollToPane(`pane-${target}`));
+        }
+        return;
+      }
+
+      if (target === 'drawer') {
+        // "Files" on a wide screen means the drawer itself; when it is hidden,
+        // show it, and when it is already showing, keep it.
+        setDrawerOpen(true);
+        return;
+      }
+      if (target === 'look' || target === 'backup') setExtraSection(target);
+      else {
+        setExtraSection(null);
+        setDesktopTab(target);
+      }
+      if (!pinned) setDrawerOpen(false);
+    },
+    [layout, pinned],
+  );
+
+  const handleImport = useCallback((file: File) => {
+    void file.text().then((text) => projectActions.importProject(text));
+  }, []);
+
+  const handleAccent = useCallback((accent: AccentId) => projectActions.setAccent(accent), []);
+  const handleTheme = useCallback((theme: EditorThemeId) => projectActions.setEditorTheme(theme), []);
+
+  const tree = project ? (
+    <Explorer
+      files={project.files}
+      folders={project.folders}
+      activeFile={activePath}
+      onSelect={(path) => {
+        projectActions.setActiveFile(path);
+        setExtraSection(null);
+        setDesktopTab('code');
+        if (layout === 'compact') {
+          setMobileTab('code');
+          requestAnimationFrame(() => scrollToPane('pane-code'));
+        }
+      }}
+      onCreateFile={(path) => {
+        projectActions.addFile(path);
+        setExtraSection(null);
+        setDesktopTab('code');
+      }}
+      onCreateFolder={(path) => void projectActions.createFolder(path)}
+      onRename={(from, to) => void projectActions.renamePath(from, to)}
+      onDeleteFile={projectActions.removeFile}
+      onDeleteFolder={projectActions.removeFolder}
+      onDuplicate={(path) => void projectActions.duplicateFile(path)}
+    />
+  ) : null;
+
+  const release = currentRelease();
+
+  /*
+   * The shell class decides the grid: `has-drawer` reserves a column for a
+   * pinned tree, `unpinned` collapses that column to zero so the editor keeps
+   * the full width. Nothing else in the app may add layout classes.
+   */
+  const drawerLayout =
+    layout === 'desktop' && project
+      ? pinned
+        ? ' has-drawer'
+        : ' has-drawer unpinned'
+      : '';
+
   return (
-    <div className="app">
+    <div
+      className={`app${drawerLayout}`}
+      style={project ? ({ '--accent': accentHex(project.accent) } as React.CSSProperties) : undefined}
+    >
       <TopBar
         project={project}
         dirty={projectState.dirty}
@@ -163,24 +306,61 @@ export default function App() {
         onRename={projectActions.rename}
         onRun={handleRun}
         onStop={handleStop}
-        onToggleAutorun={() =>
-          projectActions.updateSettings({ autorun: !project?.settings.autorun })
-        }
         onCreate={handleCreate}
-        onSwitchWorkspace={(workspace) => {
-          projectActions.switchWorkspace(workspace);
-          // A different workspace is a different project shape; land on Code so
-          // the new starter is visible instead of a stale pane.
-          setMobileTab('code');
-        }}
         onExit={handleExit}
+        onOpenDrawer={() => {
+          layoutActions.markDrawerSeen();
+          setDrawerOpen((open) => !open);
+        }}
+        onOpenSearch={() => openPalette('file')}
       />
+
+      {project ? (
+        <Drawer
+          open={drawerVisible}
+          onClose={() => setDrawerOpen(false)}
+          pinned={pinned}
+          onTogglePin={() => layoutActions.toggleDrawerPinned()}
+          layout={layout}
+          project={project}
+          release={release}
+          activeSection={
+            extraSection ??
+            (layout === 'compact' ? mobileTab : (desktopTab as SectionId))
+          }
+          onSection={handleSection}
+          running={runState.running}
+          onRun={handleRun}
+          onStop={handleStop}
+          onExit={handleExit}
+          onSelectFile={(path) => {
+            projectActions.setActiveFile(path);
+            setExtraSection(null);
+            setDesktopTab('code');
+            if (layout === 'compact') {
+              setMobileTab('code');
+              setDrawerOpen(false);
+              requestAnimationFrame(() => scrollToPane('pane-code'));
+            }
+          }}
+          onCreateFile={(path) => {
+            projectActions.addFile(path);
+            setExtraSection(null);
+            setDesktopTab('code');
+          }}
+          onCreateFolder={(path) => void projectActions.createFolder(path)}
+          onRename={(from, to) => void projectActions.renamePath(from, to)}
+          onDeleteFile={projectActions.removeFile}
+          onDeleteFolder={projectActions.removeFolder}
+          onDuplicateFile={(path) => void projectActions.duplicateFile(path)}
+          onOpenSearch={() => openPalette('file')}
+        />
+      ) : null}
 
       {projectState.loading ? (
         <div className="pane-empty">Loading…</div>
       ) : !project ? (
-        /* No project open: the projects home. This is also the only way out of a
-           project, which used to be impossible. */
+        /* No project open: the projects home. */
         <ProjectsHome
           recent={projectState.recent}
           currentId={lastProjectId}
@@ -189,156 +369,169 @@ export default function App() {
           onOpen={(id) => {
             void projectActions.openById(id);
             setMobileTab('code');
+            setDesktopTab('code');
           }}
           onDelete={(id) => void projectActions.remove(id)}
           onDuplicate={async (id) => {
-            // Stay on the list. Opening the copy immediately would look like
-            // the button renamed the project, and duplicating is often done to
-            // keep the original in view.
             const copy = await projectActions.duplicate(id);
             if (copy) setLastProjectId(copy.id);
           }}
           onCreate={handleCreate}
+          onImport={handleImport}
           onDismissError={projectActions.dismissError}
         />
       ) : project.workspace === 'game' ? (
-        <GameWorkspace
-          project={project}
-          compact={layout === 'compact'}
-          onSelectEntity={() => {}}
-        />
-      ) : (
-        layout === 'compact' ? (
-          /* Every pane visible, stacked and scrollable. The tab bar scrolls to
-             a section instead of hiding the others, so nothing is ever
-             unreachable — which was the failure mode of the previous version. */
-          <div className="workspace workspace-compact">
-            <div className="mobile-stack">
-              <section id="pane-files" className="mobile-section mobile-section-files">
-                <div className="mobile-section-head">Files</div>
-                <Explorer
+        <GameWorkspace project={project} compact={layout === 'compact'} onSelectEntity={() => {}} />
+      ) : layout === 'compact' ? (
+        /* Every pane present and reachable. The navigator scrolls to a section
+           instead of swapping one in, so nothing is ever hidden — the failure
+           mode of the version before it. */
+        <div className="workspace workspace-compact">
+          <div className="mobile-stack">
+            <section id="pane-files" className="mobile-section mobile-section-files">
+              <div className="mobile-section-head">Files</div>
+              <div className="mobile-tree">{tree}</div>
+            </section>
+
+            <section id="pane-code" className="mobile-section mobile-section-code">
+              <div className="mobile-section-head">
+                Code
+                <span className="muted">{activePath || 'no file'}</span>
+              </div>
+              <Tabs
+                files={project.files}
+                activeFile={activePath}
+                onSelect={projectActions.setActiveFile}
+              />
+              <div className="mobile-editor">
+                <EditorPane
+                  path={activePath}
+                  content={activeFile?.content ?? ''}
+                  language={activeFile?.language ?? 'plaintext'}
+                  theme={project.settings.theme}
+                  onChange={(value) => projectActions.updateFile(activePath, value)}
+                />
+              </div>
+            </section>
+
+            <section id="pane-preview" className="mobile-section mobile-section-preview">
+              <div className="mobile-section-head">Preview</div>
+              <div className="mobile-preview">
+                <PreviewPane
+                  runtime={runtime}
                   files={project.files}
-                  activeFile={activePath}
-                  onSelect={(path) => {
-                    projectActions.setActiveFile(path);
+                  scene={project.scene}
+                  autorun={project.settings.autorun}
+                  runSignal={runSignal}
+                  onRun={handleRun}
+                />
+              </div>
+            </section>
+
+            <section id="pane-output" className="mobile-section mobile-section-output">
+              <div className="mobile-section-head">
+                Output
+                {issues.errors > 0 ? <span className="badge error">{issues.errors}</span> : null}
+                {issues.errors === 0 && issues.warnings > 0 ? (
+                  <span className="badge warn">{issues.warnings}</span>
+                ) : null}
+              </div>
+              <div className="mobile-output-grid">
+                <ConsolePanel onClear={() => io.clear()} />
+                <DiagnosticsPanel
+                  onOpen={(file) => {
+                    projectActions.setActiveFile(file);
                     requestAnimationFrame(() => scrollToPane('pane-code'));
                   }}
-                  onAdd={(path) => projectActions.addFile(path)}
-                  onRemove={projectActions.removeFile}
                 />
-              </section>
+              </div>
+            </section>
 
-              <section id="pane-code" className="mobile-section mobile-section-code">
-                <div className="mobile-section-head">
-                  Code
-                  <span className="muted">{activePath || 'no file'}</span>
-                </div>
-                <Tabs
-                  files={project.files}
-                  activeFile={activePath}
-                  onSelect={projectActions.setActiveFile}
-                />
-                <div className="mobile-editor">
-                  <EditorPane
-                    path={activePath}
-                    content={activeFile?.content ?? ''}
-                    language={activeFile?.language ?? 'plaintext'}
-                    theme={project.settings.theme}
-                    onChange={(value) => projectActions.updateFile(activePath, value)}
-                  />
-                </div>
-              </section>
-
-              <section id="pane-preview" className="mobile-section mobile-section-preview">
-                <div className="mobile-section-head">Preview</div>
-                <div className="mobile-preview">
-                  <PreviewPane
-                    runtime={runtime}
-                    files={project.files}
-                    scene={project.scene}
-                    autorun={project.settings.autorun}
-                    runSignal={runSignal}
-                    onRun={handleRun}
-                  />
-                </div>
-              </section>
-
-              <section id="pane-output" className="mobile-section mobile-section-output">
-                <div className="mobile-section-head">
-                  Output
-                  {issues.errors > 0 ? <span className="badge error">{issues.errors}</span> : null}
-                  {issues.errors === 0 && issues.warnings > 0 ? (
-                    <span className="badge warn">{issues.warnings}</span>
-                  ) : null}
-                </div>
-                <div className="mobile-output-grid">
-                  <ConsolePanel onClear={() => io.clear()} />
-                  <DiagnosticsPanel
-                    onOpen={(file) => {
-                      projectActions.setActiveFile(file);
-                      requestAnimationFrame(() => scrollToPane('pane-code'));
-                    }}
-                  />
-                </div>
-              </section>
-            </div>
-
-            <MobileNav
-              active={mobileTab}
-              onChange={(tab) => {
-                setMobileTab(tab);
-                scrollToPane(`pane-${tab}`);
-              }}
-              console={consoleState}
-              diagnostics={diagnosticsState}
-              running={runState.running}
-            />
-          </div>
-        ) : (
-          <div className="workspace">
-          <aside className="sidebar">
-            <Explorer
-              files={project.files}
-              activeFile={activePath}
-              onSelect={projectActions.setActiveFile}
-              onAdd={(path) => projectActions.addFile(path)}
-              onRemove={projectActions.removeFile}
-            />
-          </aside>
-
-          <main className="center">
-            <Tabs files={project.files} activeFile={activePath} onSelect={projectActions.setActiveFile} />
-            <EditorPane
-              path={activePath}
-              content={activeFile?.content ?? ''}
-              language={activeFile?.language ?? 'plaintext'}
-              theme={project.settings.theme}
-              onChange={(value) => projectActions.updateFile(activePath, value)}
-            />
-          </main>
-
-          <section className="right">
-            <PreviewPane
-              runtime={runtime}
-              files={project.files}
-              scene={project.scene}
-              autorun={project.settings.autorun}
-              runSignal={runSignal}
-              onRun={handleRun}
-            />
-          </section>
-
-          <footer className="bottom">
-            <div className="bottom-panes">
-              <ConsolePanel onClear={() => io.clear()} />
-              <DiagnosticsPanel
-                onOpen={(file) => projectActions.setActiveFile(file)}
+            <section id="pane-look" className="mobile-section mobile-section-settings">
+              <div className="mobile-section-head">Look</div>
+              <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+              <BackupPanel
+                project={project}
+                onExport={() => void projectActions.exportProject()}
+                onImport={handleImport}
               />
-            </div>
-            </footer>
+            </section>
           </div>
-        )
+
+          <MobileNav
+            active={mobileTab}
+            onChange={(tab) => {
+              setMobileTab(tab);
+              scrollToPane(`pane-${tab}`);
+            }}
+            console={consoleState}
+            diagnostics={diagnosticsState}
+            running={runState.running}
+          />
+        </div>
+      ) : (
+        <div className="workspace workspace-split">
+          <main className="center">
+            {extraSection === 'look' ? (
+              <div className="section-pane">
+                <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+              </div>
+            ) : extraSection === 'backup' ? (
+              <div className="section-pane">
+                <BackupPanel
+                  project={project}
+                  onExport={() => void projectActions.exportProject()}
+                  onImport={handleImport}
+                />
+              </div>
+            ) : (
+              <DesktopWorkspace
+                tab={desktopTab}
+                onChange={setDesktopTab}
+                arrangement={layoutState.arrangement}
+                onArrangement={layoutActions.setArrangement}
+                files={project.files}
+                activeFile={activePath}
+                content={activeFile?.content ?? ''}
+                language={activeFile?.language ?? 'plaintext'}
+                theme={project.settings.theme}
+                onSelectFile={projectActions.setActiveFile}
+                onEdit={(value) => projectActions.updateFile(activePath, value)}
+                runtime={runtime}
+                scene={project.scene}
+                autorun={project.settings.autorun}
+                runSignal={runSignal}
+                onRun={handleRun}
+                onClearConsole={() => io.clear()}
+                onOpenFileForDiagnostic={(file) => {
+                  projectActions.setActiveFile(file);
+                  setDesktopTab('code');
+                }}
+                issues={issues}
+                console={consoleState}
+                diagnostics={diagnosticsState}
+                running={runState.running}
+              />
+            )}
+          </main>
+        </div>
       )}
+
+      <Palette
+        open={palette.open}
+        mode={palette.mode}
+        files={project?.files ?? {}}
+        onClose={() => setPalette((prev) => ({ ...prev, open: false }))}
+        onOpenFile={(path) => {
+          projectActions.setActiveFile(path);
+          setExtraSection(null);
+          setDesktopTab('code');
+          if (layout === 'compact') setMobileTab('code');
+        }}
+        onReplace={projectActions.replaceInFiles}
+      />
+
+      <NoticeBar />
 
       {projectState.error && project ? (
         <div className="error-banner">Storage error: {projectState.error}</div>

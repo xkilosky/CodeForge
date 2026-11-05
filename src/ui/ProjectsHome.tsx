@@ -13,13 +13,14 @@
  * Everything here is local. There is no account, so there is no "sign in" and
  * nothing to sync; the list is whatever IndexedDB holds.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { TEMPLATES } from '../core/templates';
 import type { Project } from '../core/types';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL, describeAge } from './labels';
 import { BrandMark } from './BrandMark';
 import { currentRelease } from '../core/release';
+import { accentHex } from '../core/theme';
 
 interface ProjectsHomeProps {
   recent: Project[];
@@ -31,6 +32,8 @@ interface ProjectsHomeProps {
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onCreate: (templateId: string) => void;
+  /** Brings a `.codeforge.json` back as a new project. */
+  onImport: (file: File) => void;
   onDismissError: () => void;
 }
 
@@ -38,6 +41,16 @@ const available = new Set(RUNTIMES.filter((runtime) => runtime.available).map((r
 
 function fileCount(project: Project): number {
   return Object.keys(project.files ?? {}).length;
+}
+
+/** Folders that exist only as prefixes of a file path still count. */
+function folderCount(project: Project): number {
+  const folders = new Set(project.folders ?? []);
+  for (const path of Object.keys(project.files ?? {})) {
+    const parts = path.split('/').slice(0, -1);
+    for (let i = 0; i < parts.length; i += 1) folders.add(parts.slice(0, i + 1).join('/'));
+  }
+  return folders.size;
 }
 
 /** One row in "Your projects". */
@@ -60,7 +73,12 @@ function ProjectRow({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <li className={`project-row${current ? ' current' : ''}`}>
+    <li
+      className={`project-row${current ? ' current' : ''}`}
+      // The accent is a saved id, so the dot is drawn from the same palette the
+      // project will open with rather than from a value copied at creation.
+      style={{ '--accent': accentHex(project.accent) } as React.CSSProperties}
+    >
       <button className="project-open" onClick={onOpen}>
         <span className="project-title">
           <span className="project-name-text">{project.name}</span>
@@ -70,6 +88,11 @@ function ProjectRow({
           <span className={`workspace-tag ${project.workspace}`}>
             {WORKSPACE_LABEL[project.workspace] ?? project.workspace}
           </span>
+          {folderCount(project) > 0 ? (
+            <span className="muted">
+              {folderCount(project)} {folderCount(project) === 1 ? 'folder' : 'folders'}
+            </span>
+          ) : null}
           <span className="muted">
             {fileCount(project)} {fileCount(project) === 1 ? 'file' : 'files'}
           </span>
@@ -127,12 +150,14 @@ export function ProjectsHome({
   onDelete,
   onDuplicate,
   onCreate,
+  onImport,
   onDismissError,
 }: ProjectsHomeProps) {
   // Sorted newest first by the store, but `recent` can be stale while a project
   // is open, so never rely on order to decide what is most relevant.
   const projects = recent;
   const release = currentRelease();
+  const importRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <div className="home">
@@ -147,7 +172,7 @@ export function ProjectsHome({
           </p>
           <p className="muted">
             A coding environment that runs entirely in this browser. Everything is stored on this
-            device — no account, no server.
+            device — no account, no server. Export a project to keep a copy.
           </p>
         </header>
 
@@ -191,6 +216,23 @@ export function ProjectsHome({
         <section className="home-section" aria-labelledby="home-new-heading">
           <h2 id="home-new-heading" className="home-heading">
             Start something new
+            <span className="home-heading-actions">
+              <button className="btn ghost small" onClick={() => importRef.current?.click()}>
+                Import a project
+              </button>
+              <input
+                ref={importRef}
+                type="file"
+                className="visually-hidden"
+                accept="application/json,.json"
+                aria-label="Import a project file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onImport(file);
+                  event.target.value = '';
+                }}
+              />
+            </span>
           </h2>
           <div className="template-grid">
             {TEMPLATES.map((template) => {

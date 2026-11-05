@@ -390,8 +390,13 @@ export const SIM_RUNTIME = `
     math: Math
   };
 
+  // Frames the script has been ticked for. Engine-owned: ctx.frames is a fact
+  // about the run, not user state the script has to remember.
+  var scriptFrames = 0;
+
   function callScript(dt) {
     if (!main || scriptDead || paused || !state) return;
+    scriptFrames += 1;
     var player = stateOf(state.spawn.id);
     if (!player) return;
     var view = entityView(playerEntity);
@@ -402,6 +407,7 @@ export const SIM_RUNTIME = `
       player: view,
       time: state.time,
       dt: Math.min(dt, 0.1),
+      frames: scriptFrames,
       input: { axis: input.axis, jump: input.jump },
       collected: state.collected.slice()
     };

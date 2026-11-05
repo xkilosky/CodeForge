@@ -1,5 +1,6 @@
 import type { ConsoleState } from '../core/consoleStore';
 import type { DiagnosticsState } from '../core/diagnosticsStore';
+import { CodeIcon, FolderIcon, PlayIcon, TerminalIcon } from './icons';
 
 /** The four panes reachable on a phone, one at a time. */
 export type MobileTab = 'files' | 'code' | 'preview' | 'output';
@@ -12,11 +13,11 @@ interface MobileNavProps {
   running: boolean;
 }
 
-const TABS: { id: MobileTab; label: string; glyph: string }[] = [
-  { id: 'files', label: 'Files', glyph: '🗀' },
-  { id: 'code', label: 'Code', glyph: '‹›' },
-  { id: 'preview', label: 'Run', glyph: '▶' },
-  { id: 'output', label: 'Output', glyph: '▤' },
+const TABS: { id: MobileTab; label: string; Icon: typeof CodeIcon }[] = [
+  { id: 'files', label: 'Files', Icon: FolderIcon },
+  { id: 'code', label: 'Code', Icon: CodeIcon },
+  { id: 'preview', label: 'Run', Icon: PlayIcon },
+  { id: 'output', label: 'Output', Icon: TerminalIcon },
 ];
 
 /**
@@ -67,7 +68,7 @@ export function MobileNav({ active, onChange, console: consoleState, diagnostics
             onClick={() => onChange(tab.id)}
           >
             <span className="mobile-nav-glyph" aria-hidden="true">
-              {tab.glyph}
+              <tab.Icon size={17} />
               {tab.id === 'preview' && running ? <span className="mobile-nav-dot" /> : null}
             </span>
             <span className="mobile-nav-label">{tab.label}</span>

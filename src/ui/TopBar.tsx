@@ -1,10 +1,21 @@
+/**
+ * The top bar, after the drawer took over navigation.
+ *
+ * It used to be the only UI in the app: brand, three workspace tabs, a name
+ * field, a save state, Run / Stop / Auto, "+ New" and an exit button, all at
+ * once. On a phone that did not fit, so half of it was hidden and the app had
+ * no navigation left. Now the bar carries only what acts on the current thing,
+ * and the drawer carries the map.
+ */
 import { useEffect, useRef, useState } from 'react';
-import type { Project, WorkspaceId } from '../core/types';
+import type { Project } from '../core/types';
 import { TEMPLATES } from '../core/templates';
 import { RUNTIMES } from '../runtimes/registry';
 import { WORKSPACE_LABEL } from './labels';
 import { BrandMark } from './BrandMark';
 import { currentRelease } from '../core/release';
+import { MenuIcon, PlayIcon, SearchIcon, StopIcon } from './icons';
+import { accentHex } from '../core/theme';
 
 interface TopBarProps {
   project: Project | null;
@@ -13,29 +24,27 @@ interface TopBarProps {
   onRename: (name: string) => void;
   onRun: () => void;
   onStop: () => void;
-  onToggleAutorun: () => void;
-  /** Creates a project from a template id and opens it. */
+  /** Opens the "+ New" menu, which creates a project from a template. */
   onCreate: (templateId: string) => void;
-  /** Switches the open project to another workspace. */
-  onSwitchWorkspace: (workspace: WorkspaceId) => void;
-  /** Closes the open project and returns to the projects home. */
+  /** Opens the projects home. */
   onExit: () => void;
+  /** Opens the drawer. */
+  onOpenDrawer: () => void;
+  onOpenSearch: () => void;
 }
 
 /**
  * The "+ New" menu.
  *
- * A native `<select>` was the previous control and it was the wrong shape for
- * this job: on a phone it opens an OS picker that hides the app, it cannot show
- * a description, and it reads as a form field rather than a command. This is a
- * button that opens a list.
+ * A native `<select>` was the previous control and it was the wrong shape: on a
+ * phone it opens an OS picker that hides the app, it cannot show a description,
+ * and it reads as a form field rather than a command. This is a button that
+ * opens a list.
  */
 function NewProjectMenu({ onCreate }: { onCreate: (templateId: string) => void }) {
   const [open, setOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement | null>(null);
 
-  // Click-away and Escape both close it. Without the click-away the menu covers
-  // the editor and there is no obvious way to dismiss it on a phone.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: MouseEvent | TouchEvent) {
@@ -113,17 +122,28 @@ export function TopBar({
   onRename,
   onRun,
   onStop,
-  onToggleAutorun,
   onCreate,
-  onSwitchWorkspace,
   onExit,
+  onOpenDrawer,
+  onOpenSearch,
 }: TopBarProps) {
   const release = currentRelease();
+  // The accent is a per-project CSS variable rather than a class, so a saved
+  // accent id cannot fall out of sync with a stylesheet rule that was renamed.
+  const accent = accentHex(project?.accent);
+  const style = project ? ({ '--accent': accent } as React.CSSProperties) : undefined;
+
   return (
-    /* `has-project` lets the phone layout drop the brand mark only when the
-       project name and exit control need that width. Without it the home
-       screen would open with an empty left corner. */
-    <header className={`topbar${project ? ' has-project' : ''}`}>
+    <header className={`topbar${project ? ' has-project' : ''}`} style={style}>
+      <button
+        className="drawer-btn"
+        onClick={onOpenDrawer}
+        aria-label="Open the drawer"
+        title="Files and sections (Ctrl+B)"
+      >
+        <MenuIcon size={17} />
+      </button>
+
       <button
         className="brand brand-btn"
         onClick={onExit}
@@ -132,43 +152,17 @@ export function TopBar({
       >
         <BrandMark size={22} />
         <span className="brand-name">CodeForge</span>
-        {/*
-          The release rides on the brand rather than getting its own element.
-          The top bar already carries eight controls on a phone, and a ninth
-          would push Run off the edge; the full title and channel are in the
-          tooltip and the accessible name.
-        */}
+        {/* The tag rides on the brand: the bar has no room for a ninth control
+            on a phone, and the full title is in the tooltip. */}
         <span className="brand-version">{release.tag}</span>
       </button>
 
-      <nav className="workspace-tabs" aria-label="Workspaces">
-        {RUNTIMES.map((runtime) => {
-          const active = project?.workspace === runtime.id;
-          return (
-            <button
-              key={runtime.id}
-              className={`workspace-tab${active ? ' active' : ''}`}
-              disabled={!runtime.available}
-              title={runtime.available ? runtime.label : runtime.unavailableReason}
-              onClick={() => {
-                if (runtime.available) onSwitchWorkspace(runtime.id as WorkspaceId);
-              }}
-            >
-              {runtime.label}
-              {!runtime.available ? <span className="soon">soon</span> : null}
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="topbar-spacer" />
-
       {project ? (
-        <>
+        <div className="topbar-file">
           <input
             className="project-name"
             value={project.name}
-            onChange={(e) => onRename(e.target.value)}
+            onChange={(event) => onRename(event.target.value)}
             aria-label="Project name"
             spellCheck={false}
           />
@@ -176,42 +170,33 @@ export function TopBar({
           <span className={`save-state${dirty ? ' dirty' : ''}`}>
             {dirty ? 'saving…' : 'saved'}
           </span>
-        </>
+        </div>
       ) : null}
 
-      {/* Run controls only make sense with a project open; showing them on the
-          projects home would offer to run nothing. */}
+      <div className="topbar-spacer" />
+
       {project ? (
         <div className="run-controls">
+          <button
+            className="btn ghost icon-btn"
+            onClick={onOpenSearch}
+            title="Open a file (Ctrl+P)"
+            aria-label="Open a file"
+          >
+            <SearchIcon size={15} />
+          </button>
           <button className="btn primary" onClick={onRun} title="Run (Ctrl+Enter)">
-            ▶ Run
+            <PlayIcon size={12} />
+            <span className="btn-label"> Run</span>
           </button>
           <button className="btn" onClick={onStop} disabled={!running} title="Stop">
-            ■<span className="btn-label"> Stop</span>
+            <StopIcon size={12} />
+            <span className="btn-label"> Stop</span>
           </button>
-          <label className="autorun" title="Rebuild the preview as you type">
-            <input
-              type="checkbox"
-              checked={project.settings.autorun}
-              onChange={onToggleAutorun}
-            />
-            Auto
-          </label>
         </div>
       ) : null}
 
       <NewProjectMenu onCreate={onCreate} />
-
-      {project ? (
-        <button
-          className="btn ghost exit-btn"
-          onClick={onExit}
-          title="Close this project and go back to your projects"
-        >
-          <span aria-hidden="true">‹</span>
-          <span className="exit-label">Projects</span>
-        </button>
-      ) : null}
     </header>
   );
 }

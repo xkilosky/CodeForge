@@ -3,14 +3,14 @@
  *
  * Every release is **Forge S<season>.<milestone>** with a channel beside it:
  *
- *     CodeForge - Forge S1.5
+ *     CodeForge - Forge S1.6
  *     Platform Release
  *
  * The number in front of the dot is the shipped milestone, so it is **derived
  * from the runtime registry** rather than typed twice. A hand-written "S1.5"
  * in a template string is a version number that goes stale on the next release
- * and nobody notices for a month — the registry already knows which milestones
- * are live, so it is the single source for this.
+ * and nobody notices for a month — the list below already knows which
+ * milestones are live, so it is the single source for this.
  *
  * Season is separate because it is a decision, not a count: S1 is the season
  * opened by the Web workspace. Adding a runtime to a later season is a one-line
@@ -38,6 +38,7 @@ interface MilestoneName {
 export const SHIPPED_MILESTONES: MilestoneName[] = [
   { id: 'M1', name: 'Web workspace' },
   { id: 'M5', name: 'Visual game builder' },
+  { id: 'M6', name: 'Files, folders and a new interface' },
 ];
 
 /**
@@ -45,7 +46,7 @@ export const SHIPPED_MILESTONES: MilestoneName[] = [
  *
  * "Arrives in M6" is a note to the team, not to the person looking at the
  * workspace tab — the milestone numbering is an internal build plan. This maps
- * it to the next release tag instead, so the UI can say "Forge S1.6".
+ * it to the next release tag instead, so the UI can say "Forge S1.7".
  */
 export function nextReleaseTag(): string {
   const latest = SHIPPED_MILESTONES[SHIPPED_MILESTONES.length - 1];
@@ -58,7 +59,7 @@ export function arrivesIn(): string {
   return `Arrives in Forge ${nextReleaseTag()}.`;
 }
 
-/** The same fact as a mid-sentence phrase: "arrives in Forge S1.6." */
+/** The same fact as a mid-sentence phrase: "arrives in Forge S1.7." */
 export function arrivesInPhrase(): string {
   return `arrives in Forge ${nextReleaseTag()}.`;
 }
@@ -69,9 +70,9 @@ export type ReleaseChannel =
   | 'Maintenance';
 
 export interface Release {
-  /** e.g. `S1.5` */
+  /** e.g. `S1.6` */
   tag: string;
-  /** e.g. `CodeForge - Forge S1.5` */
+  /** e.g. `CodeForge - Forge S1.6` */
   title: string;
   /** e.g. `Platform Release` */
   channel: ReleaseChannel;
@@ -96,6 +97,7 @@ export function currentRelease(): Release {
     title: `CodeForge - Forge ${tag}`,
     channel: 'Platform Release',
     milestone: latest ? `${latest.id} — ${latest.name}` : 'M0 — Scaffold',
-    summary: 'Web pages and a visual game builder, saved on your device.',
+    summary:
+      'A drawer for files and folders, a Tokyo Night interface, and projects you can export.',
   };
 }

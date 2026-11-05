@@ -52,6 +52,7 @@ function reset(): void {
     error: null,
     undoDepth: 0,
     redoDepth: 0,
+    notice: null,
   });
 }
 
@@ -206,6 +207,7 @@ describe('ProjectsHome', () => {
         onDelete={noop}
         onDuplicate={noop}
         onCreate={noop}
+        onImport={noop}
         onDismissError={noop}
         {...props}
       />,

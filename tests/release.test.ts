@@ -20,12 +20,12 @@ import { TEMPLATES } from '../src/core/templates';
 import { readFileSync } from 'node:fs';
 
 describe('release identity', () => {
-  it('names the current release Forge S1.5', () => {
+  it('names the current release Forge S1.6', () => {
     const release = currentRelease();
-    expect(release.tag).toBe('S1.5');
-    expect(release.title).toBe('CodeForge - Forge S1.5');
+    expect(release.tag).toBe('S1.6');
+    expect(release.title).toBe('CodeForge - Forge S1.6');
     expect(release.channel).toBe('Platform Release');
-    expect(release.milestone).toBe('M5 — Visual game builder');
+    expect(release.milestone).toBe('M6 — Files, folders and a new interface');
   });
 
   it('derives the number from the last shipped milestone', () => {
@@ -34,9 +34,9 @@ describe('release identity', () => {
   });
 
   it('points at the next milestone for work that has not shipped', () => {
-    expect(nextReleaseTag()).toBe('S1.6');
-    expect(arrivesIn()).toBe('Arrives in Forge S1.6.');
-    expect(arrivesInPhrase()).toBe('arrives in Forge S1.6.');
+    expect(nextReleaseTag()).toBe('S1.7');
+    expect(arrivesIn()).toBe('Arrives in Forge S1.7.');
+    expect(arrivesInPhrase()).toBe('arrives in Forge S1.7.');
   });
 
   it('lists only milestones whose runtime exists', () => {
@@ -79,5 +79,20 @@ describe('release identity', () => {
     expect(bar).toContain('release.title');
     expect(home).toContain('release.title');
     expect(home).toContain('release.channel');
+  });
+
+  it('keeps the static fallback title in step with the derived one', () => {
+    // index.html is what a crawler sees before React boots. If it is not the
+    // same string, the tab in a search result is a release behind.
+    const html = readFileSync('index.html', 'utf8');
+    expect(html).toContain(`<title>${currentRelease().title}</title>`);
+  });
+
+  it('keeps the drawer and the home screen on the same release', () => {
+    // Two places show the tag. One of them silently lagging is the exact
+    // failure the derived value exists to prevent.
+    const drawer = readFileSync('src/ui/Drawer.tsx', 'utf8');
+    expect(drawer).toContain('release.tag');
+    expect(drawer).not.toMatch(/S1\.\d/);
   });
 });

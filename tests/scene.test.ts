@@ -54,6 +54,7 @@ beforeEach(() => {
     error: null,
     undoDepth: 0,
     redoDepth: 0,
+    notice: null,
   });
 });
 

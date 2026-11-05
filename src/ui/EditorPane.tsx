@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { monaco, monacoLanguageFor } from './monaco';
+import { resolveEditorTheme } from '../core/theme';
 import { modelUriFor } from './monacoMarkers';
 
 interface EditorPaneProps {
@@ -7,7 +8,8 @@ interface EditorPaneProps {
   path: string;
   content: string;
   language: string;
-  theme: 'vs-dark' | 'vs';
+  /** Any theme id a project might hold; older builds stored Monaco's own ids. */
+  theme: string;
   onChange: (value: string) => void;
 }
 
@@ -36,7 +38,7 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
 
     const editor = monaco.editor.create(host, {
       ...EDITOR_OPTIONS,
-      theme,
+      theme: resolveEditorTheme(theme),
     });
 
     // URI-keyed models let diagnostics target a file that is not the open tab.
@@ -79,7 +81,7 @@ export function EditorPane({ path, content, language, theme, onChange }: EditorP
   }, [language]);
 
   useEffect(() => {
-    monaco.editor.setTheme(theme);
+    monaco.editor.setTheme(resolveEditorTheme(theme));
   }, [theme]);
 
   if (!path) {

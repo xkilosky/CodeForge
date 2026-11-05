@@ -4,7 +4,37 @@ import { TEMPLATES, projectFromTemplate, type Template } from './templates';
 import { runtimeForWorkspace } from '../runtimes/registry';
 import type { FileMap, Project, ProjectSettings } from './types';
 import { languageForPath, newId } from './types';
+import { DEFAULT_ACCENT, type AccentId, type EditorThemeId } from './theme';
+import { exportFileName, parseProject, serializeProject } from './transfer';
+import {
+  allFolders,
+  ancestorsOf,
+  deleteFolder,
+  freePath,
+  isInside,
+  nameOf,
+  normalizePath,
+  parentOf,
+  pathProblem,
+  remapFiles,
+} from './workspace';
 import { addEntity, removeEntity, setPlayer, updateEntity, type Entity, type Scene } from './scene';
+
+/**
+ * What just happened, in words, for the one-line notice in the bottom bar.
+ *
+ * Undo for files and folders is a full history stack, and it is not built yet.
+ * A toast is the honest middle ground: it confirms that the destructive thing
+ * the user just pressed actually happened, which is the part a silent delete
+ * gets wrong. `undoable` marks the actions that a future undo would cover.
+ */
+export interface ProjectNotice {
+  id: string;
+  text: string;
+  /** 'success' for "done", 'info' for "nothing to do", 'error' for a refusal. */
+  tone: 'success' | 'info' | 'error';
+  at: number;
+}
 
 export interface ProjectState {
   project: Project | null;
@@ -24,6 +54,8 @@ export interface ProjectState {
    */
   undoDepth: number;
   redoDepth: number;
+  /** The most recent confirmation or refusal, shown briefly in the bottom bar. */
+  notice: ProjectNotice | null;
 }
 
 /**
@@ -48,6 +80,7 @@ export const projectStore = new Store<ProjectState>({
   error: null,
   undoDepth: 0,
   redoDepth: 0,
+  notice: null,
 });
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -102,13 +135,53 @@ function resetHistory(): void {
   publishDepths();
 }
 
+/**
+ * Publishes a one-line confirmation.
+ *
+ * Cleared by the UI after a few seconds rather than by a timer here: a timer in
+ * the store would keep firing against a store nobody is subscribed to, and the
+ * component that shows the notice owns how long it stays.
+ */
+function notify(text: string, tone: ProjectNotice['tone'] = 'success'): void {
+  projectStore.set((prev) => ({
+    ...prev,
+    notice: { id: newId('note'), text, tone, at: Date.now() },
+  }));
+}
+
 function scheduleSave(project: Project): void {
   projectStore.set((prev) => ({ ...prev, project, dirty: true }));
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => void persist(project), AUTOSAVE_MS);
 }
 
+/**
+ * Brings a project loaded from storage up to the current shape.
+ *
+ * Called on every read rather than as an IndexedDB migration: a project saved
+ * by S1.5 has no `folders`, no `accent`, and a stock Monaco theme id. Fixing
+ * those at the boundary means the rest of the code never has to ask whether a
+ * field might be missing, and there is exactly one place to add the next one.
+ */
+export function settleProject(project: Project): Project {
+  const folders = new Set(project.folders ?? []);
+  for (const path of Object.keys(project.files)) {
+    for (const ancestor of ancestorsOf(path)) folders.add(ancestor);
+  }
+  return {
+    ...project,
+    folders: [...folders],
+    accent: project.accent ?? DEFAULT_ACCENT,
+  };
+}
+
 export const projectActions = {
+  /**
+   * Kept as `settleProject` for callers that already hold a project object
+   * (creating from a template, duplicating) and want the same normalisation.
+   */
+  settle: settleProject,
+
   /**
    * Loads the project list. Deliberately does **not** open anything.
    *
@@ -137,7 +210,7 @@ export const projectActions = {
   },
 
   createFromTemplate(template: Template, name?: string): Project {
-    const project = projectFromTemplate(template, name);
+    const project = settleProject(projectFromTemplate(template, name));
     projectStore.set((prev) => ({ ...prev, project }));
     void persist(project);
     return project;
@@ -151,7 +224,8 @@ export const projectActions = {
       workspace,
       files: {},
       activeFile: '',
-      settings: { theme: 'vs-dark', autorun: true },
+      settings: { theme: 'tokyo-night', autorun: true },
+      accent: DEFAULT_ACCENT,
       createdAt: now,
       updatedAt: now,
     };
@@ -209,7 +283,7 @@ export const projectActions = {
   async openById(id: string): Promise<void> {
     try {
       const found = await db.getProject(id);
-      if (found) projectActions.open(found);
+      if (found) projectActions.open(settleProject(found));
       else projectStore.set((prev) => ({ ...prev, error: 'That project no longer exists.' }));
     } catch (err) {
       projectStore.set((prev) => ({
@@ -229,7 +303,7 @@ export const projectActions = {
 
   async reopen(id: string): Promise<void> {
     const found = await db.getProject(id);
-    if (found) projectActions.open(found);
+    if (found) projectActions.open(settleProject(found));
   },
 
   /**
@@ -273,6 +347,9 @@ export const projectActions = {
         files: Object.fromEntries(
           Object.entries(source.files).map(([path, file]) => [path, { ...file }]),
         ),
+        // Copied, not shared: deleting a folder in the copy must not gut the
+        // original's folder list.
+        folders: [...(source.folders ?? [])],
         createdAt: now,
         updatedAt: now,
       };
@@ -358,29 +435,298 @@ export const projectActions = {
     scheduleSave(touch({ ...current, files }));
   },
 
-  addFile(path: string): boolean {
+  addFile(path: string, content = ''): boolean {
     const current = projectStore.get().project;
     if (!current) return false;
-    const clean = path.trim().replace(/^\/+/, '');
-    if (!clean || clean in current.files) return false;
-    const files: FileMap = { ...current.files, [clean]: { content: '', language: languageForPath(clean) } };
-    scheduleSave(touch({ ...current, files, activeFile: clean }));
+    const clean = normalizePath(path);
+    const problem = pathProblem(clean);
+    if (problem) {
+      notify(problem, 'error');
+      return false;
+    }
+    if (clean in current.files || allFolders(current).has(clean)) {
+      notify(`“${clean}” already exists.`, 'error');
+      return false;
+    }
+    const files: FileMap = {
+      ...current.files,
+      [clean]: { content, language: languageForPath(clean) },
+    };
+    // Every folder a new file implies must exist, or the tree shows the file
+    // at the root when its parent folder was never registered.
+    const folders = new Set(current.folders ?? []);
+    for (const ancestor of ancestorsOf(clean)) folders.add(ancestor);
+    scheduleSave(
+      touch({ ...current, files, folders: [...folders], activeFile: clean }),
+    );
+    notify(`Created ${clean}.`);
     return true;
   },
 
   removeFile(path: string): void {
     const current = projectStore.get().project;
     if (!current) return;
+    if (!(path in current.files)) return;
     const files = { ...current.files };
     delete files[path];
-    const keys = Object.keys(files);
+    const keys = Object.keys(files).sort();
     scheduleSave(
       touch({
         ...current,
         files,
+        // Never point the editor at a file that is gone: the pane would render
+        // an empty editor over a path that does not exist.
         activeFile: current.activeFile === path ? (keys[0] ?? '') : current.activeFile,
       }),
     );
+    notify(`Deleted ${path}.`);
+  },
+
+  /**
+   * Renames a file, or a whole folder, carrying its contents.
+   *
+   * A rename is a content-preserving rewrite of every affected key, so it goes
+   * through one function: renaming `src` has to move `src/a.js` and `src/b/c.js`
+   * together, and doing that in two code paths is how an editor ends up with
+   * half a folder.
+   */
+  renamePath(from: string, to: string): boolean {
+    const current = projectStore.get().project;
+    if (!current) return false;
+    const clean = normalizePath(to);
+    const problem = pathProblem(clean);
+    if (problem) {
+      notify(problem, 'error');
+      return false;
+    }
+    if (normalizePath(from) === clean) return false;
+
+    const folders = allFolders(current);
+    const isFolder = folders.has(from);
+    if (!isFolder && !(from in current.files)) return false;
+
+    // Renaming onto something else would destroy it silently. A *case-only*
+    // rename of the same file (`a.js` → `A.js`) is allowed on case-sensitive
+    // hosts but is a no-op on macOS, so it is refused rather than half-applied.
+    if (clean in current.files && clean !== from) {
+      notify(`“${clean}” already exists.`, 'error');
+      return false;
+    }
+    if (folders.has(clean) && !isInside(clean, from)) {
+      notify(`The folder “${clean}” already exists.`, 'error');
+      return false;
+    }
+    // Moving a folder inside itself would produce paths that no longer grow.
+    if (isFolder && isInside(clean, from)) {
+      notify('A folder cannot be moved inside itself.', 'error');
+      return false;
+    }
+
+    const files = remapFiles(current.files, from, clean);
+    const nextFolders = new Set<string>();
+    const keep = (path: string) => {
+      if (path !== from && !isInside(path, from)) nextFolders.add(path);
+    };
+    for (const folder of current.folders ?? []) keep(folder);
+    for (const path of Object.keys(files)) {
+      for (const ancestor of ancestorsOf(path)) nextFolders.add(ancestor);
+    }
+    // A renamed empty folder stays an empty folder.
+    if (isFolder && ![...Object.keys(files)].some((path) => isInside(path, clean))) {
+      nextFolders.add(clean);
+    }
+
+    scheduleSave(
+      touch({
+        ...current,
+        files,
+        folders: [...nextFolders],
+        activeFile: isInside(current.activeFile, from)
+          ? clean + current.activeFile.slice(from.length)
+          : current.activeFile,
+      }),
+    );
+    notify(isFolder ? `Renamed folder to ${nameOf(clean)}.` : `Renamed to ${nameOf(clean)}.`);
+    return true;
+  },
+
+  /**
+   * Creates a folder.
+   *
+   * `using` is what the user has selected in the tree — a folder means "inside
+   * it", a file means "beside it". Passing it in keeps the store free of the
+   * explorer's own selection state.
+   */
+  createFolder(raw: string): string | null {
+    const current = projectStore.get().project;
+    if (!current) return null;
+    const path = normalizePath(raw);
+    if (!path) return null;
+    const problem = pathProblem(path);
+    if (problem) {
+      notify(problem, 'error');
+      return null;
+    }
+    if (path in current.files) {
+      notify(`“${path}” is a file, not a folder.`, 'error');
+      return null;
+    }
+    if (allFolders(current).has(path)) {
+      notify(`The folder “${path}” already exists.`, 'error');
+      return null;
+    }
+    const folders = new Set(current.folders ?? []);
+    for (const ancestor of ancestorsOf(`${path}/_`)) folders.add(ancestor);
+    scheduleSave(touch({ ...current, folders: [...folders] }));
+    notify(`Created folder ${path}.`);
+    return path;
+  },
+
+  /** Deletes a folder, its files and its subfolders as one operation. */
+  removeFolder(folder: string): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    if (!allFolders(current).has(folder)) return;
+    const { files, folders } = deleteFolder(current, folder);
+    const keys = Object.keys(files).sort();
+    scheduleSave(
+      touch({
+        ...current,
+        files,
+        folders,
+        activeFile: isInside(current.activeFile, folder) ? (keys[0] ?? '') : current.activeFile,
+      }),
+    );
+    notify(`Deleted folder ${folder}.`);
+  },
+
+  /** A copy of a file, next to the original, opened. */
+  duplicateFile(path: string): string | null {
+    const current = projectStore.get().project;
+    if (!current) return null;
+    const source = current.files[path];
+    if (!source) return null;
+    const target = freePath(
+      [...Object.keys(current.files), ...allFolders(current)],
+      path,
+    );
+    const folders = new Set(current.folders ?? []);
+    for (const ancestor of ancestorsOf(target)) folders.add(ancestor);
+    const files: FileMap = {
+      ...current.files,
+      [target]: { content: source.content, language: source.language },
+    };
+    scheduleSave(touch({ ...current, files, folders: [...folders], activeFile: target }));
+    notify(`Duplicated to ${nameOf(target)}.`);
+    return target;
+  },
+
+  /**
+   * Replaces every occurrence of a string across the project's text files.
+   *
+   * Scoped to the project on purpose: this is the "I renamed `.card` and now
+   * four files are wrong" button, not a refactor engine. Binary-ish files are
+   * untouched because `files` is text by construction, but a file with no
+   * extension is still text here — that is what this app stores.
+   */
+  replaceInFiles(find: string, replace: string): number {
+    const current = projectStore.get().project;
+    if (!current || !find) return 0;
+    let hits = 0;
+    const files: FileMap = {};
+    for (const [path, file] of Object.entries(current.files)) {
+      if (!file.content.includes(find)) {
+        files[path] = file;
+        continue;
+      }
+      // Count occurrences, not lines: the number in the notice is what the
+      // user will try to verify.
+      let index = 0;
+      let count = 0;
+      while ((index = file.content.indexOf(find, index)) !== -1) {
+        count += 1;
+        index += find.length;
+      }
+      hits += count;
+      files[path] = { ...file, content: file.content.split(find).join(replace) };
+    }
+    if (hits === 0) {
+      notify(`No matches for “${find}”.`, 'info');
+      return 0;
+    }
+    scheduleSave(touch({ ...current, files }));
+    notify(`Replaced ${hits} ${hits === 1 ? 'match' : 'matches'} in ${Object.keys(files).length} files.`);
+    return hits;
+  },
+
+  /**
+   * Saves a project as a `.codeforge.json` download.
+   *
+   * Uses an object URL and a synthetic click rather than the File System
+   * Access API: this has to work in every browser the app runs in, including
+   * the ones embedded in other apps.
+   */
+  exportProject(): string | null {
+    const current = projectStore.get().project;
+    if (!current) return null;
+    const text = serializeProject(current);
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = exportFileName(current.name);
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    // Revoking immediately can cancel the download in Safari.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    notify(`Exported ${exportFileName(current.name)}.`);
+    return text;
+  },
+
+  /**
+   * Reads an imported file and opens it as a **new** project.
+   *
+   * Never overwrites: the id is always fresh, so importing the same backup
+   * twice gives two projects and neither one can destroy the other.
+   */
+  async importProject(text: string): Promise<Project | null> {
+    const result = parseProject(text);
+    if (!result.ok) {
+      notify(result.error, 'error');
+      return null;
+    }
+    const project = settleProject(result.project);
+    projectStore.set((prev) => ({ ...prev, project, dirty: false, error: null }));
+    resetHistory();
+    await persist(project);
+    notify(`Imported “${project.name}”.`);
+    return project;
+  },
+
+  setAccent(accent: AccentId): void {
+    const current = projectStore.get().project;
+    if (!current) return;
+    scheduleSave(touch({ ...current, accent }));
+  },
+
+  setEditorTheme(theme: EditorThemeId): void {
+    projectActions.updateSettings({ theme });
+  },
+
+  dismissNotice(): void {
+    projectStore.set((prev) => (prev.notice ? { ...prev, notice: null } : prev));
+  },
+
+  /**
+   * The path a new file or folder should be created under, given what the
+   * explorer currently has selected.
+   */
+  containerFor(selected: string | null): string {
+    const current = projectStore.get().project;
+    if (!current || !selected) return '';
+    if (allFolders(current).has(selected)) return selected;
+    return parentOf(selected);
   },
 
   // ── scene (the game builder) ──────────────────────────────────────────

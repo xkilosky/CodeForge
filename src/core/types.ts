@@ -4,6 +4,7 @@
  */
 
 import type { Scene } from './scene';
+import type { AccentId, EditorThemeId } from './theme';
 
 export type LanguageId =
   | 'html'
@@ -25,7 +26,12 @@ export type FileMap = Record<string, SourceFile>;
 export type WorkspaceId = 'web' | 'game' | 'python' | 'blank';
 
 export interface ProjectSettings {
-  theme: 'vs-dark' | 'vs';
+  /**
+   * Editor scheme id. Typed loosely on purpose: a project saved by an older
+   * build holds Monaco's stock `vs-dark`, and `resolveEditorTheme()` maps it
+   * forward without needing a migration over IndexedDB.
+   */
+  theme: EditorThemeId | 'vs-dark' | 'vs' | 'tokyo-night' | 'tokyo-storm';
   autorun: boolean;
 }
 
@@ -36,6 +42,16 @@ export interface Project {
   files: FileMap;
   activeFile: string;
   settings: ProjectSettings;
+  /**
+   * Folders the user created that hold no files yet.
+   *
+   * The tree normally comes from file paths — `src/App.tsx` implies `src/` —
+   * so this only carries the ones that would otherwise not exist. Optional so
+   * a project written before folders shipped still opens.
+   */
+  folders?: string[];
+  /** Which accent this project wears. An id, not a hex: see `core/theme.ts`. */
+  accent?: AccentId;
   /**
    * The visual scene, for workspaces that have one (the game builder).
    *

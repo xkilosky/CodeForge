@@ -1,6 +1,7 @@
 import type { FileMap, Project, WorkspaceId } from './types';
 import { languageForPath, newId } from './types';
 import { emptyScene, starterScene, type Scene } from './scene';
+import { arrivesIn } from './release';
 
 export interface Template {
   id: string;
@@ -9,6 +10,11 @@ export interface Template {
   description: string;
   entry: string;
   files: Record<string, string>;
+  /**
+   * Folders the template ships empty. Everything implied by `files` is created
+   * automatically, so this is only for ones that would otherwise not exist.
+   */
+  folders?: string[];
   /** Milestone the workspace lands in — drives the "coming soon" state. */
   milestone: string;
   /**
@@ -34,7 +40,7 @@ export const TEMPLATES: Template[] = [
   <head>
     <meta charset="utf-8" />
     <title>My page</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles/style.css" />
   </head>
   <body>
     <main class="card">
@@ -43,11 +49,11 @@ export const TEMPLATES: Template[] = [
       <button id="ping">Log something</button>
       <button id="boom">Throw an error</button>
     </main>
-    <script src="main.js"></script>
+    <script src="scripts/main.js"></script>
   </body>
 </html>
 `,
-      'style.css': `:root { color-scheme: dark; }
+      'styles/style.css': `:root { color-scheme: dark; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -78,7 +84,7 @@ button {
 button:hover { background: #4c6ef5; }
 #boom { background: #b03050; }
 `,
-      'main.js': `// console output is forwarded to the CodeForge console panel.
+      'scripts/main.js': `// console output is forwarded to the CodeForge console panel.
 let clicks = 0;
 
 console.log("page script loaded");
@@ -122,16 +128,17 @@ document.querySelector("#boom").addEventListener("click", () => {
     workspace: 'game',
     description: 'A stage, a player and a script. Drag things around, press Run.',
     milestone: 'M5',
-    entry: 'game.js',
+    entry: 'scripts/game.js',
     scene: starterScene,
     files: {
-      'game.js': `/**
+      'scripts/game.js': `/**
  * Runs once per frame while the game is playing.
  *
  *   ctx.player  the entity you drive: x, y, vx, vy, grounded
  *               move(vx) sets horizontal speed, jump() leaves the ground
  *   ctx.time    seconds since Play was pressed
  *   ctx.dt      seconds since the previous frame
+ *   ctx.frames  frames since Play was pressed (whole number, engine-counted)
  *   ctx.input   { axis: -1 | 0 | 1, jump: boolean }
  *   ctx.api     find(name) and pickups() to inspect the stage
  *
@@ -139,9 +146,11 @@ document.querySelector("#boom").addEventListener("click", () => {
  */
 export function onUpdate(ctx) {
   // The scene responds to the keyboard on its own; this hook is for anything
-  // you want on top of it. Move with the arrow keys and this log will show the
-  // player's height.
-  if (ctx.player.grounded && ctx.api.math.floor(ctx.time) % 2 === 0 && ctx.time % 1 < ctx.dt) {
+  // you want on top of it. Move with the arrow keys and the console will show
+  // where the player is. A frame counter is used rather than a clock check:
+  // "every second" needs state, and a counter is state the script cannot get
+  // wrong.
+  if (ctx.player.grounded && ctx.frames % 120 === 0) {
     ctx.api.log("standing at y=" + Math.round(ctx.player.y));
   }
 }
@@ -154,10 +163,10 @@ export function onUpdate(ctx) {
     workspace: 'game',
     description: 'A bare stage with nothing on it. Add objects in the builder.',
     milestone: 'M5',
-    entry: 'game.js',
+    entry: 'scripts/game.js',
     scene: () => emptyScene(),
     files: {
-      'game.js': `export function onUpdate(ctx) {
+      'scripts/game.js': `export function onUpdate(ctx) {
   // Nothing on the stage yet. Add an object in the builder, set it as the
   // player, then press Run.
 }
@@ -168,7 +177,7 @@ export function onUpdate(ctx) {
     id: 'python-script',
     label: 'Python script',
     workspace: 'python',
-    description: 'Runs on Pyodide in the browser. Arrives in Forge S1.6.',
+    description: `Runs on Pyodide in the browser. ${arrivesIn()}`,
     milestone: 'M6',
     entry: 'main.py',
     files: {
@@ -197,8 +206,10 @@ export function projectFromTemplate(template: Template, name?: string): Project 
     name: name?.trim() || template.label,
     workspace: template.workspace,
     files,
+    folders: [...(template.folders ?? [])],
     activeFile: template.entry in files ? template.entry : Object.keys(files)[0] ?? '',
-    settings: { theme: 'vs-dark', autorun: true },
+    settings: { theme: 'tokyo-night', autorun: true },
+    accent: 'blue',
     ...(template.scene ? { scene: template.scene() } : {}),
     createdAt: now,
     updatedAt: now,
