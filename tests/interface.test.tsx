@@ -296,6 +296,7 @@ describe('mobile drawer overlay', () => {
     release: currentRelease(),
     activeSection: 'code' as const,
     onSection: noop,
+    issues: { errors: 2, warnings: 1 },
     running: false,
     onRun: noop,
     onStop: noop,
@@ -315,6 +316,7 @@ describe('mobile drawer overlay', () => {
     expect(html).toContain('class="drawer-scrim"');
     expect(html).toContain('class="drawer open"');
     expect(html).not.toContain('drawer open pinned');
+    expect(html).toContain('aria-label="2 errors"');
   });
 
   it('does not add an overlay backdrop for a pinned desktop drawer', () => {

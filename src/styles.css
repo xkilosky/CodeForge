@@ -428,40 +428,29 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 
 /* The canvas must claim gestures, or the browser scrolls the page instead of
    orbiting the camera. */
-/* ── compact layout (one pane at a time) ─────────────────────────────────── */
-/* Stacked, scrollable sections: every pane is present and reachable. */
+/* ── compact layout: one drawer-selected section at a time ─────────────── */
 .workspace-compact {
   display: flex;
   flex-direction: column;
-  grid-template-columns: none;
-  grid-template-rows: none;
-  grid-template-areas: none;
-  /* The stack, not the shell, owns the scrolling. */
-  overflow: hidden;
-}
-.mobile-stack {
-  flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Momentum scrolling on iOS. */
-  -webkit-overflow-scrolling: touch;
-  /* Keep the final section clear of the phone home-indicator area. */
-  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
 .mobile-section {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  border-bottom: 4px solid var(--border);
-  /* Sections size to their content; the editor and preview get explicit
-     heights below. A flex:1 child of a scroll container collapses to 0. */
-  flex: 0 0 auto;
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
 }
+.mobile-section-objects,
+.mobile-section-settings { overflow-y: auto; }
+
 .mobile-section-head {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -477,11 +466,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .mobile-section-head .badge { margin-left: auto; }
 
-/* Explicit heights, because these panes are absolute/flex-filled internally
-   and have no intrinsic size when stacked. */
+/* Fill the selected section below its small header. */
 .mobile-editor {
-  height: min(58vh, 460px);
-  min-height: 260px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
   min-width: 0;
   width: 100%;
   overflow: hidden;
@@ -489,20 +478,21 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   flex-direction: column;
 }
 .mobile-preview {
-  height: min(52vh, 420px);
-  min-height: 240px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.mobile-tree { padding: 10px 12px 14px; }
-.mobile-tree .explorer { padding: 0; }
 .mobile-section-settings .settings { max-width: none; padding: 12px; }
 .mobile-section-output { border-bottom: 0; }
+.mobile-section-preview > .stage-pane { flex: 1 1 auto; height: auto; min-height: 0; }
+.mobile-section-objects > .inspector { flex: 1 1 auto; min-height: 0; }
 .mobile-output-grid {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  /* Two panes side by side on a phone would each be ~180px wide. */
-  height: min(70vh, 520px);
+  min-height: 0;
 }
 .mobile-output-grid > * { min-height: 0; flex: 1 1 50%; }
 .mobile-output-grid > * + * { border-top: 1px solid var(--border); }
@@ -609,15 +599,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 
 }
 
-/* Landscape phones have very little height; give the editor the screen. */
-@media (max-width: 820px) and (orientation: landscape) {
-}
-
 
 /* ── game builder ───────────────────────────────────────────────────────
    The stage is the point of this workspace, so it gets the upper two thirds
-   and the code sits underneath. The phone layout stacks the same sections the
-   Web workspace uses; nothing is hidden behind a tab. */
+   and the code sits underneath. On a phone the drawer selects one full-height
+   section, just like it does for a Web project. */
 
 .game-workspace {
   display: grid;
@@ -745,6 +731,14 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   .game-bottom { display: block; }
   .mobile-section .stage-body { min-height: 46vh; }
   .mobile-section .inspector { height: auto; }
+  .mobile-output-grid > .game-output {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+  .mobile-output-grid > .game-output > * + * {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
   .builder-toolbar { gap: 6px; }
   .builder-transport { margin-left: 0; }
   .builder-toolbar .btn { min-height: 40px; }

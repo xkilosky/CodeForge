@@ -4,9 +4,9 @@
  * A desktop IDE is a grid of four panes. On a phone that grid cannot be made to
  * fit by shrinking it: 220px of sidebar alone is more than half a 390px screen,
  * and a 190px console leaves roughly two lines of code visible. Below about
- * 820px the app therefore stops being a grid and becomes a single focused pane
- * with a scrollable stack of sections reached from the drawer — a phone-shaped
- * layout, not a squeezed desktop.
+ * 820px the app therefore stops being a grid and shows one full-height section
+ * at a time, selected from the drawer — a phone-shaped layout, not a squeezed
+ * desktop.
  *
  * The breakpoint lives in two places by necessity: CSS handles pure styling,
  * and this hook handles the structural difference (which panes exist at all,

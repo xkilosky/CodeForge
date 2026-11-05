@@ -2,8 +2,8 @@
  * Mobile layout.
  *
  * There is no browser here, so what is tested is the logic that decides what
- * the user sees: which layout tier wins, and whether problems stay visible when
- * the console is hidden behind a tab. The CSS itself is verified by rendering
+ * the user sees: which layout tier wins, how issues are counted, and that mobile
+ * navigation renders one drawer-selected section at a time. The CSS itself is verified by rendering
  * at width in a real browser, which is not possible in this sandbox — the
  * dev-server and Vercel checks cover that it at least loads.
  *
@@ -58,8 +58,13 @@ describe('compact navigation', () => {
     const editor = readFileSync('src/ui/EditorPane.tsx', 'utf8');
     expect(app).not.toContain('<MobileNav');
     expect(game).not.toContain('<MobileNav');
+    expect(app).not.toContain('mobile-stack');
+    expect(game).not.toContain('mobile-stack');
     expect(css).not.toContain('.mobile-nav {');
     expect(app).toContain('<Drawer');
+    expect(app).toContain("mobileTab === 'code'");
+    expect(app).toContain("mobileTab === 'preview'");
+    expect(game).toContain("compactSection === 'objects'");
     expect(editor).toContain("wordWrap: layout === 'compact' ? 'on' : 'off'");
     expect(editor).toContain('if (layout === \'compact\') editor.setScrollLeft(0);');
   });

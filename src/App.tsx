@@ -25,22 +25,9 @@ import { BackupPanel } from './ui/BackupPanel';
 import { DesktopWorkspace } from './ui/DesktopWorkspace';
 import { ConsolePanel } from './ui/ConsolePanel';
 import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
-import { Explorer } from './ui/Explorer';
 import { NoticeBar } from './ui/NoticeBar';
 import { useLayoutMode } from './ui/useLayoutMode';
 import { currentRelease } from './core/release';
-
-/**
- * Scrolls a stacked section into view on the phone layout.
- *
- * `scrollIntoView` with block:'start' is used rather than setting scrollTop so
- * the browser accounts for the sticky section header itself.
- */
-function scrollToPane(id: string): void {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-}
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
 const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'drawer'> = {
@@ -61,10 +48,7 @@ export default function App() {
   const layoutState = useStore(layoutStore);
   const layout = useLayoutMode();
   const [runSignal, setRunSignal] = useState(0);
-  /**
-   * Which pane the phone navigator highlights. Defaults to the code editor:
-   * opening a project and landing on anything else makes the app look empty.
-   */
+  /** The active full-screen section on compact layouts. */
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
   /** The project the user most recently had open, for the home screen. */
   const [lastProjectId, setLastProjectId] = useState<string | null>(null);
@@ -73,7 +57,7 @@ export default function App() {
     open: false,
     mode: 'file',
   });
-  /** Which extra section a wide screen is showing, if any. */
+  /** Extra destinations (Look, Backup, or game Objects) outside the main panes. */
   const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'objects' | null>(null);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
 
@@ -153,17 +137,30 @@ export default function App() {
     if (!project) return;
     if (!runtime.available) {
       io.log({ kind: 'system', text: runtime.unavailableReason ?? 'This workspace is not ready.' });
+      if (layout === 'compact') {
+        setExtraSection(null);
+        setMobileTab('output');
+        setDrawerOpen(false);
+      }
       return;
     }
     // A game project is driven by the builder's own Play button. Rebuilding the
     // preview from here would fight it: two transports, one stage.
     if (project.workspace === 'game') {
       io.log({ kind: 'system', text: 'Use ▶ Play above the stage to run a game project.' });
-      if (layout === 'compact') setMobileTab('preview');
+      if (layout === 'compact') {
+        setExtraSection(null);
+        setMobileTab('preview');
+        setDrawerOpen(false);
+      }
       return;
     }
     setRunSignal((n) => n + 1);
-    if (layout === 'compact') setMobileTab('preview');
+    if (layout === 'compact') {
+      setExtraSection(null);
+      setMobileTab('preview');
+      setDrawerOpen(false);
+    }
     void startRun((bridge) => runtime.run(project.files, project.activeFile, bridge));
   }, [project, runtime, layout]);
 
@@ -210,7 +207,7 @@ export default function App() {
   const activePath = project?.activeFile ?? '';
   const activeFile = project && activePath ? project.files[activePath] : undefined;
 
-  /** Section clicks: on a phone they scroll; on a wide screen they swap a pane. */
+  /** Drawer sections become full-page destinations on mobile. */
   const handleSection = useCallback(
     (section: SectionId) => {
       layoutActions.markDrawerSeen();
@@ -219,26 +216,25 @@ export default function App() {
       if (section === 'objects') {
         setExtraSection('objects');
         setDrawerOpen(false);
-        requestAnimationFrame(() => scrollToPane('pane-inspector'));
         return;
       }
-      setExtraSection(null);
 
       if (layout === 'compact') {
-        if (target === 'drawer') setDrawerOpen(true);
-        else if (target === 'look' || target === 'backup') {
-          // Both live in the Look section on a phone: one sheet, two headings.
+        if (target === 'drawer') {
+          setExtraSection(null);
+          setDrawerOpen(true);
+        } else if (target === 'look' || target === 'backup') {
+          setExtraSection(target);
           setDrawerOpen(false);
-          setMobileTab('code');
-          requestAnimationFrame(() => scrollToPane('pane-look'));
         } else {
-          setDrawerOpen(false);
+          setExtraSection(null);
           setMobileTab(target);
-          requestAnimationFrame(() => scrollToPane(`pane-${target}`));
+          setDrawerOpen(false);
         }
         return;
       }
 
+      setExtraSection(null);
       if (target === 'drawer') {
         // "Files" on a wide screen means the drawer itself; when it is hidden,
         // show it, and when it is already showing, keep it.
@@ -246,10 +242,7 @@ export default function App() {
         return;
       }
       if (target === 'look' || target === 'backup') setExtraSection(target);
-      else {
-        setExtraSection(null);
-        setDesktopTab(target);
-      }
+      else setDesktopTab(target);
       if (!pinned) setDrawerOpen(false);
     },
     [layout, pinned],
@@ -262,32 +255,6 @@ export default function App() {
   const handleAccent = useCallback((accent: AccentId) => projectActions.setAccent(accent), []);
   const handleTheme = useCallback((theme: EditorThemeId) => projectActions.setEditorTheme(theme), []);
 
-  const tree = project ? (
-    <Explorer
-      files={project.files}
-      folders={project.folders}
-      activeFile={activePath}
-      onSelect={(path) => {
-        projectActions.setActiveFile(path);
-        setExtraSection(null);
-        setDesktopTab('code');
-        if (layout === 'compact') {
-          setMobileTab('code');
-          requestAnimationFrame(() => scrollToPane('pane-code'));
-        }
-      }}
-      onCreateFile={(path) => {
-        projectActions.addFile(path);
-        setExtraSection(null);
-        setDesktopTab('code');
-      }}
-      onCreateFolder={(path) => void projectActions.createFolder(path)}
-      onRename={(from, to) => void projectActions.renamePath(from, to)}
-      onDeleteFile={projectActions.removeFile}
-      onDeleteFolder={projectActions.removeFolder}
-      onDuplicate={(path) => void projectActions.duplicateFile(path)}
-    />
-  ) : null;
 
   const release = currentRelease();
 
@@ -338,6 +305,7 @@ export default function App() {
             (layout === 'compact' ? mobileTab : (desktopTab as SectionId))
           }
           onSection={handleSection}
+          issues={issues}
           running={runState.running}
           onRun={handleRun}
           onStop={handleStop}
@@ -348,14 +316,16 @@ export default function App() {
             setDesktopTab('code');
             if (layout === 'compact') {
               setMobileTab('code');
+              setExtraSection(null);
               setDrawerOpen(false);
-              requestAnimationFrame(() => scrollToPane('pane-code'));
             }
           }}
           onCreateFile={(path) => {
             projectActions.addFile(path);
             setExtraSection(null);
+            setMobileTab('code');
             setDesktopTab('code');
+            if (layout === 'compact') setDrawerOpen(false);
           }}
           onCreateFolder={(path) => void projectActions.createFolder(path)}
           onRename={(from, to) => void projectActions.renamePath(from, to)}
@@ -379,6 +349,7 @@ export default function App() {
             void projectActions.openById(id);
             setMobileTab('code');
             setDesktopTab('code');
+            setExtraSection(null);
           }}
           onDelete={(id) => void projectActions.remove(id)}
           onDuplicate={async (id) => {
@@ -389,23 +360,79 @@ export default function App() {
           onImport={handleImport}
           onDismissError={projectActions.dismissError}
         />
-      ) : project.workspace === 'game' ? (
-        <GameWorkspace project={project} compact={layout === 'compact'} onSelectEntity={() => {}} />
-      ) : layout === 'compact' ? (
-        /* Every pane present and reachable. The navigator scrolls to a section
-           instead of swapping one in, so nothing is ever hidden — the failure
-           mode of the version before it. */
-        <div className="workspace workspace-compact">
-          <div className="mobile-stack">
-            <section id="pane-files" className="mobile-section mobile-section-files">
-              <div className="mobile-section-head">Files</div>
-              <div className="mobile-tree">{tree}</div>
+      ) : project.workspace === 'game' && (extraSection === 'look' || extraSection === 'backup') ? (
+        layout === 'compact' ? (
+          <div className="workspace workspace-compact">
+            <section className="mobile-section mobile-section-settings">
+              <div className="mobile-section-head">{extraSection === 'look' ? 'Look' : 'Backup'}</div>
+              {extraSection === 'look' ? (
+                <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+              ) : (
+                <BackupPanel
+                  project={project}
+                  onExport={() => void projectActions.exportProject()}
+                  onImport={handleImport}
+                />
+              )}
             </section>
-
+          </div>
+        ) : (
+          <div className="workspace workspace-split">
+            <main className="center">
+              <div className="section-pane">
+                {extraSection === 'look' ? (
+                  <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+                ) : (
+                  <BackupPanel
+                    project={project}
+                    onExport={() => void projectActions.exportProject()}
+                    onImport={handleImport}
+                  />
+                )}
+              </div>
+            </main>
+          </div>
+        )
+      ) : project.workspace === 'game' ? (
+        <GameWorkspace
+          project={project}
+          compact={layout === 'compact'}
+          compactSection={
+            extraSection === 'objects'
+              ? 'objects'
+              : mobileTab === 'preview' || mobileTab === 'output'
+                ? mobileTab
+                : 'code'
+          }
+          onOpenFile={(file) => {
+            projectActions.setActiveFile(file);
+            setMobileTab('code');
+            setDesktopTab('code');
+            setExtraSection(null);
+          }}
+          onSelectEntity={() => {}}
+        />
+      ) : layout === 'compact' ? (
+        /* The drawer selects one full-height destination at a time on mobile. */
+        <div className="workspace workspace-compact">
+          {extraSection === 'look' ? (
+            <section className="mobile-section mobile-section-settings">
+              <div className="mobile-section-head">Look</div>
+              <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+            </section>
+          ) : extraSection === 'backup' ? (
+            <section className="mobile-section mobile-section-settings">
+              <div className="mobile-section-head">Backup</div>
+              <BackupPanel
+                project={project}
+                onExport={() => void projectActions.exportProject()}
+                onImport={handleImport}
+              />
+            </section>
+          ) : mobileTab === 'code' ? (
             <section id="pane-code" className="mobile-section mobile-section-code">
               <div className="mobile-section-head">
-                Code
-                <span className="muted">{activePath || 'no file'}</span>
+                Code<span className="muted">{activePath || 'no file'}</span>
               </div>
               <Tabs
                 files={project.files}
@@ -422,7 +449,7 @@ export default function App() {
                 />
               </div>
             </section>
-
+          ) : mobileTab === 'preview' ? (
             <section id="pane-preview" className="mobile-section mobile-section-preview">
               <div className="mobile-section-head">Preview</div>
               <div className="mobile-preview">
@@ -436,7 +463,7 @@ export default function App() {
                 />
               </div>
             </section>
-
+          ) : (
             <section id="pane-output" className="mobile-section mobile-section-output">
               <div className="mobile-section-head">
                 Output
@@ -450,22 +477,12 @@ export default function App() {
                 <DiagnosticsPanel
                   onOpen={(file) => {
                     projectActions.setActiveFile(file);
-                    requestAnimationFrame(() => scrollToPane('pane-code'));
+                    setMobileTab('code');
                   }}
                 />
               </div>
             </section>
-
-            <section id="pane-look" className="mobile-section mobile-section-settings">
-              <div className="mobile-section-head">Look</div>
-              <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
-              <BackupPanel
-                project={project}
-                onExport={() => void projectActions.exportProject()}
-                onImport={handleImport}
-              />
-            </section>
-          </div>
+          )}
         </div>
       ) : (
         <div className="workspace workspace-split">

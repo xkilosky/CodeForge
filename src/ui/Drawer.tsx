@@ -65,6 +65,7 @@ interface DrawerProps {
   /** Which section the row list should highlight. */
   activeSection: SectionId;
   onSection: (section: SectionId) => void;
+  issues: { errors: number; warnings: number };
   running: boolean;
   onRun: () => void;
   onStop: () => void;
@@ -90,6 +91,7 @@ export function Drawer({
   release,
   activeSection,
   onSection,
+  issues,
   running,
   onRun,
   onStop,
@@ -186,6 +188,15 @@ export function Drawer({
                   <span className="drawer-section-label">{section.label}</span>
                   <span className="drawer-section-hint">{section.hint}</span>
                 </span>
+                {section.id === 'output' && issues.errors > 0 ? (
+                  <span className="badge error" aria-label={`${issues.errors} errors`}>
+                    {issues.errors > 99 ? '99+' : issues.errors}
+                  </span>
+                ) : section.id === 'output' && issues.warnings > 0 ? (
+                  <span className="badge warn" aria-label={`${issues.warnings} warnings`}>
+                    {issues.warnings > 99 ? '99+' : issues.warnings}
+                  </span>
+                ) : null}
               </button>
             );
           })}

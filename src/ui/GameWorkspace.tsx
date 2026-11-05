@@ -12,8 +12,8 @@
  *   │ Code   │ Console / Problems  │
  *   └────────┴─────────────────────┘
  *
- * and on a phone it stacks into the same ordered sections the rest of the app
- * uses, so every pane stays reachable — never a tab that hides one.
+ * and on a phone each part becomes a full-height section selected from the
+ * drawer, so the stage, inspector, code and output do not compete for space.
  *
  * Play/Restart live above the stage. The preview iframe is only mounted while
  * playing: a paused game should not keep a 120 Hz loop and a canvas alive
@@ -36,9 +36,13 @@ import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { gameRuntime, isGameMessage } from '../runtimes/game';
 import { buildGameDocument } from '../game/preview';
 
+type GameCompactSection = 'code' | 'preview' | 'output' | 'objects';
+
 interface GameWorkspaceProps {
   project: Project;
   compact: boolean;
+  compactSection?: GameCompactSection;
+  onOpenFile?: (path: string) => void;
   /** Publishes the selected object id so the phone layout can scroll to it. */
   onSelectEntity?: (id: string | null) => void;
 }
@@ -97,7 +101,13 @@ function GamePreview({
   );
 }
 
-export function GameWorkspace({ project, compact, onSelectEntity }: GameWorkspaceProps) {
+export function GameWorkspace({
+  project,
+  compact,
+  compactSection = 'code',
+  onOpenFile,
+  onSelectEntity,
+}: GameWorkspaceProps) {
   const store = useStore(projectStore);
   const runState = useStore(runStore);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -305,37 +315,47 @@ export function GameWorkspace({ project, compact, onSelectEntity }: GameWorkspac
   const output = (
     <div className="game-output">
       <ConsolePanel onClear={() => io.clear()} />
-      <DiagnosticsPanel onOpen={(file) => projectActions.setActiveFile(file)} />
+      <DiagnosticsPanel onOpen={(file) => (onOpenFile ?? projectActions.setActiveFile)(file)} />
     </div>
   );
 
   if (compact) {
-    // Same ordered, scrollable stack as the Web workspace: Files is omitted
-    // because a game project's stage *is* its file list, and every other pane
-    // stays reachable. The navigator scrolls to a section rather than swapping
-    // one in, so nothing is ever hidden.
+    // One full-height section at a time. The drawer is the only mobile
+    // navigator, so the editor, stage, inspector and output never compete for
+    // the same scroll area.
+    const sectionHead = compactSection === 'preview'
+      ? 'Stage'
+      : compactSection === 'objects'
+        ? 'Objects'
+        : compactSection === 'output'
+          ? 'Output'
+          : 'Code';
+
     return (
       <div className="workspace workspace-compact">
-        <div className="mobile-stack">
+        {compactSection === 'preview' ? (
           <section id="pane-preview" className="mobile-section mobile-section-preview">
-            <div className="mobile-section-head">Stage</div>
+            <div className="mobile-section-head">{sectionHead}</div>
             {stage}
           </section>
-          <section id="pane-inspector" className="mobile-section">
-            <div className="mobile-section-head">Object</div>
+        ) : compactSection === 'objects' ? (
+          <section id="pane-inspector" className="mobile-section mobile-section-objects">
+            <div className="mobile-section-head">{sectionHead}</div>
             {inspector}
           </section>
+        ) : compactSection === 'output' ? (
+          <section id="pane-output" className="mobile-section mobile-section-output">
+            <div className="mobile-section-head">{sectionHead}</div>
+            <div className="mobile-output-grid">{output}</div>
+          </section>
+        ) : (
           <section id="pane-code" className="mobile-section mobile-section-code">
             <div className="mobile-section-head">
-              Code<span className="muted">{project.activeFile || 'no file'}</span>
+              {sectionHead}<span className="muted">{project.activeFile || 'no file'}</span>
             </div>
             <div className="mobile-editor">{code}</div>
           </section>
-          <section id="pane-output" className="mobile-section mobile-section-output">
-            <div className="mobile-section-head">Output</div>
-            {output}
-          </section>
-        </div>
+        )}
       </div>
     );
   }

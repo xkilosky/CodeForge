@@ -300,9 +300,9 @@ downloads it and first paint stays at 1014 KB gzip.*
 
 **Responsive / mobile.** ✅ *Done.* Not a milestone — a cross-cutting constraint that
 applies to every milestone after it.
-*Accept: at 820px and below the app is a scrollable stack navigated through the drawer; at 390px
-the editor and the files list are usable with a thumb; the drawer replaces the legacy bottom
-button bar and the output section remains reachable.*
+*Accept: at 820px and below the drawer selects one full-height section at a time; at 390px the
+editor and files list are usable with a thumb; the drawer replaces the legacy bottom button bar
+and every section, including output, remains reachable.*
 *Done: `useLayoutMode` keys on viewport width (not a user agent), so a narrow desktop window
 and a landscape tablet both do the right thing. Touch targets are 40px, compact sections are reached from the drawer, form inputs are 16px
 so iOS does not zoom, the shell is 100dvh with safe-area insets, and the manifest plus real
