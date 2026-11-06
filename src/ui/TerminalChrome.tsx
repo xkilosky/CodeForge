@@ -215,7 +215,7 @@ export function TerminalChrome({
       </div>
       <div className="terminal-footnote">
         <span className="terminal-footnote-status">{statusMessage}</span>
-        <span>WASM Bash · project files sync automatically</span>
+        <span title="bat FILE for highlighted source; diff -u OLD NEW | delta for colored diffs; choose or fzf for arrow-key menus">bat · delta · choose/fzf</span>
       </div>
     </>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTerminalLocation, terminalIssueDiagnostic } from '../src/core/terminalDiagnostics';
+import { findTerminalFileLocations, parseTerminalLocation, terminalIssueDiagnostic } from '../src/core/terminalDiagnostics';
 import { mergeWorkspaceTextFiles } from '../src/core/terminalRuntime';
 
 describe('terminal diagnostics', () => {
@@ -19,6 +19,26 @@ describe('terminal diagnostics', () => {
       line: 4,
       column: 9,
     });
+  });
+
+  it('finds clickable project paths and exact line ranges in terminal output', () => {
+    const text = 'ERROR in /workspace/src/app.ts:12:7 and src/main.js:4:2';
+    expect(findTerminalFileLocations(text, files)).toEqual([
+      {
+        file: 'src/app.ts',
+        line: 12,
+        column: 7,
+        startIndex: text.indexOf('/workspace/src/app.ts:12:7'),
+        endIndex: text.indexOf('/workspace/src/app.ts:12:7') + '/workspace/src/app.ts:12:7'.length,
+      },
+      {
+        file: 'src/main.js',
+        line: 4,
+        column: 2,
+        startIndex: text.indexOf('src/main.js:4:2'),
+        endIndex: text.indexOf('src/main.js:4:2') + 'src/main.js:4:2'.length,
+      },
+    ]);
   });
 
   it('parses Vite-style locations and ignores paths outside the project', () => {

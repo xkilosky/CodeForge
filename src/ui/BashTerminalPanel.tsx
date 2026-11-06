@@ -6,7 +6,8 @@ import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
 import { colorizeTerminalLine, mayBeRichTerminalLinePrefix } from '../core/terminalColors';
 import { describeTerminalCommand, parseTerminalProgress, type TerminalActivity } from '../core/terminalActivity';
-import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
+import { findTerminalFileLocations, parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
+import { TERMINAL_BASH_RC } from '../core/terminalShell';
 import { TerminalChrome, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
 
@@ -230,6 +231,7 @@ export function BashTerminalPanel({
     let client: WasmerClient | null = null;
     let sandbox: WasmerSandbox | null = null;
     let process: WasmerProcess | null = null;
+    let terminalLinkRegistration: { dispose: () => void } | null = null;
     let utilitiesPackage: string | null = null;
     let scanInProgress = false;
 
@@ -412,6 +414,50 @@ export function BashTerminalPanel({
         if (disposed) return;
         if (!terminalRef.current) throw new Error('The terminal display did not finish loading.');
         terminal = terminalRef.current;
+        terminalLinkRegistration = terminal.registerLinkProvider({
+          provideLinks: (bufferLineNumber, callback) => {
+            const activeBuffer = terminal?.buffer.active;
+            if (!activeBuffer) {
+              callback(undefined);
+              return;
+            }
+            let firstLine = bufferLineNumber - 1;
+            while (firstLine > 0 && activeBuffer.getLine(firstLine)?.isWrapped) firstLine -= 1;
+            if (firstLine + 1 !== bufferLineNumber) {
+              callback(undefined);
+              return;
+            }
+            let lastLine = firstLine;
+            while (activeBuffer.getLine(lastLine + 1)?.isWrapped) lastLine += 1;
+            const segments = Array.from({ length: lastLine - firstLine + 1 }, (_, offset) => ({
+              y: firstLine + offset + 1,
+              text: activeBuffer.getLine(firstLine + offset)?.translateToString(true) ?? '',
+            }));
+            const text = segments.map((segment) => segment.text).join('');
+            const locate = (offset: number, end: boolean) => {
+              let consumed = 0;
+              for (const segment of segments) {
+                const finish = consumed + segment.text.length;
+                if (offset < finish || (end && offset === finish)) {
+                  return { x: Math.max(1, offset - consumed + (end ? 0 : 1)), y: segment.y };
+                }
+                consumed = finish;
+              }
+              const last = segments.at(-1)!;
+              return { x: Math.max(1, last.text.length), y: last.y };
+            };
+            const links = findTerminalFileLocations(text, Object.keys(filesRef.current)).map((location) => ({
+              range: {
+                start: locate(location.startIndex, false),
+                end: locate(location.endIndex, true),
+              },
+              text: text.slice(location.startIndex, location.endIndex),
+              decorations: { pointerCursor: true, underline: true },
+              activate: () => onOpenIssueRef.current(location.file, location.line, location.column),
+            }));
+            callback(links.length ? links : undefined);
+          },
+        });
 
         setStatusMessage('Loading the Bash WebAssembly runtime…');
         const { Wasmer } = await import('@wasmer/sdk/browser');
@@ -476,8 +522,16 @@ export function BashTerminalPanel({
         if (richOutputFlushTimer.current) clearTimeout(richOutputFlushTimer.current);
         richOutputFlushTimer.current = undefined;
         lastErrorLine.current = '';
+        const bashArgs = ['--noprofile', '--norc', '-i'];
+        try {
+          await sandbox.fs.mkdir('/tmp', { recursive: true });
+          await sandbox.fs.writeText('/tmp/codeforge-bashrc', TERMINAL_BASH_RC);
+          bashArgs.splice(1, 1, '--rcfile', '/tmp/codeforge-bashrc');
+        } catch {
+          terminal.writeln('\x1b[33mInteractive helper setup unavailable; starting a plain Bash shell.\x1b[0m');
+        }
         process = await sandbox
-          .command('bash', ['--noprofile', '--norc', '-i'], {
+          .command('bash', bashArgs, {
             cwd: '/workspace',
             env: {
               HOME: '/workspace',
@@ -592,6 +646,8 @@ export function BashTerminalPanel({
       const activeClient = clientRef.current;
       clientRef.current = null;
       if (activeClient) void activeClient.close().catch(() => undefined);
+      terminalLinkRegistration?.dispose();
+      terminalLinkRegistration = null;
       terminal = null;
     };
     // A shell is restarted only when the project changes, not for each editor keystroke.

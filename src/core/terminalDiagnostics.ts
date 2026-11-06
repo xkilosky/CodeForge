@@ -7,8 +7,16 @@ export interface TerminalIssue {
   message: string;
 }
 
+export interface TerminalFileLocation {
+  file: string;
+  line: number;
+  column: number;
+  startIndex: number;
+  endIndex: number;
+}
+
 const ANSI_ESCAPE = /\u001b\[[0-?]*[ -/]*[@-~]/g;
-const SOURCE_LOCATION = /((?:file:\/\/)?(?:[A-Za-z]:[\\/])?(?:[./\\]|[A-Za-z0-9_@.$-])(?:[^\s():]*[\\/])*[^\s():]+\.(?:[cm]?[jt]sx?|json|css|html|py))(?::(\d+)(?::(\d+))?|\((\d+),(\d+)\))/i;
+const SOURCE_LOCATION = /((?:file:\/\/)?(?:[A-Za-z]:[\\/])?(?:[./\\]|[A-Za-z0-9_@.$-])(?:[^\s():]*[\\/])*[^\s():]+\.(?:[cm]?[jt]sx?|json|css|html|py|sh|md|ya?ml|toml|xml|svg|vue|svelte|rs|go|java|c|h|cc|cpp|rb|php|sql))(?::(\d+)(?::(\d+))?|\((\d+),(\d+)\))/i;
 
 /** Pull the common TypeScript, Vite, Node stack, and compiler location formats from a shell line. */
 export function parseTerminalLocation(line: string, knownFiles: string[]): Omit<TerminalIssue, 'message'> | null {
@@ -27,6 +35,22 @@ export function parseTerminalLocation(line: string, knownFiles: string[]): Omit<
   const columnNumber = Number(match[3] ?? match[5] ?? 1);
   if (!Number.isInteger(lineNumber) || lineNumber < 1) return null;
   return { file, line: lineNumber, column: Math.max(1, columnNumber) };
+}
+
+/** Finds project-file locations and their visible character ranges on a terminal line. */
+export function findTerminalFileLocations(line: string, knownFiles: string[]): TerminalFileLocation[] {
+  const cleaned = line.replace(ANSI_ESCAPE, '');
+  const expression = new RegExp(SOURCE_LOCATION.source, 'gi');
+  const locations: TerminalFileLocation[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = expression.exec(cleaned))) {
+    const parsed = parseTerminalLocation(match[0], knownFiles);
+    if (parsed) {
+      locations.push({ ...parsed, startIndex: match.index, endIndex: match.index + match[0].length });
+    }
+    if (!match[0].length) expression.lastIndex += 1;
+  }
+  return locations;
 }
 
 export function terminalIssueDiagnostic(issue: TerminalIssue): Diagnostic {
