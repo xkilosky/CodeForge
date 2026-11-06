@@ -46,6 +46,7 @@ import './styles/terminal.css';
 import './styles/pwa.css';
 
 const TerminalPanel = lazy(() => import('./ui/TerminalPanel').then((module) => ({ default: module.TerminalPanel })));
+const BashTerminalPanel = lazy(() => import('./ui/BashTerminalPanel').then((module) => ({ default: module.BashTerminalPanel })));
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
 const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'source' | 'drawer'> = {
@@ -87,6 +88,7 @@ export default function App() {
   /** Extra destinations (Look, Backup, Source Control, or game Objects). */
   const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | 'terminal' | null>(null);
   const [terminalMounted, setTerminalMounted] = useState(false);
+  const [terminalShell, setTerminalShell] = useState<'bash' | 'node'>('bash');
   const [terminalRunRequest, setTerminalRunRequest] = useState<{ path: string; sequence: number }>();
   const terminalRunSequence = useRef(0);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
@@ -122,6 +124,7 @@ export default function App() {
 
   const runActiveFileInTerminal = useCallback(() => {
     if (!project?.activeFile) return;
+    setTerminalShell('node');
     setTerminalMounted(true);
     setExtraSection('terminal');
     setDrawerOpen(false);
@@ -600,6 +603,7 @@ export default function App() {
         ? ' has-drawer'
         : ' has-drawer unpinned'
       : '';
+  const ActiveTerminalPanel = terminalShell === 'bash' ? BashTerminalPanel : TerminalPanel;
 
   return (
     <div
@@ -957,8 +961,9 @@ export default function App() {
               Loading terminal interface…
             </div>
           }>
-            <TerminalPanel
+            <ActiveTerminalPanel
               active={extraSection === 'terminal'}
+              onSwitchShell={setTerminalShell}
               projectId={project.id}
               projectName={project.name}
               files={project.files}

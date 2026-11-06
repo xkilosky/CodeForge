@@ -128,22 +128,29 @@ access, including the integrated WebContainer terminal and package installs, sti
 
 ### Integrated terminal
 
-Open **Terminal** from the project drawer or command palette. It runs in a browser-based WebContainer
-with an interactive `jsh` shell; use `npm`/`npx` and other commands provided by that runtime to install
-packages and start development servers. Open ports surface an **Open running app** link. Files edited
-in either the shell or CodeForge are synchronized back into the project; dependency, Git metadata,
-build-output folders, and binary files stay outside the editor's text-file map. Workspace files are
-restored from the saved project after reload, but installed `node_modules` are session-local and may
-need reinstalling.
+Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs the
+`wasmer/bash` package in a browser-local WebAssembly/WASIX sandbox; it does not execute on a remote
+server and requires no account, API key, or backend. Bash edits and new text files synchronize with
+the CodeForge project. **Add package** loads a public Wasmer registry package without credentials.
+The package/runtime filesystem itself is temporary; project files are saved by CodeForge, while
+installed packages and shell history may need to be restored after switching shells or reloading.
 
-`Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the terminal. Common compiler
-and runtime source locations become clickable terminal problems and Monaco markers. The shell is a
-WebContainer POSIX-like environment—not the computer's host shell or a PowerShell/zsh emulator—and
-commands depend on the WebContainer runtime. For GitHub commits and pushes, use **Source Control**;
-local `git` CLI availability depends on the browser runtime.
+Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. The available
+commands depend on the installed packages, and outbound TCP/DNS is disabled by default. Networked
+package managers such as `npm install` need a WISP proxy endpoint; no proxy is bundled. Use the
+**Node / npm** shell switch for the existing browser-based WebContainer runtime (`jsh`) when you need
+`npm`/`npx`, development servers, or its wider command set. Open ports there surface an **Open running
+app** link. `Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the Node terminal.
 
-WebContainers require a secure HTTPS page and cross-origin isolation (`COOP: same-origin`,
-`COEP: require-corp`); the Vite and Vercel configurations in this repository set those headers.
+Files edited in either shell or CodeForge are synchronized back into the project; dependency, Git
+metadata, build-output folders, and binary files stay outside the editor's text-file map. Common
+compiler/runtime locations become clickable terminal problems and Monaco markers. For GitHub commits
+and pushes, use **Source Control**; local `git` CLI availability depends on the selected runtime.
+
+Both runtimes require a secure HTTPS page and cross-origin isolation (`COOP: same-origin`,
+`COEP: require-corp`); the Vite and Vercel configurations in this repository set those headers. The
+first Bash launch needs an internet connection to fetch and cache the public runtime package. The
+Wasmer attribution is shown in the Bash terminal; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## The game builder
 

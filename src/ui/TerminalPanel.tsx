@@ -20,6 +20,7 @@ export interface TerminalRunRequest {
 
 interface TerminalPanelProps {
   active: boolean;
+  onSwitchShell: (shell: 'bash' | 'node') => void;
   projectId: string;
   projectName: string;
   files: FileMap;
@@ -54,6 +55,7 @@ async function submitRunCommand(writer: WritableStreamDefaultWriter<string>, com
 
 export function TerminalPanel({
   active,
+  onSwitchShell,
   projectId,
   projectName,
   files,
@@ -435,6 +437,7 @@ export function TerminalPanel({
         </div>
         <div className="terminal-actions">
           {serverUrl ? <a className="terminal-server-link" href={serverUrl} target="_blank" rel="noreferrer">Open running app ↗</a> : null}
+          <button type="button" onClick={() => onSwitchShell('bash')} title="Switch to browser-local Bash">Bash</button>
           <button type="button" onClick={onRunActiveFile} disabled={!activePath} title="Run the active JavaScript or TypeScript file">Run file</button>
           <button type="button" onClick={clearTerminal} title="Clear terminal output and terminal problems">Clear</button>
         </div>

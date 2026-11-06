@@ -125,6 +125,52 @@
 
 .terminal-server-link { color: var(--ok); }
 
+.terminal-package-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-raise);
+}
+
+.terminal-package-form label,
+.terminal-package-form span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.terminal-package-form input {
+  width: min(320px, 45vw);
+  min-width: 130px;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--bg-sunken);
+  font: inherit;
+  font-size: 12px;
+}
+
+.terminal-package-form button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  background: var(--bg-sunken);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.terminal-package-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .terminal-issues {
   display: grid;
   flex: 0 0 auto;
@@ -211,9 +257,12 @@
 
   .terminal-project-name { max-width: 125px; }
   .terminal-status-message { flex: 1; max-width: none; }
-  .terminal-actions { width: 100%; }
+  .terminal-actions { width: 100%; flex-wrap: wrap; }
   .terminal-actions button,
   .terminal-server-link { min-height: 32px; }
+  .terminal-package-form { flex-wrap: wrap; padding: 8px 9px; }
+  .terminal-package-form input { flex: 1 1 150px; width: auto; }
+  .terminal-package-form span { flex-basis: 100%; }
   .terminal-issue { grid-template-columns: minmax(90px, 36%) minmax(0, 1fr); }
   .terminal-issue > :last-child { display: none; }
   .terminal-view { padding: 6px 5px; }
