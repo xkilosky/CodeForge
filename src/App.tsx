@@ -267,8 +267,8 @@ export default function App() {
     : 'Edit this file to compare it with the version from when this project was opened.';
 
   useEffect(() => {
-    if (diffView && (diffView.path !== activePath || !project?.sourceControl)) setDiffView(null);
-  }, [diffView, activePath, project?.sourceControl]);
+    if (diffView && (diffView.path !== activePath || !project)) setDiffView(null);
+  }, [diffView, activePath, project?.id]);
 
   const handleCloseSourceDiff = useCallback(() => {
     setDiffView(null);
