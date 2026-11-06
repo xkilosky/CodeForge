@@ -111,6 +111,7 @@ export function BashTerminalPanel({
   const terminalRef = useRef<TerminalType | null>(null);
   const fitRef = useRef<FitAddonType | null>(null);
   const processRef = useRef<WasmerProcess | null>(null);
+  const stdinWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const sandboxRef = useRef<WasmerSandbox | null>(null);
   const clientRef = useRef<WasmerClient | null>(null);
   const filesRef = useRef(files);
@@ -150,10 +151,14 @@ export function BashTerminalPanel({
     // Some Android keyboards send LF while xterm's PTY expects carriage return
     // for Enter. Normalize pasted and keyboard line endings before forwarding.
     const normalized = data.replace(/\r\n?/g, '\n').replace(/\n/g, '\r');
-    void input.write(normalized).catch((error: unknown) => {
-      setStatus('error');
-      setStatusMessage(`Could not send input to Bash: ${error instanceof Error ? error.message : String(error)}`);
-    });
+    // xterm emits keystrokes rapidly; serialize the async worker writes so
+    // characters and Enter cannot overtake one another on mobile browsers.
+    stdinWriteQueueRef.current = stdinWriteQueueRef.current
+      .then(() => input.write(normalized))
+      .catch((error: unknown) => {
+        setStatus('error');
+        setStatusMessage(`Could not send input to Bash: ${error instanceof Error ? error.message : String(error)}`);
+      });
   }, []);
 
   const runBashScript = useCallback((request: { path: string; sequence: number }) => {
@@ -349,7 +354,7 @@ export function BashTerminalPanel({
         outputLineBuffer.current = '';
         lastErrorLine.current = '';
         process = await sandbox
-          .command('bash', ['-i'], {
+          .command('bash', ['--noprofile', '--norc', '-i'], {
             cwd: '/workspace',
             env: {
               HOME: '/workspace',
@@ -368,6 +373,7 @@ export function BashTerminalPanel({
           await process.terminate({ gracePeriodMs: 100 });
           return;
         }
+        stdinWriteQueueRef.current = Promise.resolve();
         processRef.current = process;
         const queuedRun = pendingRunRef.current;
         if (queuedRun) {
