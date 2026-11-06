@@ -146,7 +146,10 @@ export default function App() {
    * phone it is always an overlay, because 300px of tree on a 390px screen is
    * not a sidebar, it is the whole app.
    */
-  const drawerVisible = layout === 'desktop' ? pinned || drawerOpen : drawerOpen;
+  // The terminal is its own full-workspace destination; hide the drawer while it is open
+  // so navigation cannot look like a second, competing Terminal section.
+  const terminalSectionActive = Boolean(project && extraSection === 'terminal');
+  const drawerVisible = !terminalSectionActive && (layout === 'desktop' ? pinned || drawerOpen : drawerOpen);
 
   useEffect(() => {
     loadLayout();
@@ -608,7 +611,7 @@ export default function App() {
    * the full width. Nothing else in the app may add layout classes.
    */
   const drawerLayout =
-    layout === 'desktop' && project
+    layout === 'desktop' && project && !terminalSectionActive
       ? pinned
         ? ' has-drawer'
         : ' has-drawer unpinned'
@@ -632,7 +635,12 @@ export default function App() {
         onExit={handleExit}
         onOpenDrawer={() => {
           layoutActions.markDrawerSeen();
-          setDrawerOpen((open) => !open);
+          if (terminalSectionActive) {
+            setExtraSection(null);
+            setDrawerOpen(true);
+          } else {
+            setDrawerOpen((open) => !open);
+          }
         }}
         onOpenSearch={() => openPalette('file')}
         showInstall={!pwaInstall.installed}
@@ -654,7 +662,7 @@ export default function App() {
         <Drawer
           open={drawerVisible}
           onClose={() => setDrawerOpen(false)}
-          pinned={pinned}
+          pinned={pinned && !terminalSectionActive}
           onTogglePin={() => layoutActions.toggleDrawerPinned()}
           layout={layout}
           project={project}
