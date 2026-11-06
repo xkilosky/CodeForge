@@ -33,7 +33,7 @@ _cf_bat_highlight() {
       case "$token" in
         if|then|else|elif|fi|for|while|do|done|case|esac|function|return|local|export|const|let|var|class|import|from|as|async|await|def|try|except|finally|throw|new|public|private|static|true|false|null|None|undefined)
           printf '\033[35m%s\033[0m' "$token" ;;
-        *) printf '%s' "$token" ;;
+        *) printf '\033[36m%s\033[0m' "$token" ;;
       esac
       continue
     fi
@@ -61,6 +61,41 @@ _cf_bat_stream() {
   done
 }
 
+_cf_find_file_by_name() {
+  local directory="$1" target="$2" path name
+  for path in "$directory"/* "$directory"/.[!.]* "$directory"/..?*; do
+    [[ -e "$path" ]] || continue
+    name="\${path##*/}"
+    case "$name" in
+      .git|node_modules|.wasmer|.codeforge|dist|build|coverage) [[ -d "$path" ]] && continue ;;
+    esac
+    if [[ -f "$path" && "$name" == "$target" ]]; then
+      printf '%s\n' "$path"
+    elif [[ -d "$path" && ! -L "$path" ]]; then
+      _cf_find_file_by_name "$path" "$target"
+    fi
+  done
+}
+
+_cf_resolve_file() {
+  local requested="$1" base matches
+  if [[ -f "$requested" && -r "$requested" ]]; then
+    printf '%s' "$requested"
+    return 0
+  fi
+  base="\${requested##*/}"
+  matches=$(shopt -s nocasematch; _cf_find_file_by_name . "$base")
+  if [[ -z "$matches" ]]; then
+    printf 'bat: %s: no readable file found under %s\n' "$requested" "$PWD" >&2
+    return 1
+  fi
+  if [[ "$matches" == *$'\n'* ]]; then
+    printf 'bat: %s is ambiguous; use a relative path. Matches:\n%s\n' "$requested" "$matches" >&2
+    return 1
+  fi
+  printf '%s' "$matches"
+}
+
 bat() {
   if (( $# > 0 )) && [[ "$1" == --help || "$1" == -h ]]; then
     printf 'Usage: bat [FILE ...]\nA lightweight, line-numbered, color-highlighted file viewer. Use - for standard input.\n'
@@ -70,14 +105,13 @@ bat() {
     _cf_bat_stream
     return $?
   fi
-  local file result=0
+  local file result=0 resolved
   for file in "$@"; do
     if [[ "$file" == - ]]; then
       _cf_bat_stream || result=$?
-    elif [[ -r "$file" ]]; then
-      _cf_bat_stream < "$file" || result=$?
+    elif resolved=$(_cf_resolve_file "$file"); then
+      _cf_bat_stream < "$resolved" || result=$?
     else
-      printf 'bat: %s: file not found or unreadable\n' "$file" >&2
       result=1
     fi
   done

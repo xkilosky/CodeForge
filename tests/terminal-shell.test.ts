@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TERMINAL_BASH_RC } from '../src/core/terminalShell';
 
@@ -18,6 +21,26 @@ describe('interactive Bash helpers', () => {
     expect(result.stdout).toContain('\u001b[35mconst\u001b[0m');
     expect(result.stdout).toContain('\u001b[36m42\u001b[0m');
     expect(result.stdout).toContain('\u001b[2;90m// note');
+  });
+
+  it('finds nested text files when the basename casing differs and highlights CSS tokens', () => {
+    const root = mkdtempSync(join(tmpdir(), 'codeforge-bat-'));
+    try {
+      mkdirSync(join(root, 'src'));
+      writeFileSync(join(root, 'src', 'style.css'), 'body { color: red; }\n');
+      const script = `${TERMINAL_BASH_RC}
+cd ${JSON.stringify(root)}
+bat Style.css`;
+      const result = spawnSync('bash', ['--noprofile', '--norc', '-c', script], { encoding: 'utf8' });
+      if (result.error && 'code' in result.error && result.error.code === 'ENOENT') return;
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('\u001b[36mbody\u001b[0m');
+      expect(result.stdout).toContain('\u001b[36mcolor\u001b[0m');
+      expect(result.stdout).toContain('\u001b[36mred\u001b[0m');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('provides dependency-free highlighted file and diff viewers', () => {
