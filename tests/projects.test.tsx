@@ -11,6 +11,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
 import type { Project } from '../src/core/types';
 import { projectFromTemplate, templateById } from '../src/core/templates';
 
@@ -256,6 +257,20 @@ describe('ProjectsHome', () => {
     expect(html).toContain('Start something new');
     expect(html).toContain('Create project');
     expect(html).toContain('Give it a name and make it yours.');
+  });
+
+  it('groups projects and creation into a responsive home dashboard', () => {
+    const html = render();
+    const projects = html.indexOf('home-section home-projects');
+    const create = html.indexOf('home-section home-create');
+    expect(html).toContain('home-dashboard');
+    expect(projects).toBeGreaterThan(-1);
+    expect(create).toBeGreaterThan(projects);
+
+    const css = readFileSync('src/styles.css', 'utf8');
+    expect(css).toContain('grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr)');
+    expect(css).toContain('@media (max-width: 860px)');
+    expect(css).toContain('.home-dashboard { grid-template-columns: minmax(0, 1fr); gap: 25px; }');
   });
 
   it('lists saved projects with their workspace, age, and consistent vector actions', () => {

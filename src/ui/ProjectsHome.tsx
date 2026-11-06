@@ -197,108 +197,110 @@ export function ProjectsHome({
           </div>
         ) : null}
 
-        <section className="home-section" aria-labelledby="home-projects-heading">
-          <h2 id="home-projects-heading" className="home-heading">
-            Your projects
-            <span className="muted home-count">{loading ? '' : projects.length}</span>
-          </h2>
+        <div className="home-dashboard">
+          <section className="home-section home-projects" aria-labelledby="home-projects-heading">
+            <h2 id="home-projects-heading" className="home-heading">
+              Your projects
+              <span className="muted home-count">{loading ? '' : projects.length}</span>
+            </h2>
 
-          {loading ? (
-            <p className="muted home-empty">Loading…</p>
-          ) : projects.length === 0 ? (
-            <p className="muted home-empty">
-              Nothing here yet. Pick a template below and it will be saved automatically.
-            </p>
-          ) : (
-            <ul className="project-list">
-              {projects.map((project) => (
-                <ProjectRow
-                  key={project.id}
-                  project={project}
-                  current={project.id === currentId}
-                  onOpen={() => onOpen(project.id)}
-                  onDelete={() => onDelete(project.id)}
-                  onDuplicate={() => onDuplicate(project.id)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
+            {loading ? (
+              <p className="muted home-empty">Loading…</p>
+            ) : projects.length === 0 ? (
+              <p className="muted home-empty">
+                Nothing here yet. Pick a template below and it will be saved automatically.
+              </p>
+            ) : (
+              <ul className="project-list">
+                {projects.map((project) => (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    current={project.id === currentId}
+                    onOpen={() => onOpen(project.id)}
+                    onDelete={() => onDelete(project.id)}
+                    onDuplicate={() => onDuplicate(project.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <section className="home-section" aria-labelledby="home-new-heading">
-          <h2 id="home-new-heading" className="home-heading">
-            Start something new
-            <span className="home-heading-actions">
-              <button className="btn ghost small" onClick={() => importRef.current?.click()}>
-                Import a project
-              </button>
-              <input
-                ref={importRef}
-                type="file"
-                className="visually-hidden"
-                accept="application/json,.json"
-                aria-label="Import a project file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) onImport(file);
-                  event.target.value = '';
-                }}
-              />
-            </span>
-          </h2>
-          <div className="create-project-prompt">
-            <div>
-              <strong>Give it a name and make it yours.</strong>
-              <p className="muted">Choose a starter, name your project, then set editor and preview preferences.</p>
-            </div>
-            <button className="btn primary" onClick={() => onCreate()}>
-              <PlusIcon size={15} /> Create project
-            </button>
-          </div>
-          <div className="template-grid">
-            {TEMPLATES.map((template) => {
-              // Availability comes from the runtime registry, never from the
-              // template's own milestone label.
-              const enabled = available.has(template.workspace);
-              const TemplateIcon = template.workspace === 'game'
-                ? LayoutIcon
-                : template.workspace === 'python'
-                  ? TerminalIcon
-                  : CodeIcon;
-              return (
-                <button
-                  key={template.id}
-                  className={`template-card${enabled ? '' : ' disabled'} ${template.workspace}`}
-                  onClick={() => onCreate(template.id)}
-                  disabled={!enabled}
-                >
-                  <span className="template-top">
-                    <span className="template-card-title">
-                      <span className={`template-icon ${template.workspace}`}>
-                        <TemplateIcon size={16} />
-                      </span>
-                      <span className="template-label">{template.label}</span>
-                    </span>
-                    <span className={`workspace-tag ${template.workspace}`}>
-                      {WORKSPACE_LABEL[template.workspace] ?? template.workspace}
-                    </span>
-                  </span>
-                  <span className="template-desc">{template.description}</span>
-                  {enabled ? (
-                    <span className="template-cta">
-                      Start with this template <ChevronIcon size={14} />
-                    </span>
-                  ) : (
-                    <span className="template-milestone">
-                      {RUNTIMES.find((r) => r.id === template.workspace)?.unavailableReason ??
-                        'Not available yet'}
-                    </span>
-                  )}
+          <section className="home-section home-create" aria-labelledby="home-new-heading">
+            <h2 id="home-new-heading" className="home-heading">
+              Start something new
+              <span className="home-heading-actions">
+                <button className="btn ghost small" onClick={() => importRef.current?.click()}>
+                  Import a project
                 </button>
-              );
-            })}
-          </div>
-        </section>
+                <input
+                  ref={importRef}
+                  type="file"
+                  className="visually-hidden"
+                  accept="application/json,.json"
+                  aria-label="Import a project file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) onImport(file);
+                    event.target.value = '';
+                  }}
+                />
+              </span>
+            </h2>
+            <div className="create-project-prompt">
+              <div>
+                <strong>Give it a name and make it yours.</strong>
+                <p className="muted">Choose a starter, name your project, then set editor and preview preferences.</p>
+              </div>
+              <button className="btn primary" onClick={() => onCreate()}>
+                <PlusIcon size={15} /> Create project
+              </button>
+            </div>
+            <div className="template-grid">
+              {TEMPLATES.map((template) => {
+                // Availability comes from the runtime registry, never from the
+                // template's own milestone label.
+                const enabled = available.has(template.workspace);
+                const TemplateIcon = template.workspace === 'game'
+                  ? LayoutIcon
+                  : template.workspace === 'python'
+                    ? TerminalIcon
+                    : CodeIcon;
+                return (
+                  <button
+                    key={template.id}
+                    className={`template-card${enabled ? '' : ' disabled'} ${template.workspace}`}
+                    onClick={() => onCreate(template.id)}
+                    disabled={!enabled}
+                  >
+                    <span className="template-top">
+                      <span className="template-card-title">
+                        <span className={`template-icon ${template.workspace}`}>
+                          <TemplateIcon size={16} />
+                        </span>
+                        <span className="template-label">{template.label}</span>
+                      </span>
+                      <span className={`workspace-tag ${template.workspace}`}>
+                        {WORKSPACE_LABEL[template.workspace] ?? template.workspace}
+                      </span>
+                    </span>
+                    <span className="template-desc">{template.description}</span>
+                    {enabled ? (
+                      <span className="template-cta">
+                        Start with this template <ChevronIcon size={14} />
+                      </span>
+                    ) : (
+                      <span className="template-milestone">
+                        {RUNTIMES.find((r) => r.id === template.workspace)?.unavailableReason ??
+                          'Not available yet'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
