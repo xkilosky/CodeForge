@@ -1118,8 +1118,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   width: 22px; height: 22px;
   background: transparent; border: 0; border-radius: 5px;
   color: var(--muted); cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-ui);
 }
 .tree-icon:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tree-icon:active:not(:disabled) { transform: scale(0.92); }
 .tree-icon.danger:hover { color: var(--error); background: color-mix(in srgb, var(--error) 14%, transparent); }
 .tree-icon:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -1188,12 +1191,18 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 .palette-mode {
   background: transparent; border: 0; border-radius: 5px;
   padding: 3px 8px; font-size: 11px; color: var(--muted); cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-ui);
 }
+.palette-mode:active { transform: scale(0.96); }
 .palette-mode.active { background: var(--bg-raise-2); color: var(--text); }
 .palette-close {
   background: transparent; border: 0; color: var(--muted);
   cursor: pointer; padding: 4px; border-radius: 5px; display: inline-flex;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-ui);
 }
+.palette-close:active { transform: scale(0.92); }
 .palette-close:hover { color: var(--text); background: var(--bg-raise-2); }
 .palette-list { list-style: none; margin: 0; padding: 6px; max-height: min(46vh, 380px); overflow-y: auto; }
 .palette-item {
@@ -1201,7 +1210,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   width: 100%; padding: 7px 9px;
   background: transparent; border: 0; border-radius: 7px;
   cursor: pointer; text-align: left; color: var(--text-dim);
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-ui);
 }
+.palette-item:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 7%, var(--bg-raise)); }
+.palette-item:active:not(:disabled) { transform: scale(0.995); }
 .palette-item.active { background: var(--bg-raise-2); color: var(--text); }
 .palette-item:disabled { opacity: 0.42; cursor: not-allowed; }
 .palette-name { font-family: var(--font-mono); font-size: 12.5px; flex: 0 1 auto; }
@@ -1342,8 +1355,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   background: transparent; border: 1px solid transparent;
   border-radius: 7px; padding: 4px 10px;
   font-size: 12px; color: var(--muted); cursor: pointer;
+  transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease,
+    border-color var(--motion-ui) var(--ease-ui), transform var(--motion-fast) var(--ease-ui);
 }
 .section-tab:hover { color: var(--text); background: var(--bg-raise-2); }
+.section-tab:active { transform: scale(0.98); }
 .section-tab.active { color: var(--text); background: var(--bg-raise-2); border-color: var(--border); }
 .section-badge {
   font-size: 9.5px; font-weight: 700; border-radius: 999px;
@@ -1356,8 +1372,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 .arrangement-btn {
   background: transparent; border: 0; border-radius: 5px;
   padding: 3px 9px; font-size: 11px; color: var(--muted); cursor: pointer;
+  transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-ui);
 }
 .arrangement-btn:hover { color: var(--text); }
+.arrangement-btn:active { transform: scale(0.97); }
 .arrangement-btn.active { background: var(--bg-raise-2); color: var(--text); }
 
 .split-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -1383,10 +1402,28 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   background: transparent; border: 0; cursor: pointer;
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
   color: var(--muted); text-align: left;
+  transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease;
 }
-.output-toggle:hover { color: var(--text); }
-.output-chevron { transition: transform 130ms; }
+.output-toggle:hover { color: var(--text); background: rgba(180, 195, 220, 0.025); }
+.output-toggle:active { background: rgba(180, 195, 220, 0.05); }
+.output-chevron { transition: transform var(--motion-ui) var(--ease-ui); }
 .output-chevron.open { transform: rotate(90deg); }
+.output-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: grid-template-rows var(--motion-ui) var(--ease-ui),
+    opacity var(--motion-ui) ease, transform var(--motion-ui) var(--ease-ui);
+}
+.output-panel.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.output-panel-inner { min-height: 0; overflow: hidden; }
 .output-panes {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   height: 190px; min-height: 0;
@@ -1415,8 +1452,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   padding: 9px 11px; text-align: left;
   background: var(--bg-raise); border: 1px solid var(--border);
   border-radius: 9px; cursor: pointer; color: inherit;
+  transition: background var(--motion-ui) var(--ease-ui), border-color var(--motion-ui) var(--ease-ui),
+    box-shadow var(--motion-ui) var(--ease-ui), transform var(--motion-fast) var(--ease-ui);
 }
 .theme-option:hover { border-color: var(--accent-soft); }
+.theme-option:active { transform: scale(0.995); }
 .theme-option.active { border-color: var(--text-dim); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); }
 .theme-swatch {
   width: 34px; height: 24px; border-radius: 5px; flex: 0 0 auto;

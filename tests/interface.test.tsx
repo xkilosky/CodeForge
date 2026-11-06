@@ -442,12 +442,12 @@ describe('desktop arrangements', () => {
     expect(html).not.toContain('pane-preview');
   });
 
-  it('puts the output pane behind a toggle in split view', () => {
+  it('keeps collapsed output mounted for animation but inert to keyboard and assistive tech', () => {
     const html = renderToStaticMarkup(<DesktopWorkspace {...base} />);
     expect(html).toContain('output-drawer');
     expect(html).toContain('aria-expanded="false"');
-    // A collapsed console must not render a second copy of the panels.
-    expect(html).not.toContain('console-body');
+    expect(html).toContain('class="output-panel" aria-hidden="true" inert=""');
+    expect(html).toContain('console-body');
   });
 
   it('shows the error count on the console toggle without opening it', () => {
@@ -496,6 +496,13 @@ describe('interaction motion foundation', () => {
     expect(css).toContain('.btn:hover:not(:disabled)');
     expect(css).toContain('transform: translateY(0) scale(0.98)');
     expect(css).toContain('button:focus-visible');
+  });
+
+  it('animates output expansion without taking the panels out of the document', () => {
+    expect(css).toContain('.output-panel {');
+    expect(css).toContain('grid-template-rows: 0fr');
+    expect(css).toContain('.output-panel.open');
+    expect(css).toContain('grid-template-rows: 1fr');
   });
 
   it('respects reduced-motion preferences across the interface', () => {

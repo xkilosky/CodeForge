@@ -68,7 +68,8 @@ export function DesktopWorkspace(props: DesktopWorkspaceProps) {
   const { tab, onChange, arrangement, onArrangement, issues } = props;
   // Collapsed by default, and remembered for the session: an empty console
   // strip is wasted height, but hiding a *new* error would be worse, so an
-  // error opens it.
+  // error opens it. The panels stay mounted so their height can animate; the
+  // collapsed state is inert and hidden from assistive technology.
   const [outputOpen, setOutputOpen] = useState(false);
   const previousErrors = useRef(0);
 
@@ -215,7 +216,15 @@ export function DesktopWorkspace(props: DesktopWorkspaceProps) {
               ) : null}
               {props.running ? <span className="dot running" /> : null}
             </button>
-            {outputOpen ? <div className="output-panes">{output}</div> : null}
+            <div
+              className={`output-panel${outputOpen ? ' open' : ''}`}
+              aria-hidden={!outputOpen}
+              inert={!outputOpen}
+            >
+              <div className="output-panel-inner">
+                <div className="output-panes">{output}</div>
+              </div>
+            </div>
           </section>
         </>
       )}
