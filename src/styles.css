@@ -77,7 +77,7 @@
 * { box-sizing: border-box; }
 
 html, body, #root {
-  height: 100%;
+  height: var(--visible-viewport-height, 100%);
   margin: 0;
 }
 
@@ -736,7 +736,19 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 /* iOS Safari: 100% height ignores the collapsing URL bar, so the app can slide
    under it. dvh tracks the *visible* viewport. Kept behind a fallback. */
 @supports (height: 100dvh) {
-  html, body, #root { height: 100dvh; }
+  html, body, #root { height: var(--visible-viewport-height, 100dvh); }
+}
+
+/* The software keyboard can overlay the layout viewport instead of resizing it.
+   Size and place the compact shell against the visual viewport so the editor
+   gains a smaller, real box above the keyboard. Monaco then lays out and keeps
+   the current caret inside that visible box. */
+@media (max-width: 820px) {
+  html, body, #root { height: var(--visible-viewport-height, 100dvh); }
+  .app {
+    height: var(--visible-viewport-height, 100dvh);
+    top: var(--visible-viewport-top, 0px);
+  }
 }
 
 /* The canvas must claim gestures, or the browser scrolls the page instead of

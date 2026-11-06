@@ -36,6 +36,7 @@ import { ConsolePanel } from './ui/ConsolePanel';
 import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { NoticeBar } from './ui/NoticeBar';
 import { useLayoutMode } from './ui/useLayoutMode';
+import { useVisualViewport } from './ui/useVisualViewport';
 import { currentRelease } from './core/release';
 import type { ProjectTextMatch } from './core/search';
 import { CreateProjectDialog, type NewProjectOptions } from './ui/CreateProjectDialog';
@@ -59,6 +60,7 @@ export default function App() {
   const consoleState = useStore(consoleStore);
   const layoutState = useStore(layoutStore);
   const layout = useLayoutMode();
+  useVisualViewport();
   const [runSignal, setRunSignal] = useState(0);
   const [interfaceTheme, setInterfaceTheme] = useState<InterfaceThemeId>(() => loadInterfaceTheme());
   /** The active full-screen section on compact layouts. */

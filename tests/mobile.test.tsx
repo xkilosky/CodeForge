@@ -56,6 +56,7 @@ describe('compact navigation', () => {
     const game = readFileSync('src/ui/GameWorkspace.tsx', 'utf8');
     const css = readFileSync('src/styles.css', 'utf8');
     const editor = readFileSync('src/ui/EditorPane.tsx', 'utf8');
+    const viewport = readFileSync('src/ui/useVisualViewport.ts', 'utf8');
     expect(app).not.toContain('<MobileNav');
     expect(game).not.toContain('<MobileNav');
     expect(app).not.toContain('mobile-stack');
@@ -70,6 +71,10 @@ describe('compact navigation', () => {
     expect(game).toContain("compactSection === 'objects'");
     expect(editor).toContain("wordWrap: layout === 'compact' ? 'on' : 'off'");
     expect(editor).toContain('if (layout === \'compact\') editor.setScrollLeft(0);');
+    expect(editor).toContain('editor.revealPositionInCenterIfOutsideViewport(position)');
+    expect(viewport).toContain('window.visualViewport');
+    expect(viewport).toContain("addEventListener('resize', update)");
+    expect(css).toContain('height: var(--visible-viewport-height, 100dvh)');
   });
 });
 

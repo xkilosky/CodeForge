@@ -124,9 +124,28 @@ export function EditorPane({
     const subscription = editor.onDidChangeModelContent(() => {
       onChangeRef.current(editor.getValue());
     });
+    let revealFrame = 0;
+    const revealCaret = () => {
+      if (!editor.hasTextFocus() || revealFrame) return;
+      revealFrame = window.requestAnimationFrame(() => {
+        revealFrame = 0;
+        if (editorRef.current !== editor || !editor.hasTextFocus()) return;
+        editor.layout();
+        const position = editor.getPosition();
+        if (position) editor.revealPositionInCenterIfOutsideViewport(position);
+      });
+    };
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', revealCaret);
+    viewport?.addEventListener('scroll', revealCaret);
+    window.addEventListener('resize', revealCaret);
 
     return () => {
       subscription.dispose();
+      viewport?.removeEventListener('resize', revealCaret);
+      viewport?.removeEventListener('scroll', revealCaret);
+      window.removeEventListener('resize', revealCaret);
+      if (revealFrame) window.cancelAnimationFrame(revealFrame);
       editor.dispose();
       editorRef.current = null;
     };
