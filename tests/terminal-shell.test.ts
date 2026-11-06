@@ -14,6 +14,7 @@ describe('interactive Bash helpers', () => {
     expect(TERMINAL_BASH_RC).toContain('bat()');
     expect(TERMINAL_BASH_RC).toContain('line-numbered, color-highlighted file viewer');
     expect(TERMINAL_BASH_RC).toContain('delta()');
+    expect(TERMINAL_BASH_RC).toContain('diff()');
     expect(TERMINAL_BASH_RC).toContain('Colorizes unified diff headers');
   });
 
@@ -23,6 +24,7 @@ describe('interactive Bash helpers', () => {
     expect(TERMINAL_BASH_RC).toContain("'[B')");
     expect(TERMINAL_BASH_RC).toContain('read -r -s -N 1 key');
     expect(TERMINAL_BASH_RC).toContain('choose()');
+    expect(TERMINAL_BASH_RC).toContain('cf-help()');
     expect(TERMINAL_BASH_RC).toContain("printf '%s\\n' \"$selected\"");
   });
 });

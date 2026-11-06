@@ -54,6 +54,42 @@ _cf_delta_stream() {
   done
 }
 
+_cf_count_file_lines() {
+  local line count=0
+  while IFS= read -r line || [[ -n "$line" ]]; do count=$((count + 1)); done < "$1"
+  printf '%s' "$count"
+}
+
+diff() {
+  local external_diff old_file new_file old_count new_count old_start=1 new_start=1 line
+  external_diff=$(type -P diff 2>/dev/null || true)
+  if [[ -n "$external_diff" ]]; then "$external_diff" "$@"; return $?; fi
+  if (( $# == 3 )) && [[ "$1" == -u || "$1" == --unified ]]; then
+    old_file=$2
+    new_file=$3
+  elif (( $# == 2 )); then
+    old_file=$1
+    new_file=$2
+  else
+    printf 'Usage: diff -u OLD_FILE NEW_FILE\n' >&2
+    return 2
+  fi
+  if [[ ! -r "$old_file" || ! -r "$new_file" ]]; then
+    printf 'diff: both input files must be readable\n' >&2
+    return 2
+  fi
+  if command -v cmp >/dev/null 2>&1 && cmp -s -- "$old_file" "$new_file"; then return 0; fi
+  old_count=$(_cf_count_file_lines "$old_file")
+  new_count=$(_cf_count_file_lines "$new_file")
+  if (( old_count == 0 )); then old_start=0; fi
+  if (( new_count == 0 )); then new_start=0; fi
+  printf '%s\n' "--- $old_file" "+++ $new_file"
+  printf '@@ -%s,%s +%s,%s @@\n' "$old_start" "$old_count" "$new_start" "$new_count"
+  while IFS= read -r line || [[ -n "$line" ]]; do printf -- '-%s\n' "$line"; done < "$old_file"
+  while IFS= read -r line || [[ -n "$line" ]]; do printf -- '+%s\n' "$line"; done < "$new_file"
+  return 1
+}
+
 delta() {
   if (( $# > 0 )) && [[ "$1" == --help || "$1" == -h ]]; then
     printf 'Usage: diff -u OLD NEW | delta\nColorizes unified diff headers, hunks, additions, and deletions.\n'
@@ -155,5 +191,14 @@ fzf() {
 
 choose() {
   fzf "$@"
+}
+
+cf-help() {
+  printf '%s\n' \
+    'CodeForge Bash helpers:' \
+    '  bat FILE                         line-numbered, lightly highlighted source' \
+    '  diff -u OLD NEW | delta          colored unified diff' \
+    '  printf "one\ntwo\n" | fzf      arrow-key picker; Enter selects, Esc cancels' \
+    '  choose OPTION...                 arrow-key picker for arguments'
 }
 `;

@@ -215,7 +215,7 @@ export function TerminalChrome({
       </div>
       <div className="terminal-footnote">
         <span className="terminal-footnote-status">{statusMessage}</span>
-        <span title="bat FILE for highlighted source; diff -u OLD NEW | delta for colored diffs; choose or fzf for arrow-key menus">bat · delta · choose/fzf</span>
+        <span title="cf-help lists built-in commands; bat FILE views source; diff -u OLD NEW | delta colors diffs; choose/fzf opens an arrow-key menu">cf-help · bat · delta · fzf</span>
       </div>
     </>
   );

@@ -38,7 +38,7 @@ describe('terminal chrome', () => {
     expect(markup).toContain('Restart');
     expect(markup).toContain('Ctrl+C');
     expect(markup).toContain('previous command');
-    expect(markup).toContain('bat · delta · choose/fzf');
+    expect(markup).toContain('cf-help · bat · delta · fzf');
   });
 
   it('does not expose a second terminal runtime selector', () => {

@@ -27,7 +27,7 @@ interface BashTerminalPanelProps {
 
 type TextFiles = Record<string, string>;
 
-const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', '.wasmer', 'dist', 'build', 'coverage']);
+const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', '.wasmer', '.codeforge', 'dist', 'build', 'coverage']);
 const MAX_SYNC_FILE_BYTES = 1024 * 1024;
 const MAX_SYNC_TOTAL_BYTES = 10 * 1024 * 1024;
 
@@ -523,10 +523,11 @@ export function BashTerminalPanel({
         richOutputFlushTimer.current = undefined;
         lastErrorLine.current = '';
         const bashArgs = ['--noprofile', '--norc', '-i'];
+        const helperRcPath = '/workspace/.codeforge/bashrc';
         try {
-          await sandbox.fs.mkdir('/tmp', { recursive: true });
-          await sandbox.fs.writeText('/tmp/codeforge-bashrc', TERMINAL_BASH_RC);
-          bashArgs.splice(1, 1, '--rcfile', '/tmp/codeforge-bashrc');
+          await sandbox.fs.mkdir('/workspace/.codeforge', { recursive: true });
+          await sandbox.fs.writeText(helperRcPath, TERMINAL_BASH_RC);
+          bashArgs.splice(1, 1, '--rcfile', helperRcPath);
         } catch {
           terminal.writeln('\x1b[33mInteractive helper setup unavailable; starting a plain Bash shell.\x1b[0m');
         }
@@ -540,7 +541,7 @@ export function BashTerminalPanel({
               COLORTERM: 'truecolor',
               CLICOLOR_FORCE: '1',
               FORCE_COLOR: '1',
-              PROMPT_COMMAND: '__cf_status=$?; printf "\\033]133;A;%s\\007" "$__cf_status"',
+              PROMPT_COMMAND: '__cf_status=$?; if [[ -z ${__cf_helpers_loaded:-} && -r /workspace/.codeforge/bashrc ]]; then source /workspace/.codeforge/bashrc; __cf_helpers_loaded=1; fi; printf "\\033]133;A;%s\\007" "$__cf_status"',
               PS1: '\\[\\e[32m\\]\\w\\[\\e[0m\\] \\$ ',
             },
           })
