@@ -6,11 +6,11 @@ import { TerminalChrome } from '../src/ui/TerminalChrome';
 
 const noop = () => {};
 
-function renderChrome(): string {
+function renderChrome(status: 'ready' | 'error' = 'ready'): string {
   return renderToStaticMarkup(
     <TerminalChrome
-      status="ready"
-      statusMessage="Shell ready"
+      status={status}
+      statusMessage={status === 'error' ? 'Wasmer package could not load' : 'Shell ready'}
       projectName="Demo project"
       activePath="src/main.js"
       terminalRef={createRef<TerminalType>()}
@@ -44,5 +44,12 @@ describe('terminal chrome', () => {
     expect(markup).not.toContain('Choose runtime in this terminal');
     expect(markup).toContain('pwd');
     expect(markup).toContain('help');
+  });
+
+  it('shows the actual Bash startup failure instead of only a generic status', () => {
+    const markup = renderChrome('error');
+    expect(markup).toContain('Bash needs attention');
+    expect(markup).toContain('Wasmer package could not load');
+    expect(markup).toContain('Use Retry above');
   });
 });

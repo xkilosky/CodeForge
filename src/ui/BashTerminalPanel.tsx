@@ -47,6 +47,12 @@ function projectFiles(files: FileMap): TextFiles {
   return result;
 }
 
+function sandboxFiles(files: FileMap): TextFiles {
+  return Object.fromEntries(
+    Object.entries(projectFiles(files)).map(([path, content]) => [`/workspace/${path}`, content]),
+  );
+}
+
 function equalTextFiles(left: TextFiles, right: TextFiles): boolean {
   const leftKeys = Object.keys(left);
   const rightKeys = Object.keys(right);
@@ -279,7 +285,7 @@ export function BashTerminalPanel({
         setStatusMessage('Downloading Bash and standard shell commands (first launch only)…');
         const createSandbox = (packages: string[]) => client!.sandboxes.create({
           packages,
-          files: projectFiles(filesRef.current),
+          files: sandboxFiles(filesRef.current),
           env: {
             HOME: '/workspace',
             PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
@@ -315,6 +321,7 @@ export function BashTerminalPanel({
           sandboxRef.current = null;
           return;
         }
+        await sandbox.fs.mkdir('/workspace', { recursive: true });
         lastSyncedFilesRef.current = projectFiles(filesRef.current);
 
         setStatusMessage('Opening interactive Bash…');

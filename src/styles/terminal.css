@@ -237,6 +237,22 @@
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
+.terminal-error-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--error) 25%, var(--border-soft));
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--error) 10%, var(--bg-sunken));
+  font-size: 11px;
+}
+
+.terminal-error-banner strong { color: var(--error); }
+.terminal-error-banner span { overflow-wrap: anywhere; }
+.terminal-error-banner span:last-child { grid-column: 2; color: var(--muted); }
+
 .terminal-issues {
   display: grid;
   flex: 0 0 auto;

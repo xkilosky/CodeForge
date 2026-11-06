@@ -139,6 +139,14 @@ export function TerminalChrome({
         </div>
       </div>
 
+      {status === 'error' ? (
+        <div className="terminal-error-banner" role="alert">
+          <strong>Bash needs attention</strong>
+          <span>{statusMessage}</span>
+          <span>Use Retry above to start Bash again.</span>
+        </div>
+      ) : null}
+
       {issues.length ? (
         <div className="terminal-issues" aria-label="Detected terminal errors">
           {issues.slice(-4).map((issue, index) => (
