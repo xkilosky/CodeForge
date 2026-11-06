@@ -89,6 +89,7 @@ export default function App() {
   const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | 'terminal' | null>(null);
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [terminalShell, setTerminalShell] = useState<'bash' | 'node'>('bash');
+  const [terminalRestartToken, setTerminalRestartToken] = useState(0);
   const [terminalRunRequest, setTerminalRunRequest] = useState<{ path: string; sequence: number }>();
   const terminalRunSequence = useRef(0);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
@@ -121,6 +122,15 @@ export default function App() {
     const result = await pwaInstall.requestInstall();
     if (result === 'manual') setInstallGuideOpen(true);
   }, [pwaInstall.requestInstall]);
+
+  const restartTerminal = useCallback(() => {
+    setTerminalRunRequest(undefined);
+    setTerminalRestartToken((token) => token + 1);
+  }, []);
+
+  const handleTerminalRunRequestHandled = useCallback((sequence: number) => {
+    setTerminalRunRequest((request) => request?.sequence === sequence ? undefined : request);
+  }, []);
 
   const runActiveFileInTerminal = useCallback(() => {
     if (!project?.activeFile) return;
@@ -962,13 +972,16 @@ export default function App() {
             </div>
           }>
             <ActiveTerminalPanel
+              key={terminalRestartToken}
               active={extraSection === 'terminal'}
               onSwitchShell={setTerminalShell}
+              onRestartTerminal={restartTerminal}
               projectId={project.id}
               projectName={project.name}
               files={project.files}
               activePath={project.activeFile}
-              runRequest={terminalRunRequest}
+              runRequest={terminalShell === 'node' ? terminalRunRequest : undefined}
+              onRunRequestHandled={handleTerminalRunRequestHandled}
               onRunActiveFile={runActiveFileInTerminal}
               onReplaceFiles={(projectId, contents) => {
                 if (projectState.project?.id === projectId) projectActions.replaceFiles(contents);

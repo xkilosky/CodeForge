@@ -141,6 +141,9 @@ endpoint; no proxy is bundled. Use the
 **Node / npm** shell switch for the existing browser-based WebContainer runtime (`jsh`) when you need
 `npm`/`npx`, development servers, or its wider command set. Open ports there surface an **Open running
 app** link. `Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the Node terminal.
+The terminal toolbar switches shells, runs the active file, copies/pastes selection, adjusts text size,
+restarts a stopped shell, and exposes mobile-friendly Tab/Escape/Ctrl/arrow keys. Quick-command chips
+provide safe starter commands for the selected runtime.
 
 Files edited in either shell or CodeForge are synchronized back into the project; dependency, Git
 metadata, build-output folders, and binary files stay outside the editor's text-file map. Common

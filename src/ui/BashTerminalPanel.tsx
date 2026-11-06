@@ -5,22 +5,24 @@ import type { Process as WasmerProcess, ReadableBytes, Sandbox as WasmerSandbox,
 import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
 import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
+import { TerminalChrome, type TerminalShell, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
 
 interface BashTerminalPanelProps {
   active: boolean;
-  onSwitchShell: (shell: 'bash' | 'node') => void;
+  onSwitchShell: (shell: TerminalShell) => void;
+  onRestartTerminal: () => void;
   projectId: string;
   projectName: string;
   files: FileMap;
   activePath: string;
   runRequest?: { path: string; sequence: number };
+  onRunRequestHandled: (sequence: number) => void;
   onRunActiveFile: () => void;
   onReplaceFiles: (projectId: string, files: Record<string, string>) => void;
   onOpenIssue: (file: string, line: number, column: number) => void;
 }
 
-type TerminalStatus = 'starting' | 'ready' | 'error';
 type TextFiles = Record<string, string>;
 
 const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', '.wasmer', 'dist', 'build', 'coverage']);
@@ -86,11 +88,13 @@ async function readSandboxTextFiles(sandbox: WasmerSandbox): Promise<{ files: Te
 export function BashTerminalPanel({
   active,
   onSwitchShell,
+  onRestartTerminal,
   projectId,
   projectName,
   files,
   activePath,
   runRequest,
+  onRunRequestHandled,
   onRunActiveFile,
   onReplaceFiles,
   onOpenIssue,
@@ -118,6 +122,11 @@ export function BashTerminalPanel({
   projectNameRef.current = projectName;
   onReplaceFilesRef.current = onReplaceFiles;
   onOpenIssueRef.current = onOpenIssue;
+
+  const sendInput = useCallback((data: string) => {
+    const input = processRef.current?.stdin;
+    if (input) void input.write(data).catch(() => undefined);
+  }, []);
 
   const fitTerminal = useCallback(() => {
     const terminal = terminalRef.current;
@@ -324,9 +333,17 @@ export function BashTerminalPanel({
         if (process.stdout) void pump(process.stdout);
         if (process.stderr) void pump(process.stderr);
         void process.wait().then((result) => {
-          if (!disposed && result.exitCode !== 0) setStatusMessage(`Bash exited with code ${result.exitCode}.`);
+          if (disposed) return;
+          processRef.current = null;
+          setStatus(result.exitCode === 0 ? 'stopped' : 'error');
+          setStatusMessage(result.exitCode === 0
+            ? 'Bash exited. Start a new session to continue.'
+            : `Bash exited with code ${result.exitCode}. Restart to try again.`);
         }).catch((error: unknown) => {
-          if (!disposed) setStatusMessage(error instanceof Error ? error.message : String(error));
+          if (disposed) return;
+          processRef.current = null;
+          setStatus('error');
+          setStatusMessage(error instanceof Error ? error.message : String(error));
         });
 
         const scheduleScan = () => {
@@ -400,6 +417,7 @@ export function BashTerminalPanel({
   useEffect(() => {
     if (!runRequest || handledRunSequence.current === runRequest.sequence) return;
     handledRunSequence.current = runRequest.sequence;
+    onRunRequestHandled(runRequest.sequence);
     terminalRef.current?.writeln('\r\n\x1b[33mRun Active File uses Node.js. Switch to the Node terminal to run this file.\x1b[0m');
   }, [runRequest]);
 
@@ -452,10 +470,7 @@ export function BashTerminalPanel({
       terminal.open(terminalHost.current);
       terminalRef.current = terminal;
       fitRef.current = fit;
-      dataSubscription = terminal.onData((data) => {
-        const input = processRef.current?.stdin;
-        if (input) void input.write(data).catch(() => undefined);
-      });
+      dataSubscription = terminal.onData(sendInput);
       observer = new ResizeObserver(() => {
         if (active) {
           try {
@@ -518,37 +533,24 @@ export function BashTerminalPanel({
 
   return (
     <section className={`terminal-overlay${active ? ' is-active' : ''}`} aria-label="Bash terminal" aria-hidden={!active}>
-      <div className="terminal-toolbar">
-        <div className="terminal-heading">
-          <span className={`terminal-status terminal-status-${status}`} aria-hidden="true" />
-          <strong>Bash</strong>
-          <span className="terminal-project-name">{projectName}</span>
-          <span className="terminal-status-message" role="status">{statusMessage}</span>
-        </div>
-        <div className="terminal-actions">
-          <button type="button" onClick={() => onSwitchShell('node')} title="Switch to Node.js and npm in WebContainer">Node / npm</button>
-          <button type="button" onClick={onRunActiveFile} disabled={!activePath} title="Run the active file in the Node terminal">Run file in Node</button>
-          <button type="button" onClick={clearTerminal} title="Clear terminal output and terminal problems">Clear</button>
-        </div>
-      </div>
-      {issues.length ? (
-        <div className="terminal-issues" aria-label="Detected terminal errors">
-          {issues.slice(-4).map((issue, index) => (
-            <button
-              type="button"
-              className="terminal-issue"
-              key={`${issue.file}:${issue.line}:${issue.column}:${index}`}
-              onClick={() => onOpenIssueRef.current(issue.file, issue.line, issue.column)}
-              title={`${issue.file}:${issue.line}:${issue.column}`}
-            >
-              <span className="terminal-issue-location">{issue.file}:{issue.line}:{issue.column}</span>
-              <span className="terminal-issue-message">{issue.message}</span>
-              <span aria-hidden="true">Open ↗</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="terminal-view" ref={terminalHost} aria-label="Bash shell output and input" />
+      <TerminalChrome
+        shell="bash"
+        status={status}
+        statusMessage={statusMessage}
+        projectName={projectName}
+        activePath={activePath}
+        serverUrl={null}
+        terminalRef={terminalRef}
+        terminalHostRef={terminalHost}
+        issues={issues}
+        onSwitchShell={onSwitchShell}
+        onRunActiveFile={onRunActiveFile}
+        onClear={clearTerminal}
+        onRestart={onRestartTerminal}
+        sendInput={sendInput}
+        onStatusMessage={setStatusMessage}
+        onOpenIssue={(file, line, column) => onOpenIssueRef.current(file, line, column)}
+      />
     </section>
   );
 }

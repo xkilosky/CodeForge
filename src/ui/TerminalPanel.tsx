@@ -4,6 +4,7 @@ import type { Terminal as TerminalType } from '@xterm/xterm';
 import type { WebContainerProcess } from '@webcontainer/api';
 import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
+import { TerminalChrome, type TerminalShell, type TerminalStatus } from './TerminalChrome';
 import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
 import {
   mergeWorkspaceTextFiles,
@@ -20,18 +21,18 @@ export interface TerminalRunRequest {
 
 interface TerminalPanelProps {
   active: boolean;
-  onSwitchShell: (shell: 'bash' | 'node') => void;
+  onSwitchShell: (shell: TerminalShell) => void;
+  onRestartTerminal: () => void;
   projectId: string;
   projectName: string;
   files: FileMap;
   activePath: string;
   runRequest?: TerminalRunRequest;
+  onRunRequestHandled: (sequence: number) => void;
   onRunActiveFile: () => void;
   onReplaceFiles: (projectId: string, files: Record<string, string>) => void;
   onOpenIssue: (file: string, line: number, column: number) => void;
 }
-
-type TerminalStatus = 'starting' | 'ready' | 'error';
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -56,11 +57,13 @@ async function submitRunCommand(writer: WritableStreamDefaultWriter<string>, com
 export function TerminalPanel({
   active,
   onSwitchShell,
+  onRestartTerminal,
   projectId,
   projectName,
   files,
   activePath,
   runRequest,
+  onRunRequestHandled,
   onRunActiveFile,
   onReplaceFiles,
   onOpenIssue,
@@ -73,6 +76,7 @@ export function TerminalPanel({
   const filesRef = useRef(files);
   const onReplaceFilesRef = useRef(onReplaceFiles);
   const onOpenIssueRef = useRef(onOpenIssue);
+  const onRunRequestHandledRef = useRef(onRunRequestHandled);
   const pendingRunRef = useRef<TerminalRunRequest | undefined>(undefined);
   const handledRunSequence = useRef(0);
   const outputLineBuffer = useRef('');
@@ -86,6 +90,12 @@ export function TerminalPanel({
   filesRef.current = files;
   onReplaceFilesRef.current = onReplaceFiles;
   onOpenIssueRef.current = onOpenIssue;
+  onRunRequestHandledRef.current = onRunRequestHandled;
+
+  const sendInput = useCallback((data: string) => {
+    const writer = inputWriterRef.current;
+    if (writer) void writer.write(data).catch(() => undefined);
+  }, []);
 
   const fitTerminal = useCallback(() => {
     const terminal = terminalRef.current;
@@ -237,7 +247,12 @@ export function TerminalPanel({
           }
         })();
         void process.exit.then((code) => {
-          if (!disposed && code !== 0) setStatusMessage(`Shell exited with code ${code}.`);
+          if (disposed) return;
+          processRef.current = null;
+          setStatus(code === 0 ? 'stopped' : 'error');
+          setStatusMessage(code === 0
+            ? 'Shell exited. Start a new session to continue.'
+            : `Shell exited with code ${code}. Restart to try again.`);
         });
       } catch (error) {
         if (disposed) return;
@@ -286,12 +301,12 @@ export function TerminalPanel({
     if (!runRequest || handledRunSequence.current === runRequest.sequence) return;
     handledRunSequence.current = runRequest.sequence;
     pendingRunRef.current = runRequest;
+    onRunRequestHandledRef.current(runRequest.sequence);
     // Once a shell is ready, run immediately; otherwise startup consumes the queued request.
     if (inputWriterRef.current && terminalRef.current) {
       const path = runRequest.path.replace(/\\/g, '/').replace(/^\/+/, '');
       const command = commandForPath(path);
       if (filesRef.current[path] && command) {
-        pendingRunRef.current = undefined;
         pendingRunRef.current = undefined;
         issuesRef.current = [];
         setIssues([]);
@@ -362,10 +377,7 @@ export function TerminalPanel({
       terminal.open(terminalHost.current);
       terminalRef.current = terminal;
       fitRef.current = fit;
-      dataSubscription = terminal.onData((data) => {
-        const writer = inputWriterRef.current;
-        if (writer) void writer.write(data).catch(() => undefined);
-      });
+      dataSubscription = terminal.onData(sendInput);
       observer = new ResizeObserver(() => {
         if (active) {
           try {
@@ -428,38 +440,24 @@ export function TerminalPanel({
 
   return (
     <section className={`terminal-overlay${active ? ' is-active' : ''}`} aria-label="Integrated terminal" aria-hidden={!active}>
-      <div className="terminal-toolbar">
-        <div className="terminal-heading">
-          <span className={`terminal-status terminal-status-${status}`} aria-hidden="true" />
-          <strong>Terminal</strong>
-          <span className="terminal-project-name">{projectName}</span>
-          <span className="terminal-status-message" role="status">{statusMessage}</span>
-        </div>
-        <div className="terminal-actions">
-          {serverUrl ? <a className="terminal-server-link" href={serverUrl} target="_blank" rel="noreferrer">Open running app ↗</a> : null}
-          <button type="button" onClick={() => onSwitchShell('bash')} title="Switch to browser-local Bash">Bash</button>
-          <button type="button" onClick={onRunActiveFile} disabled={!activePath} title="Run the active JavaScript or TypeScript file">Run file</button>
-          <button type="button" onClick={clearTerminal} title="Clear terminal output and terminal problems">Clear</button>
-        </div>
-      </div>
-      {issues.length ? (
-        <div className="terminal-issues" aria-label="Detected terminal errors">
-          {issues.slice(-4).map((issue, index) => (
-            <button
-              type="button"
-              className="terminal-issue"
-              key={`${issue.file}:${issue.line}:${issue.column}:${index}`}
-              onClick={() => onOpenIssueRef.current(issue.file, issue.line, issue.column)}
-              title={`${issue.file}:${issue.line}:${issue.column}`}
-            >
-              <span className="terminal-issue-location">{issue.file}:{issue.line}:{issue.column}</span>
-              <span className="terminal-issue-message">{issue.message}</span>
-              <span aria-hidden="true">Open ↗</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="terminal-view" ref={terminalHost} aria-label="Shell output and input" />
+      <TerminalChrome
+        shell="node"
+        status={status}
+        statusMessage={statusMessage}
+        projectName={projectName}
+        activePath={activePath}
+        serverUrl={serverUrl}
+        terminalRef={terminalRef}
+        terminalHostRef={terminalHost}
+        issues={issues}
+        onSwitchShell={onSwitchShell}
+        onRunActiveFile={onRunActiveFile}
+        onClear={clearTerminal}
+        onRestart={onRestartTerminal}
+        sendInput={sendInput}
+        onStatusMessage={setStatusMessage}
+        onOpenIssue={(file, line, column) => onOpenIssueRef.current(file, line, column)}
+      />
     </section>
   );
 }
