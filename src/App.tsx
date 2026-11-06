@@ -40,7 +40,10 @@ import { useVisualViewport } from './ui/useVisualViewport';
 import { currentRelease } from './core/release';
 import type { ProjectTextMatch } from './core/search';
 import { CreateProjectDialog, type NewProjectOptions } from './ui/CreateProjectDialog';
+import { InstallGuide } from './ui/InstallGuide';
+import { usePwaInstall } from './ui/usePwaInstall';
 import './styles/terminal.css';
+import './styles/pwa.css';
 
 const TerminalPanel = lazy(() => import('./ui/TerminalPanel').then((module) => ({ default: module.TerminalPanel })));
 
@@ -65,6 +68,8 @@ export default function App() {
   const layoutState = useStore(layoutStore);
   const layout = useLayoutMode();
   useVisualViewport();
+  const pwaInstall = usePwaInstall();
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [runSignal, setRunSignal] = useState(0);
   const [interfaceTheme, setInterfaceTheme] = useState<InterfaceThemeId>(() => loadInterfaceTheme());
   /** The active full-screen section on compact layouts. */
@@ -109,6 +114,11 @@ export default function App() {
   }
 
   const pinned = layoutState.drawerPinned;
+
+  const handleInstallClick = useCallback(async () => {
+    const result = await pwaInstall.requestInstall();
+    if (result === 'manual') setInstallGuideOpen(true);
+  }, [pwaInstall.requestInstall]);
 
   const runActiveFileInTerminal = useCallback(() => {
     if (!project?.activeFile) return;
@@ -611,12 +621,19 @@ export default function App() {
           setDrawerOpen((open) => !open);
         }}
         onOpenSearch={() => openPalette('file')}
+        showInstall={!pwaInstall.installed}
+        onInstall={() => void handleInstallClick()}
       />
       <CreateProjectDialog
         open={createDialog.open}
         initialTemplateId={createDialog.templateId}
         onClose={closeCreateDialog}
         onCreate={handleCreate}
+      />
+      <InstallGuide
+        open={installGuideOpen}
+        appleMobile={pwaInstall.appleMobile}
+        onClose={() => setInstallGuideOpen(false)}
       />
 
       {project ? (

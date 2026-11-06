@@ -1,13 +1,16 @@
 {
   "name": "CodeForge",
   "short_name": "CodeForge",
-  "description": "A local-first coding environment in the browser.",
+  "id": "/",
+  "description": "A local-first coding environment for building web pages and games.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#16161e",
-  "theme_color": "#1a1b26",
+  "categories": ["developer", "productivity", "education"],
+  "background_color": "#11141b",
+  "theme_color": "#11141b",
   "icons": [
     {
       "src": "/icon-192.png",

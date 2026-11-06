@@ -106,6 +106,18 @@ The workspace tabs that used to live in the top bar are gone. Retargeting a proj
 by replacing its files was a destructive action presented as navigation; a new project from a
 template does the same job without overwriting anything.
 
+## Install on mobile
+
+CodeForge is installable as a **Progressive Web App**; no app-store download is required. On Android,
+open the HTTPS site in a supported browser and tap **Install** in the top bar (or use the browser's
+**Install app / Add to Home screen** menu). On iPhone or iPad, open the site in Safari, tap **Share**,
+then **Add to Home Screen**. Launch it from the new home-screen icon for a standalone app window.
+
+The app shell and its static assets are cached for offline reopening after an initial online visit.
+Projects remain in that browser's local storage and are not automatically synced to another device;
+use **Backup** to export a copy before changing or replacing phones. Features that require network
+access, including the integrated WebContainer terminal and package installs, still need a connection.
+
 ## Workspaces
 
 | Workspace | Runtime | Preview |

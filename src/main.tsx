@@ -16,3 +16,13 @@ createRoot(host).render(
     <App />
   </StrictMode>,
 );
+
+// Keep development HMR controlled by Vite; install the app-shell worker only
+// on an HTTPS production deployment (localhost is also a secure context).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((error: unknown) => {
+      console.warn('CodeForge offline support could not be enabled.', error);
+    });
+  }, { once: true });
+}

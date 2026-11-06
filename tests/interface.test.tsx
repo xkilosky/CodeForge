@@ -589,6 +589,8 @@ describe('top bar project navigation', () => {
         onExit={noop}
         onOpenDrawer={noop}
         onOpenSearch={noop}
+        showInstall={false}
+        onInstall={noop}
       />,
     );
     expect(html).toContain('class="project-back-btn"');

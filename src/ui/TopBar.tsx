@@ -3,7 +3,7 @@ import type { Project } from '../core/types';
 import { WORKSPACE_LABEL } from './labels';
 import { BrandMark } from './BrandMark';
 import { currentRelease } from '../core/release';
-import { ArrowLeftIcon, MenuIcon, PlayIcon, SearchIcon, StopIcon } from './icons';
+import { ArrowLeftIcon, DownloadIcon, MenuIcon, PlayIcon, SearchIcon, StopIcon } from './icons';
 import { accentHex } from '../core/theme';
 
 interface TopBarProps {
@@ -17,6 +17,8 @@ interface TopBarProps {
   onExit: () => void;
   onOpenDrawer: () => void;
   onOpenSearch: () => void;
+  showInstall: boolean;
+  onInstall: () => void;
 }
 
 export function TopBar({
@@ -30,6 +32,8 @@ export function TopBar({
   onExit,
   onOpenDrawer,
   onOpenSearch,
+  showInstall,
+  onInstall,
 }: TopBarProps) {
   const release = currentRelease();
   const accent = accentHex(project?.accent);
@@ -106,6 +110,18 @@ export function TopBar({
             <StopIcon size={12} /><span className="btn-label"> Stop</span>
           </button>
         </div>
+      ) : null}
+
+      {showInstall ? (
+        <button
+          className="btn ghost install-app-btn"
+          onClick={onInstall}
+          title="Install CodeForge on this device"
+          aria-label="Install CodeForge on this device"
+        >
+          <DownloadIcon size={15} />
+          <span>Install</span>
+        </button>
       ) : null}
 
       <button className="btn new-btn" onClick={onNewProject} title="Create a named project from a starter or blank template">
