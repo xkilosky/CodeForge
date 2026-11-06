@@ -69,36 +69,46 @@ function fileColor(path: string): string {
   return EXT_COLOR[extensionOf(path)] ?? 'var(--muted)';
 }
 
-/** Compact, recognizable marks for common source and config file types. */
-const FILE_TYPE_MARK: Record<string, string> = {
-  html: '<>', htm: '<>',
-  css: '#', scss: '#', sass: '#', less: '#',
-  js: 'JS', mjs: 'JS', cjs: 'JS',
-  jsx: 'JSX',
-  ts: 'TS', mts: 'TS', cts: 'TS',
-  tsx: 'TSX',
-  py: 'Py', pyw: 'Py',
-  json: '{}',
-  md: 'M↓', mdx: 'M↓',
-  yaml: 'YML', yml: 'YML',
-  toml: 'T',
-  xml: 'XML', svg: 'SVG',
-  sh: '$', bash: '$', zsh: '$',
-  sql: 'SQL',
-  go: 'Go', rs: 'Rs', java: 'J',
-  c: 'C', h: 'C', cc: 'C++', cpp: 'C++', hpp: 'C++',
+/** Official SVG icon IDs from the MIT-licensed VSCode Icons set. */
+const FILE_TYPE_ICON: Record<string, string> = {
+  html: 'file-type-html', htm: 'file-type-html',
+  css: 'file-type-css', scss: 'file-type-scss', sass: 'file-type-scss', less: 'file-type-css',
+  js: 'file-type-js-official', mjs: 'file-type-js-official', cjs: 'file-type-js-official',
+  jsx: 'file-type-reactjs-official',
+  ts: 'file-type-typescript-official', mts: 'file-type-typescript-official', cts: 'file-type-typescript-official',
+  tsx: 'file-type-reactts-official',
+  py: 'file-type-python', pyw: 'file-type-python',
+  json: 'file-type-json-official', jsonc: 'file-type-json-official',
+  md: 'file-type-markdown', mdx: 'file-type-markdown',
+  yaml: 'file-type-yaml-official', yml: 'file-type-yaml-official',
+  toml: 'file-type-toml', xml: 'file-type-xml', svg: 'file-type-svg',
+  sh: 'file-type-shell', bash: 'file-type-shell', zsh: 'file-type-shell',
+  sql: 'file-type-sql', go: 'file-type-go-gopher', rs: 'file-type-rust', java: 'file-type-java',
+  c: 'file-type-c', h: 'file-type-c', cc: 'file-type-cpp', cpp: 'file-type-cpp',
+  cxx: 'file-type-cpp', hpp: 'file-type-cpp', hh: 'file-type-cpp', hxx: 'file-type-cpp',
+  php: 'file-type-php', rb: 'file-type-ruby', swift: 'file-type-swift',
+  kt: 'file-type-kotlin', kts: 'file-type-kotlin', docker: 'file-type-docker',
+  vue: 'file-type-vue', svelte: 'file-type-svelte', graphql: 'file-type-graphql',
+  prisma: 'file-type-prisma', csv: 'file-type-csv', txt: 'file-type-text',
+};
+
+const SPECIAL_FILE_ICON: Record<string, string> = {
+  dockerfile: 'file-type-docker',
+  '.gitignore': 'file-type-git',
+  '.gitattributes': 'file-type-git',
+  '.gitmodules': 'file-type-git',
 };
 
 function FileTypeIcon({ path }: { path: string }) {
   const extension = extensionOf(path);
-  const mark = FILE_TYPE_MARK[extension];
+  const icon = SPECIAL_FILE_ICON[nameOf(path).toLowerCase()] ?? FILE_TYPE_ICON[extension];
   return (
-    <span
-      className={`tree-glyph${mark ? ` tree-file-type tree-file-type--${extension}` : ''}`}
-      style={{ color: fileColor(path) }}
-      aria-hidden="true"
-    >
-      {mark ?? <FileIcon />}
+    <span className="tree-glyph" aria-hidden="true">
+      {icon ? (
+        <img className="tree-file-icon" src={`/file-icons/${icon}.svg`} alt="" draggable={false} />
+      ) : (
+        <span style={{ color: fileColor(path) }}><FileIcon /></span>
+      )}
     </span>
   );
 }

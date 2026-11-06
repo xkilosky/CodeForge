@@ -1360,19 +1360,7 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   border-radius: 6px;
 }
 .tree-glyph { display: inline-flex; flex: 0 0 auto; color: var(--muted); }
-.tree-file-type {
-  width: 19px; height: 19px; align-items: center; justify-content: center;
-  border-radius: 4px;
-  background: color-mix(in srgb, currentColor 13%, transparent);
-  font: 750 8px/1 var(--font-mono);
-  letter-spacing: -0.35px;
-}
-.tree-file-type--jsx, .tree-file-type--tsx, .tree-file-type--yaml,
-.tree-file-type--yml, .tree-file-type--xml, .tree-file-type--svg,
-.tree-file-type--sql, .tree-file-type--cpp, .tree-file-type--hpp {
-  font-size: 6.5px;
-  letter-spacing: -0.5px;
-}
+.tree-file-icon { width: 18px; height: 18px; object-fit: contain; flex: 0 0 auto; }
 .folder-glyph { color: var(--cyan); }
 .tree-name {
   font-family: var(--font-mono); font-size: 12px;

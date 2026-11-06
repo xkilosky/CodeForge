@@ -388,7 +388,7 @@ describe('the file tree markup', () => {
     expect(html).toContain('index.html');
   });
 
-  it('shows recognizable type marks for files instead of using one generic icon', () => {
+  it('uses the matching official SVG icon for each known file type', () => {
     const html = renderExplorer({
       'main.py': '',
       'src/app.tsx': '',
@@ -398,12 +398,11 @@ describe('the file tree markup', () => {
       'notes.unknown': '',
     });
 
-    expect(html).toContain('tree-file-type--py');
-    expect(html).toContain('>Py</span>');
-    expect(html).toContain('tree-file-type--tsx');
-    expect(html).toContain('tree-file-type--css');
-    expect(html).toContain('tree-file-type--json');
-    expect(html).toContain('tree-file-type--md');
+    expect(html).toContain('src="/file-icons/file-type-python.svg"');
+    expect(html).toContain('src="/file-icons/file-type-reactts-official.svg"');
+    expect(html).toContain('src="/file-icons/file-type-css.svg"');
+    expect(html).toContain('src="/file-icons/file-type-json-official.svg"');
+    expect(html).toContain('src="/file-icons/file-type-markdown.svg"');
     expect(html).toContain('<svg'); // Unknown extensions retain the neutral file icon.
   });
 
