@@ -10,9 +10,20 @@ describe('interactive Bash helpers', () => {
     expect(result.status, result.stderr).toBe(0);
   });
 
+  it('emits visible syntax colors for keywords, numbers, and comments', () => {
+    const script = `${TERMINAL_BASH_RC}\nprintf '%s\\n' 'const answer = 42; // note' | bat -`;
+    const result = spawnSync('bash', ['--noprofile', '--norc', '-c', script], { encoding: 'utf8' });
+    if (result.error && 'code' in result.error && result.error.code === 'ENOENT') return;
+    expect(result.error).toBeUndefined();
+    expect(result.stdout).toContain('\u001b[35mconst\u001b[0m');
+    expect(result.stdout).toContain('\u001b[36m42\u001b[0m');
+    expect(result.stdout).toContain('\u001b[2;90m// note');
+  });
+
   it('provides dependency-free highlighted file and diff viewers', () => {
     expect(TERMINAL_BASH_RC).toContain('bat()');
     expect(TERMINAL_BASH_RC).toContain('line-numbered, color-highlighted file viewer');
+    expect(TERMINAL_BASH_RC).toContain('_cf_bat_highlight');
     expect(TERMINAL_BASH_RC).toContain('delta()');
     expect(TERMINAL_BASH_RC).toContain('diff()');
     expect(TERMINAL_BASH_RC).toContain('Colorizes unified diff headers');

@@ -2,16 +2,60 @@ export const TERMINAL_BASH_RC = String.raw`# CodeForge's small, dependency-free 
 export PAGER=cat
 export GIT_PAGER=cat
 
+_cf_bat_highlight() {
+  local rest="$1" char quote token
+  while [[ -n "$rest" ]]; do
+    if [[ "$rest" == \#* || "\${rest:0:2}" == '//' || "\${rest:0:2}" == '/*' || "\${rest:0:2}" == '--' ]]; then
+      printf '\033[2;90m%s\033[0m' "$rest"
+      break
+    fi
+    char="\${rest:0:1}"
+    if [[ "$char" == '"' || "$char" == "'" ]]; then
+      quote=$char
+      token=$char
+      rest="\${rest:1}"
+      while [[ -n "$rest" ]]; do
+        char="\${rest:0:1}"
+        token+=$char
+        rest="\${rest:1}"
+        if [[ "$char" == "$quote" ]]; then break; fi
+        if [[ "$char" == \\\\ && -n "$rest" ]]; then
+          token+="\${rest:0:1}"
+          rest="\${rest:1}"
+        fi
+      done
+      printf '\033[32m%s\033[0m' "$token"
+      continue
+    fi
+    if [[ "$rest" =~ ^[[:alpha:]_][[:alnum:]_]* ]]; then
+      token=\${BASH_REMATCH[0]}
+      rest="\${rest:\${#token}}"
+      case "$token" in
+        if|then|else|elif|fi|for|while|do|done|case|esac|function|return|local|export|const|let|var|class|import|from|as|async|await|def|try|except|finally|throw|new|public|private|static|true|false|null|None|undefined)
+          printf '\033[35m%s\033[0m' "$token" ;;
+        *) printf '%s' "$token" ;;
+      esac
+      continue
+    fi
+    if [[ "$rest" =~ ^[0-9]+([.][0-9]+)? ]]; then
+      token=\${BASH_REMATCH[0]}
+      rest="\${rest:\${#token}}"
+      printf '\033[36m%s\033[0m' "$token"
+      continue
+    fi
+    case "$char" in
+      '='|'('|')'|'{'|'}'|'['|']'|';'|','|':'|'+'|'-'|'*'|'/'|'<'|'>'|'!'|'?') printf '\033[33m%s\033[0m' "$char" ;;
+      *) printf '%s' "$char" ;;
+    esac
+    rest="\${rest:1}"
+  done
+}
+
 _cf_bat_stream() {
   local line number=1
   while IFS= read -r line || [[ -n "$line" ]]; do
     printf '\033[90m%4d │\033[0m ' "$number"
-    case "$line" in
-      \#*|\ *\#*) printf '\033[2;90m%s\033[0m' "$line" ;;
-      *'function '*|*'const '*|*'let '*|*'class '*|*'def '*|*'import '*) printf '\033[36m%s\033[0m' "$line" ;;
-      *'return '*|*'if '*|*'else'*|*'for '*|*'while '*|*'async '*|*'await '*) printf '\033[34m%s\033[0m' "$line" ;;
-      *) printf '%s' "$line" ;;
-    esac
+    _cf_bat_highlight "$line"
     printf '\n'
     number=$((number + 1))
   done
@@ -201,4 +245,4 @@ cf-help() {
     '  printf "one\ntwo\n" | fzf      arrow-key picker; Enter selects, Esc cancels' \
     '  choose OPTION...                 arrow-key picker for arguments'
 }
-`;
+`.replaceAll('\\' + '$' + '{', '$' + '{');
