@@ -327,6 +327,9 @@ export function BashTerminalPanel({
         lastSyncedFilesRef.current = projectFiles(filesRef.current);
 
         setStatusMessage('Opening interactive Bash…');
+        recentOutputRef.current = '';
+        outputLineBuffer.current = '';
+        lastErrorLine.current = '';
         process = await sandbox
           .command('bash', ['-i'], {
             cwd: '/workspace',
@@ -370,26 +373,34 @@ export function BashTerminalPanel({
             if (!disposed) setStatusMessage(error instanceof Error ? error.message : String(error));
           }
         };
-        if (process.stdout) void pump(process.stdout);
-        if (process.stderr) void pump(process.stderr);
-        void process.wait().then((result) => {
-          if (disposed) return;
-          processRef.current = null;
-          setStatus(result.exitCode === 0 ? 'stopped' : 'error');
-          const detail = recentOutputRef.current
-            .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(-320);
-          setStatusMessage(result.exitCode === 0
-            ? 'Bash exited. Start a new session to continue.'
-            : `Bash exited with code ${result.exitCode}.${detail ? ` Last output: ${detail}` : ''} Restart to try again.`);
-        }).catch((error: unknown) => {
-          if (disposed) return;
-          processRef.current = null;
-          setStatus('error');
-          setStatusMessage(error instanceof Error ? error.message : String(error));
-        });
+        const outputPumps = [process.stdout, process.stderr]
+          .filter((stream): stream is ReadableBytes => stream !== null)
+          .map((stream) => pump(stream));
+        void (async () => {
+          try {
+            const result = await process!.wait();
+            // A short-lived process can exit before the async stream readers have
+            // drained their final buffered bytes. Wait for both streams so the
+            // failure banner reports the real shell startup output.
+            await Promise.all(outputPumps);
+            if (disposed) return;
+            processRef.current = null;
+            setStatus(result.exitCode === 0 ? 'stopped' : 'error');
+            const detail = recentOutputRef.current
+              .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(-320);
+            setStatusMessage(result.exitCode === 0
+              ? 'Bash exited. Start a new session to continue.'
+              : `Bash exited with code ${result.exitCode}.${detail ? ` Last output: ${detail}` : ''} Restart to try again.`);
+          } catch (error: unknown) {
+            if (disposed) return;
+            processRef.current = null;
+            setStatus('error');
+            setStatusMessage(error instanceof Error ? error.message : String(error));
+          }
+        })();
 
         const scheduleScan = () => {
           if (disposed) return;
