@@ -3,6 +3,7 @@ import { consoleStore, io } from './core/consoleStore';
 import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
 import { getGitHubDiff } from './core/github';
+import { getFileDiff } from './core/diff';
 import { runStore, startRun, stopRun } from './core/runSession';
 import { templateById } from './core/templates';
 import { accentHex, type AccentId, type EditorThemeId } from './core/theme';
@@ -86,6 +87,18 @@ export default function App() {
   );
 
   const project = projectState.project;
+  const localBaselineRef = useRef<{ projectId: string; files: Record<string, string> } | null>(null);
+  if (!project) {
+    localBaselineRef.current = null;
+  } else if (localBaselineRef.current?.projectId !== project.id) {
+    localBaselineRef.current = {
+      projectId: project.id,
+      files: Object.fromEntries(
+        Object.entries(project.files).map(([path, file]) => [path, file.content]),
+      ),
+    };
+  }
+
   const pinned = layoutState.drawerPinned;
 
   /**
@@ -242,12 +255,16 @@ export default function App() {
   const activeDiff = diffView?.path === activePath ? diffView : null;
   const diffOriginal = activeDiff?.original;
   const diffModified = activeDiff?.modified;
-  const currentDiff = project?.sourceControl && activePath
-    ? getGitHubDiff(project.files, project.sourceControl, activePath)
+  const currentDiff = project && activePath
+    ? project.sourceControl
+      ? getGitHubDiff(project.files, project.sourceControl, activePath)
+      : localBaselineRef.current?.projectId === project.id
+        ? getFileDiff(localBaselineRef.current.files, project.files, activePath)
+        : null
     : null;
-  const diffDisabledReason = !project?.sourceControl
-    ? 'Connect GitHub in Source Control to establish a comparison baseline.'
-    : 'No changes in this file to compare.';
+  const diffDisabledReason = project?.sourceControl
+    ? 'No changes in this file to compare.'
+    : 'Edit this file to compare it with the version from when this project was opened.';
 
   useEffect(() => {
     if (diffView && (diffView.path !== activePath || !project?.sourceControl)) setDiffView(null);
@@ -326,10 +343,9 @@ export default function App() {
   }, []);
 
   const handleViewActiveDiff = useCallback(() => {
-    if (!project?.sourceControl || !activePath) return;
-    const diff = getGitHubDiff(project.files, project.sourceControl, activePath);
-    if (diff) handleViewSourceDiff(activePath, diff.original, diff.modified);
-  }, [project, activePath, handleViewSourceDiff]);
+    if (!currentDiff || !activePath) return;
+    handleViewSourceDiff(activePath, currentDiff.original, currentDiff.modified);
+  }, [activePath, currentDiff, handleViewSourceDiff]);
 
   const handleOpenSearchResult = useCallback(
     (result: ProjectTextMatch) => {
