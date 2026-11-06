@@ -12,6 +12,7 @@ interface SourceControlPanelProps {
   onUpdate: (sourceControl: GitHubSourceControl | undefined) => void;
   onReplaceFiles: (files: Record<string, string>) => void;
   onOpenFile: (path: string) => void;
+  onViewDiff: (path: string, original: string, modified: string) => void;
 }
 
 function skippedFilesNote(snapshot: { skippedFiles: string[] }): string {
@@ -24,7 +25,13 @@ function changeLabel(status: SourceFileChange['status']): string {
   return status === 'added' ? 'A' : status === 'deleted' ? 'D' : 'M';
 }
 
-export function SourceControlPanel({ project, onUpdate, onReplaceFiles, onOpenFile }: SourceControlPanelProps) {
+export function SourceControlPanel({
+  project,
+  onUpdate,
+  onReplaceFiles,
+  onOpenFile,
+  onViewDiff,
+}: SourceControlPanelProps) {
   const link = project.sourceControl;
   const [owner, setOwner] = useState(link?.owner ?? '');
   const [repo, setRepo] = useState(link?.repo ?? '');
@@ -215,26 +222,48 @@ export function SourceControlPanel({ project, onUpdate, onReplaceFiles, onOpenFi
       </div>
       {list.length ? (
         <ul className="source-change-list">
-          {list.map((change) => (
-            <li key={change.path} className="source-change-row">
-              <button
-                className="source-file-link"
-                onClick={() => change.status !== 'deleted' && onOpenFile(change.path)}
-                disabled={change.status === 'deleted'}
-                title={change.status === 'deleted' ? 'Deleted file' : `Open ${change.path}`}
-              >
-                <span className={`source-change-badge ${change.status}`}>{changeLabel(change.status)}</span>
-                <span>{change.path}</span>
-              </button>
-              {link ? (
-                staged ? (
-                  <button className="text-button" onClick={() => unstagePath(change.path)} disabled={busy}>Unstage</button>
-                ) : (
-                  <button className="text-button" onClick={() => stagePath(change.path)} disabled={busy}>Stage</button>
-                )
-              ) : null}
-            </li>
-          ))}
+          {list.map((change) => {
+            const stagedContent = link?.staged[change.path];
+            const hasStagedValue = link ? Object.hasOwn(link.staged, change.path) : false;
+            const original = staged
+              ? link?.baseFiles[change.path] ?? ''
+              : hasStagedValue
+                ? stagedContent ?? ''
+                : link?.baseFiles[change.path] ?? '';
+            const modified = staged
+              ? stagedContent ?? ''
+              : project.files[change.path]?.content ?? '';
+            return (
+              <li key={change.path} className="source-change-row">
+                <button
+                  className="source-file-link"
+                  onClick={() => change.status !== 'deleted' && onOpenFile(change.path)}
+                  disabled={change.status === 'deleted'}
+                  title={change.status === 'deleted' ? 'Deleted file' : `Open ${change.path}`}
+                >
+                  <span className={`source-change-badge ${change.status}`}>{changeLabel(change.status)}</span>
+                  <span>{change.path}</span>
+                </button>
+                <div className="source-change-actions">
+                  <button
+                    className="text-button source-diff-button"
+                    onClick={() => onViewDiff(change.path, original, modified)}
+                    title={`View line-by-line diff for ${change.path}`}
+                    aria-label={`View diff for ${change.path}`}
+                  >
+                    Diff
+                  </button>
+                  {link ? (
+                    staged ? (
+                      <button className="text-button" onClick={() => unstagePath(change.path)} disabled={busy}>Unstage</button>
+                    ) : (
+                      <button className="text-button" onClick={() => stagePath(change.path)} disabled={busy}>Stage</button>
+                    )
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : <p className="source-empty muted">No {staged ? 'staged' : 'unstaged'} changes.</p>}
     </section>

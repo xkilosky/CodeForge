@@ -314,7 +314,32 @@ button:focus-visible {
 
 /* ── editor / preview ─────────────────────────────────── */
 .editor-host { flex: 1; min-height: 0; min-width: 0; width: 100%; }
+.editor-diff-pane { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.editor-diff-toolbar {
+  min-height: 36px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px;
+  padding: 0 10px; border-bottom: 1px solid var(--border-soft); background: var(--bg-raise);
+}
+.editor-diff-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.editor-diff-eyebrow { color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .8px; }
+.editor-diff-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font: 10px var(--font-mono); }
+.editor-diff-scope { display: flex; align-items: center; gap: 5px; color: var(--muted); font: 8px var(--font-mono); letter-spacing: .3px; }
+.editor-diff-scope b { color: var(--text-dim); font-size: 10px; }
+.editor-diff-legend { display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--text-dim); }
+.editor-diff-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.editor-diff-legend i { width: 7px; height: 7px; border-radius: 2px; background: var(--ok); }
+.editor-diff-legend .deleted i { background: var(--error); }
+.editor-diff-close {
+  padding: 4px 8px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--bg); color: var(--text-dim); font-size: 10px; cursor: pointer;
+}
+.editor-diff-close:hover { color: var(--text); border-color: var(--accent); }
 .preview-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+@media (max-width: 520px) {
+  .editor-diff-toolbar { gap: 7px; padding: 0 6px; }
+  .editor-diff-scope { display: none; }
+  .editor-diff-legend { gap: 6px; font-size: 9px; }
+  .editor-diff-close { padding: 4px 6px; font-size: 9px; }
+}
 
 .pane-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1554,6 +1579,9 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 .source-change-list { list-style: none; margin: 0; padding: 0; }
 .source-change-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; border-top: 1px solid var(--border-soft); }
 .source-file-link { display: flex; align-items: center; min-width: 0; gap: 8px; padding: 5px 0; background: none; border: 0; color: var(--text-dim); font: 11px var(--font-mono); text-align: left; cursor: pointer; }
+.source-change-actions { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.source-diff-button { color: var(--text-dim); }
+.source-diff-button:hover { color: var(--accent); }
 .source-file-link span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-file-link:disabled { cursor: default; opacity: .55; }
 .source-change-badge { width: 16px; flex: 0 0 16px; text-align: center; font: 700 10px var(--font-mono); }

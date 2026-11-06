@@ -133,7 +133,14 @@ describe('theme', () => {
     expect(night.data.colors['editor.background']).toBe('#1a1b26');
     expect(night.data.rules.map((rule) => rule.foreground)).toContain('bb9af7');
     expect(night.data.rules.map((rule) => rule.foreground)).toContain('9ece6a');
-    expect(MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!.data.colors['editor.background']).toBe('#24283b');
+    expect(night.data.colors['diffEditor.insertedLineBackground']).toBe('#9ece6a22');
+    expect(night.data.colors['diffEditor.removedLineBackground']).toBe('#f7768e22');
+    expect(night.data.colors['diffEditorGutter.insertedLineBackground']).toBe('#9ece6a66');
+    expect(night.data.colors['diffEditorGutter.removedLineBackground']).toBe('#f7768e66');
+    const storm = MONACO_THEMES.find((theme) => theme.id === 'tokyo-storm')!;
+    expect(storm.data.colors['editor.background']).toBe('#24283b');
+    expect(storm.data.colors['diffEditor.insertedLineBackground']).toBe('#9ece6a22');
+    expect(storm.data.colors['diffEditor.removedLineBackground']).toBe('#f7768e22');
     expect(EDITOR_THEMES.map((theme) => theme.label)).toEqual(['Night', 'Storm']);
 
     expect(INTERFACE.bg).not.toBe(INTERFACE.bgRaise);

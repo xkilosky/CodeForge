@@ -65,6 +65,7 @@ export default function App() {
   const [lastProjectId, setLastProjectId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editorReveal, setEditorReveal] = useState<EditorReveal>();
+  const [diffView, setDiffView] = useState<{ path: string; original: string; modified: string } | null>(null);
   const revealSequence = useRef(0);
   const [palette, setPalette] = useState<{ open: boolean; mode: PaletteMode }>({
     open: false,
@@ -237,6 +238,20 @@ export default function App() {
 
   const activePath = project?.activeFile ?? '';
   const activeFile = project && activePath ? project.files[activePath] : undefined;
+  const activeDiff = diffView?.path === activePath ? diffView : null;
+  const diffOriginal = activeDiff?.original;
+  const diffModified = activeDiff?.modified;
+
+  useEffect(() => {
+    if (diffView && (diffView.path !== activePath || !project?.sourceControl)) setDiffView(null);
+  }, [diffView, activePath, project?.sourceControl]);
+
+  const handleCloseSourceDiff = useCallback(() => {
+    setDiffView(null);
+    if (project && !project.files[activePath]) {
+      projectActions.setActiveFile(Object.keys(project.files)[0] ?? '');
+    }
+  }, [project, activePath]);
 
   useEffect(() => {
     if (!editorReveal || editorReveal.path !== activePath) return;
@@ -288,7 +303,16 @@ export default function App() {
   );
 
   const handleOpenSourceFile = useCallback((path: string) => {
+    setDiffView(null);
     projectActions.setActiveFile(path);
+    setExtraSection(null);
+    setDesktopTab('code');
+    setMobileTab('code');
+  }, []);
+
+  const handleViewSourceDiff = useCallback((path: string, original: string, modified: string) => {
+    projectActions.setActiveFile(path);
+    setDiffView({ path, original, modified });
     setExtraSection(null);
     setDesktopTab('code');
     setMobileTab('code');
@@ -449,6 +473,7 @@ export default function App() {
       onUpdate={projectActions.updateSourceControl}
       onReplaceFiles={projectActions.replaceFiles}
       onOpenFile={handleOpenSourceFile}
+      onViewDiff={handleViewSourceDiff}
     />
   ) : null;
 
@@ -646,6 +671,9 @@ export default function App() {
           project={project}
           compact={layout === 'compact'}
           reveal={editorReveal}
+          diffOriginal={diffOriginal}
+          diffModified={diffModified}
+          onExitDiff={handleCloseSourceDiff}
           compactSection={
             extraSection === 'objects'
               ? 'objects'
@@ -707,6 +735,9 @@ export default function App() {
                   theme={project.settings.theme}
                   onChange={(value) => projectActions.updateFile(activePath, value)}
                   reveal={editorReveal}
+                  diffOriginal={diffOriginal}
+                  diffModified={diffModified}
+                  onExitDiff={handleCloseSourceDiff}
                 />
               </div>
             </section>
@@ -779,6 +810,9 @@ export default function App() {
                 content={activeFile?.content ?? ''}
                 language={activeFile?.language ?? 'plaintext'}
                 theme={project.settings.theme}
+                diffOriginal={diffOriginal}
+                diffModified={diffModified}
+                onExitDiff={handleCloseSourceDiff}
                 onSelectFile={projectActions.setActiveFile}
                 onEdit={(value) => projectActions.updateFile(activePath, value)}
                 runtime={runtime}

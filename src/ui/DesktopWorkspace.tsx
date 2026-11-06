@@ -41,6 +41,9 @@ interface DesktopWorkspaceProps {
   content: string;
   language: LanguageId | 'plaintext';
   theme: string;
+  diffOriginal?: string;
+  diffModified?: string;
+  onExitDiff?: () => void;
   onSelectFile: (path: string) => void;
   onEdit: (value: string) => void;
   runtime: Runtime;
@@ -86,6 +89,9 @@ export function DesktopWorkspace(props: DesktopWorkspaceProps) {
         content={props.content}
         language={props.language}
         theme={props.theme}
+        diffOriginal={props.diffOriginal}
+        diffModified={props.diffModified}
+        onExitDiff={props.onExitDiff}
         onChange={props.onEdit}
         reveal={props.reveal}
       />

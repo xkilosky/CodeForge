@@ -21,6 +21,10 @@ interface EditorPaneProps {
   theme: string;
   onChange: (value: string) => void;
   reveal?: EditorReveal;
+  /** Comparison snapshots enable a read-only line-by-line diff view. */
+  diffOriginal?: string;
+  diffModified?: string;
+  onExitDiff?: () => void;
 }
 
 const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
@@ -35,10 +39,23 @@ const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   padding: { top: 10 },
 };
 
-export function EditorPane({ path, content, language, theme, onChange, reveal }: EditorPaneProps) {
+export function EditorPane({
+  path,
+  content,
+  language,
+  theme,
+  onChange,
+  reveal,
+  diffOriginal,
+  diffModified,
+  onExitDiff,
+}: EditorPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const diffModelsRef = useRef<{ original: monaco.editor.ITextModel; modified: monaco.editor.ITextModel } | null>(null);
   const lastRevealSequence = useRef<number | null>(null);
+  const isDiffView = diffOriginal !== undefined;
   const layout = useLayoutMode();
   // Keep the latest callback without re-creating the editor on every keystroke.
   const onChangeRef = useRef(onChange);
@@ -47,6 +64,46 @@ export function EditorPane({ path, content, language, theme, onChange, reveal }:
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+
+    if (isDiffView) {
+      const originalUri = monaco.Uri.parse(
+        `inmemory://codeforge-diff/${encodeURIComponent(path)}/original`,
+      );
+      const modifiedUri = monaco.Uri.parse(
+        `inmemory://codeforge-diff/${encodeURIComponent(path)}/modified`,
+      );
+      const original = monaco.editor.createModel(
+        diffOriginal ?? '',
+        monacoLanguageFor(language),
+        originalUri,
+      );
+      const modified = monaco.editor.createModel(
+        diffModified ?? content,
+        monacoLanguageFor(language),
+        modifiedUri,
+      );
+      const diffEditor = monaco.editor.createDiffEditor(host, {
+        ...EDITOR_OPTIONS,
+        readOnly: true,
+        originalEditable: false,
+        renderSideBySide: layout !== 'compact',
+        renderIndicators: true,
+        theme: resolveEditorTheme(theme),
+        wordWrap: layout === 'compact' ? 'on' : 'off',
+      });
+      diffEditor.setModel({ original, modified });
+      diffEditorRef.current = diffEditor;
+      diffModelsRef.current = { original, modified };
+
+      return () => {
+        diffEditor.setModel(null);
+        diffEditor.dispose();
+        original.dispose();
+        modified.dispose();
+        diffEditorRef.current = null;
+        diffModelsRef.current = null;
+      };
+    }
 
     const editor = monaco.editor.create(host, {
       ...EDITOR_OPTIONS,
@@ -73,19 +130,35 @@ export function EditorPane({ path, content, language, theme, onChange, reveal }:
       editor.dispose();
       editorRef.current = null;
     };
-    // `content` is intentionally not a dependency: it is the initial value only.
+    // `content` and diffOriginal are the initial model values; sync below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path]);
+  }, [path, isDiffView]);
 
   // When a phone rotates or the window crosses the breakpoint, switch wrapping
   // without recreating the editor. Reset the horizontal position on compact
   // layouts so old scroll state cannot hide the start of every line.
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor) return;
-    editor.updateOptions({ wordWrap: layout === 'compact' ? 'on' : 'off' });
-    if (layout === 'compact') editor.setScrollLeft(0);
+    if (editor) {
+      editor.updateOptions({ wordWrap: layout === 'compact' ? 'on' : 'off' });
+      if (layout === 'compact') editor.setScrollLeft(0);
+    }
+    diffEditorRef.current?.updateOptions({
+      renderSideBySide: layout !== 'compact',
+      wordWrap: layout === 'compact' ? 'on' : 'off',
+    });
   }, [layout]);
+
+  // Sync externally-driven diff inputs without recreating Monaco models.
+  useEffect(() => {
+    const models = diffModelsRef.current;
+    if (!models) return;
+    if (diffOriginal !== undefined && models.original.getValue() !== diffOriginal) {
+      models.original.setValue(diffOriginal);
+    }
+    const modifiedValue = diffModified ?? content;
+    if (models.modified.getValue() !== modifiedValue) models.modified.setValue(modifiedValue);
+  }, [content, diffOriginal, diffModified]);
 
   // Sync externally-driven changes (template switch, file revert) without
   // clobbering what the user is typing.
@@ -97,11 +170,14 @@ export function EditorPane({ path, content, language, theme, onChange, reveal }:
   }, [content]);
 
   useEffect(() => {
-    const editor = editorRef.current;
-    const model = editor?.getModel();
     const monacoId = monacoLanguageFor(language);
-    if (model && monaco.languages.getLanguages().some((l) => l.id === monacoId)) {
-      monaco.editor.setModelLanguage(model, monacoId);
+    if (!monaco.languages.getLanguages().some((l) => l.id === monacoId)) return;
+    const model = editorRef.current?.getModel();
+    if (model) monaco.editor.setModelLanguage(model, monacoId);
+    const diffModels = diffModelsRef.current;
+    if (diffModels) {
+      monaco.editor.setModelLanguage(diffModels.original, monacoId);
+      monaco.editor.setModelLanguage(diffModels.modified, monacoId);
     }
   }, [language]);
 
@@ -110,7 +186,7 @@ export function EditorPane({ path, content, language, theme, onChange, reveal }:
   }, [theme]);
 
   useEffect(() => {
-    const editor = editorRef.current;
+    const editor = editorRef.current ?? diffEditorRef.current?.getModifiedEditor();
     const model = editor?.getModel();
     if (
       !editor ||
@@ -140,6 +216,32 @@ export function EditorPane({ path, content, language, theme, onChange, reveal }:
       <div className="pane-empty">
         <p>No file selected.</p>
         <p className="muted">Create one in the explorer to start editing.</p>
+      </div>
+    );
+  }
+
+  if (isDiffView) {
+    return (
+      <div className="editor-diff-pane">
+        <header className="editor-diff-toolbar">
+          <div className="editor-diff-title">
+            <span className="editor-diff-eyebrow">DIFF</span>
+            <span className="editor-diff-path" title={path}>{path}</span>
+          </div>
+          <div className="editor-diff-scope" aria-label="Comparing previous and current versions">
+            <span>BEFORE</span><b>→</b><span>AFTER</span>
+          </div>
+          <div className="editor-diff-legend" aria-label="Diff colors">
+            <span className="added"><i />Added</span>
+            <span className="deleted"><i />Deleted</span>
+          </div>
+          {onExitDiff ? (
+            <button type="button" className="editor-diff-close" onClick={onExitDiff}>
+              Back to editor
+            </button>
+          ) : null}
+        </header>
+        <div ref={hostRef} className="editor-host" />
       </div>
     );
   }

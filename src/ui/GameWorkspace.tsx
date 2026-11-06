@@ -43,6 +43,9 @@ interface GameWorkspaceProps {
   compact: boolean;
   compactSection?: GameCompactSection;
   reveal?: EditorReveal;
+  diffOriginal?: string;
+  diffModified?: string;
+  onExitDiff?: () => void;
   onOpenFile?: (path: string) => void;
   /** Publishes the selected object id so the phone layout can scroll to it. */
   onSelectEntity?: (id: string | null) => void;
@@ -107,6 +110,9 @@ export function GameWorkspace({
   compact,
   compactSection = 'code',
   reveal,
+  diffOriginal,
+  diffModified,
+  onExitDiff,
   onOpenFile,
   onSelectEntity,
 }: GameWorkspaceProps) {
@@ -311,6 +317,9 @@ export function GameWorkspace({
         theme={project.settings.theme}
         onChange={(value) => projectActions.updateFile(project.activeFile, value)}
         reveal={reveal}
+        diffOriginal={diffOriginal}
+        diffModified={diffModified}
+        onExitDiff={onExitDiff}
       />
     </>
   );

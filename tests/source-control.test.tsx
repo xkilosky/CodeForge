@@ -48,6 +48,7 @@ describe('Source Control panel', () => {
         onUpdate={onUpdate}
         onReplaceFiles={vi.fn()}
         onOpenFile={vi.fn()}
+        onViewDiff={vi.fn()}
       />,
     ));
 
@@ -67,6 +68,7 @@ describe('Source Control panel', () => {
         onUpdate={onUpdate}
         onReplaceFiles={vi.fn()}
         onOpenFile={vi.fn()}
+        onViewDiff={vi.fn()}
       />,
     ));
 
@@ -80,4 +82,117 @@ describe('Source Control panel', () => {
       staged: { 'src/app.ts': 'const value = 2;' },
     });
   });
+
+  it('opens a line diff for an edited file', () => {
+    const onViewDiff = vi.fn();
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(
+      <SourceControlPanel
+        project={project}
+        onUpdate={vi.fn()}
+        onReplaceFiles={vi.fn()}
+        onOpenFile={vi.fn()}
+        onViewDiff={onViewDiff}
+      />,
+    ));
+
+    const diffButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View diff for src/app.ts"]',
+    );
+    expect(diffButton).not.toBeNull();
+    act(() => diffButton?.click());
+    expect(onViewDiff).toHaveBeenCalledWith('src/app.ts', 'const value = 1;', 'const value = 2;');
+  });
+
+  it('keeps deleted files diffable even though they cannot open in the editor', () => {
+    const onViewDiff = vi.fn();
+    const deletedProject = { ...project, files: {}, activeFile: '' };
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(
+      <SourceControlPanel
+        project={deletedProject}
+        onUpdate={vi.fn()}
+        onReplaceFiles={vi.fn()}
+        onOpenFile={vi.fn()}
+        onViewDiff={onViewDiff}
+      />,
+    ));
+
+    const diffButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View diff for src/app.ts"]',
+    );
+    expect(diffButton).not.toBeNull();
+    act(() => diffButton?.click());
+    expect(onViewDiff).toHaveBeenCalledWith('src/app.ts', 'const value = 1;', '');
+  });
+
+  it('diffs staged and unstaged edits against their correct snapshots', () => {
+    const onViewDiff = vi.fn();
+    const stagedProject = {
+      ...project,
+      files: { 'src/app.ts': { content: 'const value = 3;', language: 'typescript' as const } },
+      sourceControl: {
+        ...project.sourceControl!,
+        staged: { 'src/app.ts': 'const value = 2;' },
+      },
+    };
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(
+      <SourceControlPanel
+        project={stagedProject}
+        onUpdate={vi.fn()}
+        onReplaceFiles={vi.fn()}
+        onOpenFile={vi.fn()}
+        onViewDiff={onViewDiff}
+      />,
+    ));
+
+    const diffButtons = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label="View diff for src/app.ts"]',
+    );
+    expect(diffButtons).toHaveLength(2);
+    act(() => diffButtons[0].click());
+    act(() => diffButtons[1].click());
+    expect(onViewDiff.mock.calls).toEqual([
+      ['src/app.ts', 'const value = 2;', 'const value = 3;'],
+      ['src/app.ts', 'const value = 1;', 'const value = 2;'],
+    ]);
+  });
+
+  it('uses an empty baseline for newly added files', () => {
+    const onViewDiff = vi.fn();
+    const addedProject = {
+      ...project,
+      files: {
+        ...project.files,
+        'src/new.py': { content: 'print("hello")', language: 'python' as const },
+      },
+    };
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(
+      <SourceControlPanel
+        project={addedProject}
+        onUpdate={vi.fn()}
+        onReplaceFiles={vi.fn()}
+        onOpenFile={vi.fn()}
+        onViewDiff={onViewDiff}
+      />,
+    ));
+
+    const diffButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View diff for src/new.py"]',
+    );
+    expect(diffButton).not.toBeNull();
+    act(() => diffButton?.click());
+    expect(onViewDiff).toHaveBeenCalledWith('src/new.py', '', 'print("hello")');
+  });
+
 });
