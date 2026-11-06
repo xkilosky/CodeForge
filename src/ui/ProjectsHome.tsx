@@ -13,7 +13,7 @@
  * Everything here is local. There is no account, so there is no "sign in" and
  * nothing to sync; the list is whatever IndexedDB holds.
  */
-import { useRef, useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { TEMPLATES } from '../core/templates';
 import type { Project } from '../core/types';
 import { RUNTIMES } from '../runtimes/registry';
@@ -23,10 +23,12 @@ import { currentRelease } from '../core/release';
 import { accentHex } from '../core/theme';
 import {
   ChevronIcon,
+  CloseIcon,
   CodeIcon,
   CopyIcon,
   LayoutIcon,
   PlusIcon,
+  SearchIcon,
   TerminalIcon,
   TrashIcon,
 } from './icons';
@@ -60,6 +62,34 @@ function folderCount(project: Project): number {
     for (let i = 0; i < parts.length; i += 1) folders.add(parts.slice(0, i + 1).join('/'));
   }
   return folders.size;
+}
+
+type WorkspaceFilter = Project['workspace'] | 'all';
+type ProjectSort = 'recent' | 'name';
+
+/** Search and order a copy so the store's recents remain untouched. */
+export function filterAndSortProjects(
+  projects: Project[],
+  query: string,
+  workspace: WorkspaceFilter,
+  sort: ProjectSort,
+): Project[] {
+  const needle = query.trim().toLocaleLowerCase();
+  return projects
+    .filter((project) => {
+      if (workspace !== 'all' && project.workspace !== workspace) return false;
+      if (!needle) return true;
+      const searchable = `${project.name} ${project.workspace} ${WORKSPACE_LABEL[project.workspace]}`;
+      return searchable.toLocaleLowerCase().includes(needle);
+    })
+    .slice()
+    .sort((a, b) => {
+      if (sort === 'name') {
+        const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        if (byName !== 0) return byName;
+      }
+      return b.updatedAt - a.updatedAt || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
 }
 
 /** One row in "Your projects". */
@@ -167,9 +197,31 @@ export function ProjectsHome({
   const projects = recent;
   const release = currentRelease();
   const importRef = useRef<HTMLInputElement | null>(null);
+  const projectSearchRef = useRef<HTMLInputElement | null>(null);
+  const [projectQuery, setProjectQuery] = useState('');
+  const [workspaceFilter, setWorkspaceFilter] = useState<WorkspaceFilter>('all');
+  const [projectSort, setProjectSort] = useState<ProjectSort>('recent');
+  const visibleProjects = filterAndSortProjects(projects, projectQuery, workspaceFilter, projectSort);
+  const hasProjectFilters = projectQuery.trim() !== '' || workspaceFilter !== 'all';
+
+  function handleHomeKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+    ) return;
+    event.preventDefault();
+    projectSearchRef.current?.focus();
+  }
+
+  function clearProjectFilters() {
+    setProjectQuery('');
+    setWorkspaceFilter('all');
+  }
 
   return (
-    <div className="home">
+    <div className="home" onKeyDown={handleHomeKeyDown}>
       <div className="home-inner">
         <header className="home-head">
           <p className="home-eyebrow">
@@ -204,15 +256,84 @@ export function ProjectsHome({
               <span className="muted home-count">{loading ? '' : projects.length}</span>
             </h2>
 
+            {!loading && projects.length > 0 ? (
+              <>
+                <div className="project-tools" role="search" aria-label="Filter saved projects">
+                  <div className="project-search">
+                    <SearchIcon size={15} />
+                    <input
+                      ref={projectSearchRef}
+                      type="text"
+                      value={projectQuery}
+                      onChange={(event) => setProjectQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape' && projectQuery) setProjectQuery('');
+                      }}
+                      placeholder="Search by name or workspace"
+                      aria-label="Search projects by name or workspace"
+                      aria-keyshortcuts="/"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    {projectQuery ? (
+                      <button
+                        type="button"
+                        className="project-search-clear"
+                        onClick={() => setProjectQuery('')}
+                        aria-label="Clear project search"
+                        title="Clear search"
+                      >
+                        <CloseIcon size={13} />
+                      </button>
+                    ) : (
+                      <kbd className="project-search-hint" aria-hidden="true">/</kbd>
+                    )}
+                  </div>
+                  <label className="project-select-wrap">
+                    <span className="visually-hidden">Filter by workspace</span>
+                    <select
+                      aria-label="Filter by workspace"
+                      value={workspaceFilter}
+                      onChange={(event) => setWorkspaceFilter(event.target.value as WorkspaceFilter)}
+                    >
+                      <option value="all">All workspaces</option>
+                      {(Object.keys(WORKSPACE_LABEL) as Project['workspace'][]).map((workspace) => (
+                        <option key={workspace} value={workspace}>{WORKSPACE_LABEL[workspace]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="project-select-wrap project-sort-wrap">
+                    <span className="visually-hidden">Sort projects</span>
+                    <select
+                      aria-label="Sort projects"
+                      value={projectSort}
+                      onChange={(event) => setProjectSort(event.target.value as ProjectSort)}
+                    >
+                      <option value="recent">Recently updated</option>
+                      <option value="name">Name A–Z</option>
+                    </select>
+                  </label>
+                </div>
+                {hasProjectFilters ? (
+                  <div className="project-results-status" role="status" aria-live="polite">
+                    <span>Showing {visibleProjects.length} of {projects.length} projects</span>
+                    <button className="text-button" onClick={clearProjectFilters}>Clear filters</button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
             {loading ? (
               <p className="muted home-empty">Loading…</p>
             ) : projects.length === 0 ? (
               <p className="muted home-empty">
                 Nothing here yet. Pick a template below and it will be saved automatically.
               </p>
+            ) : visibleProjects.length === 0 ? (
+              <p className="muted home-empty project-no-results">No projects match the current filters.</p>
             ) : (
               <ul className="project-list">
-                {projects.map((project) => (
+                {visibleProjects.map((project) => (
                   <ProjectRow
                     key={project.id}
                     project={project}

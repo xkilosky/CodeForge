@@ -34,7 +34,7 @@ vi.mock('../src/core/idb', () => ({
 }));
 
 const { projectActions, projectStore } = await import('../src/core/projectStore');
-const { ProjectsHome } = await import('../src/ui/ProjectsHome');
+const { ProjectsHome, filterAndSortProjects } = await import('../src/ui/ProjectsHome');
 const { CreateProjectDialog } = await import('../src/ui/CreateProjectDialog');
 const { describeAge, WORKSPACE_LABEL } = await import('../src/ui/labels');
 
@@ -271,6 +271,39 @@ describe('ProjectsHome', () => {
     expect(css).toContain('grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr)');
     expect(css).toContain('@media (max-width: 860px)');
     expect(css).toContain('.home-dashboard { grid-template-columns: minmax(0, 1fr); gap: 25px; }');
+  });
+
+  it('adds accessible search, workspace filtering, sorting, and a keyboard search shortcut', () => {
+    const project = projectFromTemplate(templateById('web-starter')!, 'Portfolio');
+    const html = render({ recent: [project] });
+    expect(html).toContain('aria-label="Search projects by name or workspace"');
+    expect(html).toContain('aria-keyshortcuts="/"');
+    expect(html).toContain('aria-label="Filter by workspace"');
+    expect(html).toContain('aria-label="Sort projects"');
+    expect(html).toContain('All workspaces');
+    expect(html).toContain('Recently updated');
+  });
+
+  it('searches by project name or workspace and filters without mutating recents', () => {
+    const web = projectFromTemplate(templateById('web-starter')!, 'Portfolio');
+    const game = projectFromTemplate(templateById('game-platformer')!, 'Tiny world');
+    const python = projectFromTemplate(templateById('python-script')!, 'Data cleanup');
+    const recents = [web, game, python];
+
+    expect(filterAndSortProjects(recents, '  PORTFOLIO ', 'all', 'recent')).toEqual([web]);
+    expect(filterAndSortProjects(recents, 'python', 'all', 'recent')).toEqual([python]);
+    expect(filterAndSortProjects(recents, '', 'game', 'recent')).toEqual([game]);
+    expect(recents).toEqual([web, game, python]);
+  });
+
+  it('sorts projects by name or recent activity', () => {
+    const zebra = projectFromTemplate(templateById('web-starter')!, 'zebra');
+    const alpha = projectFromTemplate(templateById('game-platformer')!, 'Alpha');
+    zebra.updatedAt = 5;
+    alpha.updatedAt = 2;
+
+    expect(filterAndSortProjects([zebra, alpha], '', 'all', 'name')).toEqual([alpha, zebra]);
+    expect(filterAndSortProjects([zebra, alpha], '', 'all', 'recent')).toEqual([zebra, alpha]);
   });
 
   it('lists saved projects with their workspace, age, and consistent vector actions', () => {

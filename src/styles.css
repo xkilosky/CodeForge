@@ -482,6 +482,48 @@ button:focus-visible {
 }
 
 /* ── project list ─────────────────────────────────────── */
+.project-tools {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, auto) minmax(148px, auto);
+  gap: 8px; margin: 0 0 8px;
+}
+.project-search {
+  display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 38px;
+  padding: 0 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 60%, var(--bg-raise)); color: var(--muted);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+.project-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.project-search > svg { flex: 0 0 auto; }
+.project-search input {
+  width: 100%; min-width: 0; padding: 7px 0; border: 0; outline: 0;
+  background: transparent; color: var(--text); font-size: 12px;
+}
+.project-search input::placeholder { color: var(--muted); }
+.project-search-hint {
+  flex: 0 0 auto; min-width: 19px; padding: 1px 5px; border: 1px solid var(--border-soft);
+  border-radius: 4px; color: var(--muted); font: 10px var(--font-mono); text-align: center;
+}
+.project-search-clear {
+  display: grid; place-items: center; flex: 0 0 auto; width: 25px; height: 25px;
+  padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.project-search-clear:hover { background: var(--bg-raise-2); color: var(--text); }
+.project-select-wrap { min-width: 0; }
+.project-select-wrap select {
+  width: 100%; min-height: 38px; padding: 0 28px 0 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg-raise); color: var(--text-dim); font-size: 11.5px;
+  cursor: pointer;
+}
+.project-select-wrap select:focus-visible { border-color: var(--accent); }
+.project-results-status {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 28px; margin: -3px 0 6px; color: var(--muted); font-size: 11px;
+}
+.project-results-status .text-button { padding: 4px 2px; font-size: 11px; }
+.project-no-results { min-height: 70px; display: flex; align-items: center; }
 .project-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .project-row {
   display: flex; align-items: stretch; gap: 4px;
@@ -803,6 +845,9 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   .home-head h1 { gap: 8px; font-size: 22px; letter-spacing: -0.035em; }
   .home-section { margin-top: 25px; }
   .home-heading { font-size: 15px; }
+  .project-tools { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .project-search, .project-select-wrap select { min-height: 42px; }
+  .project-results-status { min-height: 32px; font-size: 12px; }
   .template-grid { grid-template-columns: 1fr; gap: 8px; }
   .template-card { padding: 13px; }
   .project-open { padding: 13px; }
