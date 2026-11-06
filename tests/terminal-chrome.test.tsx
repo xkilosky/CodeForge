@@ -32,7 +32,8 @@ function renderChrome(shell: 'bash' | 'node'): string {
 describe('terminal chrome', () => {
   it('offers both runtimes and touch-friendly terminal controls', () => {
     const markup = renderChrome('bash');
-    expect(markup).toContain('Choose terminal shell');
+    expect(markup).toContain('Choose runtime in this terminal');
+    expect(markup.match(/<h2>Terminal<\/h2>/g)).toHaveLength(1);
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('Node / npm');
     expect(markup).toContain('Paste');

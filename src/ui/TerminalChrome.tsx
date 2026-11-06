@@ -115,7 +115,7 @@ export function TerminalChrome({
               <h2>Terminal</h2>
               <span className="terminal-project-name" title={projectName}>{projectName}</span>
             </div>
-            <p className="terminal-context">{shell === 'bash' ? 'Browser-local Bash' : 'Node.js · WebContainer'} <span aria-hidden="true">/</span> {activePath || 'project root'}</p>
+            <p className="terminal-context">{shell === 'bash' ? 'Browser-local Bash' : 'Node.js · WebContainer mode'} <span aria-hidden="true">/</span> {activePath || 'project root'}</p>
           </div>
         </div>
         <div className="terminal-topbar-tools">
@@ -123,7 +123,7 @@ export function TerminalChrome({
             <span className="terminal-status" aria-hidden="true" />
             <span className="terminal-status-message" title={statusMessage}>{status === 'ready' ? 'Ready' : status === 'error' ? 'Needs attention' : status === 'stopped' ? 'Stopped' : 'Starting'}</span>
           </span>
-          <div className="terminal-shell-switcher" role="group" aria-label="Choose terminal shell">
+          <div className="terminal-shell-switcher" role="group" aria-label="Choose runtime in this terminal">
             <button type="button" aria-pressed={shell === 'bash'} className={shell === 'bash' ? 'is-selected' : ''} onClick={() => onSwitchShell('bash')}>
               <span className="terminal-shell-dot terminal-shell-dot-bash" aria-hidden="true" />Bash
             </button>

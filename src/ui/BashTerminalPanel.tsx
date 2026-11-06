@@ -263,7 +263,11 @@ export function BashTerminalPanel({
         const createSandbox = (packages: string[]) => client!.sandboxes.create({
           packages,
           files: projectFiles(filesRef.current),
-          env: { HOME: '/workspace', TERM: 'xterm-256color' },
+          env: {
+            HOME: '/workspace',
+            PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            TERM: 'xterm-256color',
+          },
           network: { mode: 'http' },
           shell: 'bash',
           onPackageProgress: ({ phase, download }) => {
@@ -300,7 +304,12 @@ export function BashTerminalPanel({
         process = await sandbox
           .command('bash', ['--noprofile', '--norc', '-i'], {
             cwd: '/workspace',
-            env: { HOME: '/workspace', TERM: 'xterm-256color', PS1: '\\w $ ' },
+            env: {
+              HOME: '/workspace',
+              PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+              TERM: 'xterm-256color',
+              PS1: '\\w $ ',
+            },
           })
           .spawn({ terminal: { columns: Math.max(terminal.cols, 60), rows: Math.max(terminal.rows, 12) } });
         if (disposed) {
@@ -418,7 +427,7 @@ export function BashTerminalPanel({
     if (!runRequest || handledRunSequence.current === runRequest.sequence) return;
     handledRunSequence.current = runRequest.sequence;
     onRunRequestHandled(runRequest.sequence);
-    terminalRef.current?.writeln('\r\n\x1b[33mRun Active File uses Node.js. Switch to the Node terminal to run this file.\x1b[0m');
+    terminalRef.current?.writeln('\r\n\x1b[33mRun Active File uses Node.js. Switch this Terminal to Node / npm mode to run this file.\x1b[0m');
   }, [runRequest]);
 
   useEffect(() => {

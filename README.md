@@ -128,19 +128,20 @@ access, including the integrated WebContainer terminal and package installs, sti
 
 ### Integrated terminal
 
-Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs in a
-browser-local WebAssembly/WASIX sandbox and automatically loads a compatible common-utilities bundle
-when one is available. Common commands such as `ls`, `cat`, `cp`, `mv`, `rm`, and `mkdir` need no
-manual package step. It does not execute on a remote server and requires no account, API key, or
-backend. Bash edits and new text files synchronize with the CodeForge project; the shell's temporary
-filesystem and history are session-local.
+Open the single **Terminal** section from the project drawer or command palette. **Bash** is selected
+by default. Bash and Node/npm are runtime modes inside that same Terminal—not separate sections—and
+switching modes replaces the active runtime view. Bash runs in a browser-local WebAssembly/WASIX
+sandbox and automatically tries compatible common-utilities bundles; there is no manual package step.
+If no bundle resolves, the Terminal reports that it has fallen back to Bash built-ins. It does not
+execute on a remote server and requires no account, API key, or backend. Bash edits and new text files
+synchronize with the CodeForge project; the shell's temporary filesystem and history are session-local.
 
 Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. Outbound TCP/DNS
 is disabled by default, so networked package managers such as `npm install` need a WISP proxy
-endpoint; no proxy is bundled. Use the
-**Node / npm** shell switch for the existing browser-based WebContainer runtime (`jsh`) when you need
-`npm`/`npx`, development servers, or its wider command set. Open ports there surface an **Open running
-app** link. `Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the Node terminal.
+endpoint; no proxy is bundled. Switch the same Terminal to **Node / npm** mode for the existing
+browser-based WebContainer runtime (`jsh`) when you need `npm`/`npx`, development servers, or its wider
+command set. Open ports there surface an **Open running app** link. `Ctrl/Cmd+Shift+Enter` runs the
+active JavaScript or TypeScript file in Node / npm mode.
 The terminal toolbar switches shells, runs the active file, copies/pastes selection, adjusts text size,
 restarts a stopped shell, and exposes mobile-friendly Tab/Escape/Ctrl/arrow keys. Quick-command chips
 provide safe starter commands for the selected runtime.
