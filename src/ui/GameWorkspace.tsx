@@ -46,6 +46,8 @@ interface GameWorkspaceProps {
   diffOriginal?: string;
   diffModified?: string;
   onExitDiff?: () => void;
+  onViewDiff?: () => void;
+  diffDisabledReason?: string;
   onOpenFile?: (path: string) => void;
   /** Publishes the selected object id so the phone layout can scroll to it. */
   onSelectEntity?: (id: string | null) => void;
@@ -113,6 +115,8 @@ export function GameWorkspace({
   diffOriginal,
   diffModified,
   onExitDiff,
+  onViewDiff,
+  diffDisabledReason,
   onOpenFile,
   onSelectEntity,
 }: GameWorkspaceProps) {
@@ -309,6 +313,8 @@ export function GameWorkspace({
         files={project.files}
         activeFile={project.activeFile}
         onSelect={projectActions.setActiveFile}
+        onDiff={onViewDiff}
+        diffDisabledReason={diffDisabledReason}
       />
       <EditorPane
         path={project.activeFile}

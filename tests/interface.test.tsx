@@ -37,6 +37,7 @@ import { NoticeBar } from '../src/ui/NoticeBar';
 import { DesktopWorkspace } from '../src/ui/DesktopWorkspace';
 import { Drawer } from '../src/ui/Drawer';
 import { TopBar } from '../src/ui/TopBar';
+import { Tabs } from '../src/ui/Tabs';
 import { SettingsPanel } from '../src/ui/SettingsPanel';
 import { currentRelease } from '../src/core/release';
 
@@ -441,6 +442,33 @@ describe('the file tree markup', () => {
     // which is the point: nothing in this markup deletes on the first click.
     const html = renderExplorer({ 'index.html': '' });
     expect(html).not.toContain('tree-confirm');
+  });
+});
+
+
+describe('editor tab diff action', () => {
+  const files = { 'src/app.ts': { content: 'const value = 1;', language: 'typescript' as const } };
+
+  it('keeps Diff discoverable and explains when a repository baseline is missing', () => {
+    const html = renderToStaticMarkup(
+      <Tabs
+        files={files}
+        activeFile="src/app.ts"
+        onSelect={noop}
+        diffDisabledReason="Connect GitHub in Source Control to establish a comparison baseline."
+      />,
+    );
+    expect(html).toContain('Diff');
+    expect(html).toContain('disabled=""');
+    expect(html).toContain('Connect GitHub in Source Control');
+  });
+
+  it('enables Diff for an active changed file', () => {
+    const html = renderToStaticMarkup(
+      <Tabs files={files} activeFile="src/app.ts" onSelect={noop} onDiff={noop} />,
+    );
+    expect(html).toContain('aria-label="View diff for src/app.ts"');
+    expect(html).not.toContain('disabled=""');
   });
 });
 

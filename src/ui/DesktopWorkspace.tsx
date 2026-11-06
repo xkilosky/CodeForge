@@ -44,6 +44,8 @@ interface DesktopWorkspaceProps {
   diffOriginal?: string;
   diffModified?: string;
   onExitDiff?: () => void;
+  onViewDiff?: () => void;
+  diffDisabledReason?: string;
   onSelectFile: (path: string) => void;
   onEdit: (value: string) => void;
   runtime: Runtime;
@@ -83,7 +85,13 @@ export function DesktopWorkspace(props: DesktopWorkspaceProps) {
 
   const editor = (
     <div className="pane pane-editor">
-      <Tabs files={props.files} activeFile={props.activeFile} onSelect={props.onSelectFile} />
+      <Tabs
+        files={props.files}
+        activeFile={props.activeFile}
+        onSelect={props.onSelectFile}
+        onDiff={props.onViewDiff}
+        diffDisabledReason={props.diffDisabledReason}
+      />
       <EditorPane
         path={props.activeFile}
         content={props.content}

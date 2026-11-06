@@ -308,3 +308,27 @@ export function getGitHubChanges(
     working: changesBetween(index, toSnapshot(files)),
   };
 }
+
+/** Return the most relevant before/after snapshots for a file's Diff action. */
+export function getGitHubDiff(
+  files: FileMap,
+  link: GitHubSourceControl,
+  path: string,
+): { original: string; modified: string } | null {
+  const hasStagedValue = Object.hasOwn(link.staged, path);
+  const stagedValue = link.staged[path];
+  const existsInIndex = hasStagedValue ? stagedValue !== null : Object.hasOwn(link.baseFiles, path);
+  const indexContent = hasStagedValue ? stagedValue ?? '' : link.baseFiles[path] ?? '';
+  const existsInWorkingTree = Object.hasOwn(files, path);
+  const workingContent = files[path]?.content ?? '';
+
+  if (existsInIndex !== existsInWorkingTree || indexContent !== workingContent) {
+    return { original: indexContent, modified: workingContent };
+  }
+
+  const original = link.baseFiles[path] ?? '';
+  const modified = hasStagedValue ? stagedValue ?? '' : workingContent;
+  const existsInBase = Object.hasOwn(link.baseFiles, path);
+  if (existsInBase !== existsInIndex || original !== modified) return { original, modified };
+  return null;
+}

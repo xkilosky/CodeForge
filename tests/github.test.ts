@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchGitHubSnapshot, getGitHubChanges, pushGitHubCommit } from '../src/core/github';
+import { fetchGitHubSnapshot, getGitHubChanges, getGitHubDiff, pushGitHubCommit } from '../src/core/github';
 import type { GitHubSourceControl } from '../src/core/types';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -42,6 +42,31 @@ describe('GitHub source control', () => {
       { path: 'src/edit.ts', status: 'modified' },
       { path: 'src/extra.ts', status: 'added' },
     ]);
+  });
+
+
+  it('returns the working diff first and falls back to the staged diff', () => {
+    const files = {
+      'src/edit.ts': { content: 'edited after staging', language: 'typescript' as const },
+      'src/new.ts': { content: 'new file', language: 'typescript' as const },
+    };
+    expect(getGitHubDiff(files, link, 'src/edit.ts')).toEqual({
+      original: 'staged content',
+      modified: 'edited after staging',
+    });
+    expect(getGitHubDiff(files, link, 'src/new.ts')).toEqual({
+      original: '',
+      modified: 'new file',
+    });
+    expect(getGitHubDiff(files, link, 'src/remove.ts')).toEqual({
+      original: 'gone',
+      modified: '',
+    });
+    expect(getGitHubDiff(
+      { 'src/edit.ts': { content: 'old', language: 'typescript' } },
+      { ...link, staged: {} },
+      'src/edit.ts',
+    )).toBeNull();
   });
 
   it('loads a branch snapshot and decodes text blobs', async () => {

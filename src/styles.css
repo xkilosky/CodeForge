@@ -288,10 +288,19 @@ button:focus-visible {
 
 /* ── tabs ─────────────────────────────────────────────── */
 .tabs {
-  display: flex; gap: 2px; padding: 6px 6px 0;
+  display: flex; gap: 4px; padding: 6px 6px 0;
   background: var(--bg-raise); border-bottom: 1px solid var(--border);
-  overflow-x: auto; flex: 0 0 auto;
+  overflow: hidden; flex: 0 0 auto; min-width: 0;
 }
+.tabs-list { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; }
+.tab-diff {
+  align-self: flex-start; flex: 0 0 auto; margin: 0 2px 4px auto; padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 6px; background: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  color: var(--accent); font-size: 10px; font-weight: 650; cursor: pointer;
+}
+.tab-diff:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--bg)); }
+.tab-diff:disabled { color: var(--muted); border-color: var(--border-soft); background: transparent; cursor: not-allowed; opacity: .72; }
 .tab {
   position: relative;
   background: transparent; border: 1px solid transparent; border-bottom: 0;

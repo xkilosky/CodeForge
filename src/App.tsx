@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { consoleStore, io } from './core/consoleStore';
 import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
+import { getGitHubDiff } from './core/github';
 import { runStore, startRun, stopRun } from './core/runSession';
 import { templateById } from './core/templates';
 import { accentHex, type AccentId, type EditorThemeId } from './core/theme';
@@ -241,6 +242,12 @@ export default function App() {
   const activeDiff = diffView?.path === activePath ? diffView : null;
   const diffOriginal = activeDiff?.original;
   const diffModified = activeDiff?.modified;
+  const currentDiff = project?.sourceControl && activePath
+    ? getGitHubDiff(project.files, project.sourceControl, activePath)
+    : null;
+  const diffDisabledReason = !project?.sourceControl
+    ? 'Connect GitHub in Source Control to establish a comparison baseline.'
+    : 'No changes in this file to compare.';
 
   useEffect(() => {
     if (diffView && (diffView.path !== activePath || !project?.sourceControl)) setDiffView(null);
@@ -317,6 +324,12 @@ export default function App() {
     setDesktopTab('code');
     setMobileTab('code');
   }, []);
+
+  const handleViewActiveDiff = useCallback(() => {
+    if (!project?.sourceControl || !activePath) return;
+    const diff = getGitHubDiff(project.files, project.sourceControl, activePath);
+    if (diff) handleViewSourceDiff(activePath, diff.original, diff.modified);
+  }, [project, activePath, handleViewSourceDiff]);
 
   const handleOpenSearchResult = useCallback(
     (result: ProjectTextMatch) => {
@@ -674,6 +687,8 @@ export default function App() {
           diffOriginal={diffOriginal}
           diffModified={diffModified}
           onExitDiff={handleCloseSourceDiff}
+          onViewDiff={!activeDiff && currentDiff ? handleViewActiveDiff : undefined}
+          diffDisabledReason={!activeDiff ? diffDisabledReason : undefined}
           compactSection={
             extraSection === 'objects'
               ? 'objects'
@@ -726,6 +741,8 @@ export default function App() {
                 files={project.files}
                 activeFile={activePath}
                 onSelect={projectActions.setActiveFile}
+                onDiff={!activeDiff && currentDiff ? handleViewActiveDiff : undefined}
+                diffDisabledReason={!activeDiff ? diffDisabledReason : undefined}
               />
               <div className="mobile-editor">
                 <EditorPane
@@ -813,6 +830,8 @@ export default function App() {
                 diffOriginal={diffOriginal}
                 diffModified={diffModified}
                 onExitDiff={handleCloseSourceDiff}
+                onViewDiff={!activeDiff && currentDiff ? handleViewActiveDiff : undefined}
+                diffDisabledReason={!activeDiff ? diffDisabledReason : undefined}
                 onSelectFile={projectActions.setActiveFile}
                 onEdit={(value) => projectActions.updateFile(activePath, value)}
                 runtime={runtime}
