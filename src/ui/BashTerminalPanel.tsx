@@ -121,6 +121,7 @@ export function BashTerminalPanel({
   const handledRunSequence = useRef(0);
   const pendingRunRef = useRef<{ path: string; sequence: number } | undefined>(undefined);
   const outputLineBuffer = useRef('');
+  const recentOutputRef = useRef('');
   const lastErrorLine = useRef('');
   const issuesRef = useRef<TerminalIssue[]>([]);
   const [status, setStatus] = useState<TerminalStatus>('starting');
@@ -180,6 +181,7 @@ export function BashTerminalPanel({
     lastSyncedFilesRef.current = projectFiles(filesRef.current);
 
     const appendOutput = (chunk: string) => {
+      recentOutputRef.current = `${recentOutputRef.current}${chunk}`.slice(-800);
       terminal?.write(chunk);
       const combined = outputLineBuffer.current + chunk;
       const lines = combined.split(/\r?\n/);
@@ -326,7 +328,7 @@ export function BashTerminalPanel({
 
         setStatusMessage('Opening interactive Bash…');
         process = await sandbox
-          .command('bash', ['--noprofile', '--norc', '-i'], {
+          .command('bash', ['-i'], {
             cwd: '/workspace',
             env: {
               HOME: '/workspace',
@@ -374,9 +376,14 @@ export function BashTerminalPanel({
           if (disposed) return;
           processRef.current = null;
           setStatus(result.exitCode === 0 ? 'stopped' : 'error');
+          const detail = recentOutputRef.current
+            .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(-320);
           setStatusMessage(result.exitCode === 0
             ? 'Bash exited. Start a new session to continue.'
-            : `Bash exited with code ${result.exitCode}. Restart to try again.`);
+            : `Bash exited with code ${result.exitCode}.${detail ? ` Last output: ${detail}` : ''} Restart to try again.`);
         }).catch((error: unknown) => {
           if (disposed) return;
           processRef.current = null;
