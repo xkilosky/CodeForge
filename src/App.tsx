@@ -5,6 +5,11 @@ import { projectActions, projectStore } from './core/projectStore';
 import { runStore, startRun, stopRun } from './core/runSession';
 import { templateById } from './core/templates';
 import { accentHex, type AccentId, type EditorThemeId } from './core/theme';
+import {
+  loadInterfaceTheme,
+  saveInterfaceTheme,
+  type InterfaceThemeId,
+} from './core/interfaceTheme';
 import { loadLayout, layoutActions, layoutStore } from './core/layoutStore';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
@@ -53,6 +58,7 @@ export default function App() {
   const layoutState = useStore(layoutStore);
   const layout = useLayoutMode();
   const [runSignal, setRunSignal] = useState(0);
+  const [interfaceTheme, setInterfaceTheme] = useState<InterfaceThemeId>(() => loadInterfaceTheme());
   /** The active full-screen section on compact layouts. */
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
   /** The project the user most recently had open, for the home screen. */
@@ -345,7 +351,7 @@ export default function App() {
       {
         id: 'look',
         label: 'Open Look settings',
-        description: 'Change interface accents and editor theme',
+        description: 'Change interface theme, project accent and editor theme',
         run: () => handleSection('look'),
       },
       {
@@ -433,6 +439,9 @@ export default function App() {
 
   const handleAccent = useCallback((accent: AccentId) => projectActions.setAccent(accent), []);
   const handleTheme = useCallback((theme: EditorThemeId) => projectActions.setEditorTheme(theme), []);
+  const handleInterfaceTheme = useCallback((theme: InterfaceThemeId) => {
+    setInterfaceTheme(saveInterfaceTheme(theme));
+  }, []);
 
   const sourceControlPanel = project ? (
     <SourceControlPanel
@@ -460,6 +469,7 @@ export default function App() {
   return (
     <div
       className={`app${drawerLayout}`}
+      data-interface-theme={interfaceTheme}
       style={project ? ({ '--accent': accentHex(project.accent) } as React.CSSProperties) : undefined}
     >
       <TopBar
@@ -592,7 +602,13 @@ export default function App() {
                 {extraSection === 'look' ? 'Look' : extraSection === 'backup' ? 'Backup' : 'Source Control'}
               </div>
               {extraSection === 'look' ? (
-                <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+                <SettingsPanel
+                  project={project}
+                  interfaceTheme={interfaceTheme}
+                  onAccent={handleAccent}
+                  onTheme={handleTheme}
+                  onInterfaceTheme={handleInterfaceTheme}
+                />
               ) : extraSection === 'backup' ? (
                 <BackupPanel
                   project={project}
@@ -607,7 +623,13 @@ export default function App() {
             <main className="center">
               <div className="section-pane">
                 {extraSection === 'look' ? (
-                  <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+                  <SettingsPanel
+                    project={project}
+                    interfaceTheme={interfaceTheme}
+                    onAccent={handleAccent}
+                    onTheme={handleTheme}
+                    onInterfaceTheme={handleInterfaceTheme}
+                  />
                 ) : extraSection === 'backup' ? (
                   <BackupPanel
                     project={project}
@@ -645,7 +667,13 @@ export default function App() {
           {extraSection === 'look' ? (
             <section className="mobile-section mobile-section-settings">
               <div className="mobile-section-head">Look</div>
-              <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+              <SettingsPanel
+                project={project}
+                interfaceTheme={interfaceTheme}
+                onAccent={handleAccent}
+                onTheme={handleTheme}
+                onInterfaceTheme={handleInterfaceTheme}
+              />
             </section>
           ) : extraSection === 'backup' ? (
             <section className="mobile-section mobile-section-settings">
@@ -722,7 +750,13 @@ export default function App() {
           <main className="center">
             {extraSection === 'look' ? (
               <div className="section-pane">
-                <SettingsPanel project={project} onAccent={handleAccent} onTheme={handleTheme} />
+                <SettingsPanel
+                  project={project}
+                  interfaceTheme={interfaceTheme}
+                  onAccent={handleAccent}
+                  onTheme={handleTheme}
+                  onInterfaceTheme={handleInterfaceTheme}
+                />
               </div>
             ) : extraSection === 'backup' ? (
               <div className="section-pane">

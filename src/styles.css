@@ -18,6 +18,8 @@
   --ok: #8fd2a0;
   --warn: #e2b76f;
   --error: #e78d9b;
+  --scrollbar-thumb: #465064;
+  --scrollbar-hover: #5b6b85;
 
   /* Translucent panels carry cool blue/violet light in the chrome, not glow. */
   --glass: rgba(26, 30, 39, 0.95);
@@ -38,6 +40,38 @@
   --drawer-w: 274px;
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+/* VS Code Dark changes application chrome only; Monaco keeps its own Night/Storm themes. */
+.app[data-interface-theme='vscode-dark'] {
+  color-scheme: dark;
+  color: var(--text);
+  --bg: #1e1e1e;
+  --bg-raise: #252526;
+  --bg-raise-2: #2d2d30;
+  --bg-sunken: #181818;
+  --border: #3c3c3c;
+  --border-soft: #333333;
+  --text: #d4d4d4;
+  --text-dim: #b5b5b5;
+  --muted: #969696;
+  --accent: #3794ff;
+  --purple: #c586c0;
+  --cyan: #75beff;
+  --teal: #4ec9b0;
+  --ok: #89d185;
+  --warn: #cca700;
+  --error: #f48771;
+  --scrollbar-thumb: #4a4a4a;
+  --scrollbar-hover: #626262;
+  --glass: rgba(37, 37, 38, 0.97);
+  --glass-strong: rgba(30, 30, 30, 0.99);
+  --glass-border: rgba(190, 190, 190, 0.17);
+  --lit-top: rgba(255, 255, 255, 0.045);
+  --sheen: linear-gradient(180deg, rgba(55, 148, 255, 0.04), transparent 42%);
+  background:
+    radial-gradient(ellipse 1000px 700px at 8% 0%, rgba(0, 122, 204, 0.05), transparent 72%),
+    var(--bg);
 }
 
 * { box-sizing: border-box; }
@@ -63,14 +97,14 @@ body {
 /* Soft project-accent selection and unobtrusive scrollbars. */
 ::selection { background: color-mix(in srgb, var(--accent) 34%, transparent); }
 
-* { scrollbar-width: thin; scrollbar-color: #465064 transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: #343b48; border-radius: 999px;
-  border: 2px solid transparent; background-clip: content-box;
+  background: color-mix(in srgb, var(--scrollbar-thumb) 74%, var(--bg-raise));
+  border-radius: 999px; border: 2px solid transparent; background-clip: content-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: #4a5569; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); background-clip: content-box; }
 *::-webkit-scrollbar-corner { background: transparent; }
 
 .visually-hidden {
@@ -1636,6 +1670,27 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .theme-option:hover { border-color: var(--accent-soft); }
 .theme-option:active { transform: scale(0.995); }
+.interface-theme-preview {
+  --preview-bg: #1e1e1e;
+  --preview-sidebar: #252526;
+  --preview-accent: #3794ff;
+  position: relative; flex: 0 0 auto; width: 40px; height: 28px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text-dim) 24%, var(--border)); border-radius: 5px;
+  background: linear-gradient(90deg, var(--preview-sidebar) 0 32%, transparent 32%), var(--preview-bg);
+}
+.interface-theme-preview::before {
+  content: ''; position: absolute; top: 0; left: 32%; right: 0; height: 5px;
+  background: color-mix(in srgb, var(--preview-bg) 70%, white);
+}
+.interface-theme-preview::after {
+  content: ''; position: absolute; left: 4px; top: 9px; width: 8px; height: 2px;
+  border-radius: 2px; background: var(--preview-accent);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--preview-accent) 45%, var(--preview-sidebar));
+}
+.interface-theme-preview.cursor-midnight {
+  --preview-bg: #11141b; --preview-sidebar: #1a1e27; --preview-accent: #78a9ff;
+}
+.theme-option.active .interface-theme-preview { border-color: color-mix(in srgb, var(--accent) 58%, var(--border)); }
 .theme-option.active {
   border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-raise));

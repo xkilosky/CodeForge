@@ -21,6 +21,13 @@ import {
   resolveEditorTheme,
   MONACO_THEMES,
 } from '../src/core/theme';
+import {
+  DEFAULT_INTERFACE_THEME,
+  INTERFACE_THEMES,
+  loadInterfaceTheme,
+  resolveInterfaceTheme,
+  saveInterfaceTheme,
+} from '../src/core/interfaceTheme';
 import { highlight, rankFiles, scoreMatch, searchProjectFiles } from '../src/core/search';
 import { exportFileName, parseProject, serializeProject } from '../src/core/transfer';
 import { projectFromTemplate, templateById } from '../src/core/templates';
@@ -30,6 +37,7 @@ import { NoticeBar } from '../src/ui/NoticeBar';
 import { DesktopWorkspace } from '../src/ui/DesktopWorkspace';
 import { Drawer } from '../src/ui/Drawer';
 import { TopBar } from '../src/ui/TopBar';
+import { SettingsPanel } from '../src/ui/SettingsPanel';
 import { currentRelease } from '../src/core/release';
 
 /*
@@ -97,7 +105,7 @@ describe('theme', () => {
     expect(accentHex('chartreuse')).toBe(INTERFACE.accent);
   });
 
-  it('offers distinct, low-key project accents for the graphite interface', () => {
+  it('offers distinct, softened project accents for the dark interface themes', () => {
     const ids = ACCENTS.map((accent) => accent.id);
     const colors = ACCENTS.map((accent) => accent.hex);
     expect(new Set(ids).size).toBe(ids.length);
@@ -131,6 +139,52 @@ describe('theme', () => {
     expect(INTERFACE.bg).not.toBe(INTERFACE.bgRaise);
     expect(INTERFACE.bgRaise).not.toBe(INTERFACE.bgRaise2);
     for (const token of CSS_TOKENS) expect(token.value).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+});
+
+describe('application chrome themes', () => {
+  it('offers VS Code Dark and Cursor Midnight as a global preference', () => {
+    expect(INTERFACE_THEMES.map((theme) => theme.id)).toEqual(['vscode-dark', 'cursor-midnight']);
+    expect(DEFAULT_INTERFACE_THEME).toBe('vscode-dark');
+    expect(resolveInterfaceTheme('cursor-midnight')).toBe('cursor-midnight');
+    expect(resolveInterfaceTheme('unknown')).toBe(DEFAULT_INTERFACE_THEME);
+
+    const values: Record<string, string> = { 'codeforge:interface-theme': 'cursor-midnight' };
+    const storage = {
+      getItem: (key: string) => values[key] ?? null,
+      setItem: (key: string, value: string) => { values[key] = value; },
+    };
+    expect(loadInterfaceTheme(storage)).toBe('cursor-midnight');
+    expect(saveInterfaceTheme('vscode-dark', storage)).toBe('vscode-dark');
+    expect(values['codeforge:interface-theme']).toBe('vscode-dark');
+  });
+
+  it('applies VS Code Dark tokens to chrome through a separate app theme selector', () => {
+    const css = readFileSync('src/styles.css', 'utf8');
+    expect(css).toContain(".app[data-interface-theme='vscode-dark']");
+    expect(css).toContain('--bg: #1e1e1e;');
+    expect(css).toContain('--accent: #3794ff;');
+    expect(MONACO_THEMES.map((theme) => theme.id)).toEqual(['tokyo-night', 'tokyo-storm']);
+  });
+
+  it('keeps the interface selector separate from Night and Storm editor themes', () => {
+    const project = projectFromTemplate(templateById('web-starter')!, 'Theme test');
+    const html = renderToStaticMarkup(
+      <SettingsPanel
+        project={project}
+        interfaceTheme="vscode-dark"
+        onAccent={noop}
+        onTheme={noop}
+        onInterfaceTheme={noop}
+      />,
+    );
+    expect(html).toContain('aria-label="Interface theme"');
+    expect(html).toContain('VS Code Dark');
+    expect(html).toContain('Cursor Midnight');
+    expect(html).toContain('interface-theme-option active');
+    expect(html).toContain('aria-label="Editor theme"');
+    expect(html).toContain('Night');
+    expect(html).toContain('Storm');
   });
 });
 

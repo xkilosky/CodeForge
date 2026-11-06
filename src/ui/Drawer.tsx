@@ -50,7 +50,7 @@ export const SECTIONS: {
   { id: 'code', label: 'Code', hint: 'Editor and tabs' },
   { id: 'preview', label: 'Preview', hint: 'Live output' },
   { id: 'output', label: 'Output', hint: 'Console and problems' },
-  { id: 'look', label: 'Look', hint: 'Accent and editor theme' },
+  { id: 'look', label: 'Look', hint: 'Interface, accent and editor themes' },
   { id: 'backup', label: 'Backup', hint: 'Export and import' },
   { id: 'source', label: 'Source Control', hint: 'GitHub changes and commits' },
 ];

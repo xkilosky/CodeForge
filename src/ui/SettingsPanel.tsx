@@ -1,21 +1,29 @@
 /**
- * The "Look" section: accent and editor theme.
+ * The "Look" section: global interface theme, project accent, and editor theme.
  *
- * Two settings, both project-scoped, both applied instantly. They are here
- * rather than in a modal because the whole point is to see the change while
- * choosing it, and a modal covers the thing being restyled.
+ * Chrome theme follows the user between projects; accent and Monaco theme stay
+ * project-scoped. All three apply instantly so the user can see the result.
  */
 import type { Project } from '../core/types';
 import { ACCENTS, EDITOR_THEMES, resolveEditorTheme, type AccentId, type EditorThemeId } from '../core/theme';
+import { INTERFACE_THEMES, type InterfaceThemeId } from '../core/interfaceTheme';
 import { PaletteIcon } from './icons';
 
 interface SettingsPanelProps {
   project: Project;
+  interfaceTheme: InterfaceThemeId;
   onAccent: (accent: AccentId) => void;
   onTheme: (theme: EditorThemeId) => void;
+  onInterfaceTheme: (theme: InterfaceThemeId) => void;
 }
 
-export function SettingsPanel({ project, onAccent, onTheme }: SettingsPanelProps) {
+export function SettingsPanel({
+  project,
+  interfaceTheme,
+  onAccent,
+  onTheme,
+  onInterfaceTheme,
+}: SettingsPanelProps) {
   const theme = resolveEditorTheme(project.settings.theme);
 
   return (
@@ -43,6 +51,33 @@ export function SettingsPanel({ project, onAccent, onTheme }: SettingsPanelProps
                 style={{ background: accent.hex }}
                 onClick={() => onAccent(accent.id)}
               />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-label">Interface theme</div>
+        <p className="muted settings-note">
+          Changes app surfaces and controls only. Editor colors stay independent.
+        </p>
+        <div className="theme-options" role="radiogroup" aria-label="Interface theme">
+          {INTERFACE_THEMES.map((option) => {
+            const active = interfaceTheme === option.id;
+            return (
+              <button
+                key={option.id}
+                role="radio"
+                aria-checked={active}
+                className={`theme-option interface-theme-option${active ? ' active' : ''}`}
+                onClick={() => onInterfaceTheme(option.id)}
+              >
+                <span className={`interface-theme-preview ${option.id}`} aria-hidden="true" />
+                <span className="theme-text">
+                  <span className="theme-name">{option.label}</span>
+                  <span className="theme-note">{option.note}</span>
+                </span>
+              </button>
             );
           })}
         </div>
