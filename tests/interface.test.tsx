@@ -388,6 +388,25 @@ describe('the file tree markup', () => {
     expect(html).toContain('index.html');
   });
 
+  it('shows recognizable type marks for files instead of using one generic icon', () => {
+    const html = renderExplorer({
+      'main.py': '',
+      'src/app.tsx': '',
+      'styles/site.css': '',
+      'config.json': '',
+      'README.md': '',
+      'notes.unknown': '',
+    });
+
+    expect(html).toContain('tree-file-type--py');
+    expect(html).toContain('>Py</span>');
+    expect(html).toContain('tree-file-type--tsx');
+    expect(html).toContain('tree-file-type--css');
+    expect(html).toContain('tree-file-type--json');
+    expect(html).toContain('tree-file-type--md');
+    expect(html).toContain('<svg'); // Unknown extensions retain the neutral file icon.
+  });
+
   it('shows an empty folder rather than hiding it', () => {
     const html = renderExplorer({ 'index.html': '' }, ['assets']);
     expect(html).toContain('assets');

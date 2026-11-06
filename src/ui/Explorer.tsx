@@ -69,6 +69,40 @@ function fileColor(path: string): string {
   return EXT_COLOR[extensionOf(path)] ?? 'var(--muted)';
 }
 
+/** Compact, recognizable marks for common source and config file types. */
+const FILE_TYPE_MARK: Record<string, string> = {
+  html: '<>', htm: '<>',
+  css: '#', scss: '#', sass: '#', less: '#',
+  js: 'JS', mjs: 'JS', cjs: 'JS',
+  jsx: 'JSX',
+  ts: 'TS', mts: 'TS', cts: 'TS',
+  tsx: 'TSX',
+  py: 'Py', pyw: 'Py',
+  json: '{}',
+  md: 'M↓', mdx: 'M↓',
+  yaml: 'YML', yml: 'YML',
+  toml: 'T',
+  xml: 'XML', svg: 'SVG',
+  sh: '$', bash: '$', zsh: '$',
+  sql: 'SQL',
+  go: 'Go', rs: 'Rs', java: 'J',
+  c: 'C', h: 'C', cc: 'C++', cpp: 'C++', hpp: 'C++',
+};
+
+function FileTypeIcon({ path }: { path: string }) {
+  const extension = extensionOf(path);
+  const mark = FILE_TYPE_MARK[extension];
+  return (
+    <span
+      className={`tree-glyph${mark ? ` tree-file-type tree-file-type--${extension}` : ''}`}
+      style={{ color: fileColor(path) }}
+      aria-hidden="true"
+    >
+      {mark ?? <FileIcon />}
+    </span>
+  );
+}
+
 /**
  * The toolbar's small icon button. Kept local because it is only ever used in
  * this row, and a shared `IconButton` would need every prop in the app to
@@ -273,9 +307,7 @@ export function Explorer({
           }}
           title={node.path}
         >
-          <span className="tree-glyph" style={{ color: fileColor(node.path) }}>
-            <FileIcon />
-          </span>
+          <FileTypeIcon path={node.path} />
           <span className="tree-name">{node.name}</span>
         </button>
 
