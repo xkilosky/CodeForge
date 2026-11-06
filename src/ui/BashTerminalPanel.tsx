@@ -4,6 +4,7 @@ import type { Terminal as TerminalType } from '@xterm/xterm';
 import type { Process as WasmerProcess, ReadableBytes, Sandbox as WasmerSandbox, Wasmer as WasmerClient } from '@wasmer/sdk/browser';
 import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
+import { colorizeTerminalLine, mayBeRichTerminalLinePrefix } from '../core/terminalColors';
 import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
 import { TerminalChrome, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
@@ -122,6 +123,8 @@ export function BashTerminalPanel({
   const handledRunSequence = useRef(0);
   const pendingRunRef = useRef<{ path: string; sequence: number } | undefined>(undefined);
   const outputLineBuffer = useRef('');
+  const richOutputLineBuffer = useRef('');
+  const richOutputFlushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const recentOutputRef = useRef('');
   const lastErrorLine = useRef('');
   const issuesRef = useRef<TerminalIssue[]>([]);
@@ -203,9 +206,48 @@ export function BashTerminalPanel({
     setTerminalDiagnostics([]);
     lastSyncedFilesRef.current = projectFiles(filesRef.current);
 
+    const flushRichOutputLine = () => {
+      if (richOutputFlushTimer.current) clearTimeout(richOutputFlushTimer.current);
+      richOutputFlushTimer.current = undefined;
+      const pending = richOutputLineBuffer.current;
+      richOutputLineBuffer.current = '';
+      if (!pending) return;
+      const carriageReturn = pending.endsWith('\r') ? '\r' : '';
+      const line = carriageReturn ? pending.slice(0, -1) : pending;
+      terminal?.write(`${colorizeTerminalLine(line)}${carriageReturn}`);
+    };
+
+    const writeRichOutput = (chunk: string) => {
+      if (chunk.includes('\u001b')) {
+        flushRichOutputLine();
+        terminal?.write(chunk);
+        return;
+      }
+
+      const combined = richOutputLineBuffer.current + chunk;
+      richOutputLineBuffer.current = '';
+      const lines = combined.split('\n');
+      const partial = lines.pop() ?? '';
+      for (const rawLine of lines) {
+        const carriageReturn = rawLine.endsWith('\r') ? '\r' : '';
+        const line = carriageReturn ? rawLine.slice(0, -1) : rawLine;
+        terminal?.write(`${colorizeTerminalLine(line)}${carriageReturn}\n`);
+      }
+      if (!partial) return;
+      if (partial.length > 320 || !mayBeRichTerminalLinePrefix(partial)) {
+        richOutputLineBuffer.current = '';
+        terminal?.write(partial);
+        return;
+      }
+      richOutputLineBuffer.current = partial;
+      if (!richOutputFlushTimer.current) {
+        richOutputFlushTimer.current = setTimeout(flushRichOutputLine, 80);
+      }
+    };
+
     const appendOutput = (chunk: string) => {
       recentOutputRef.current = `${recentOutputRef.current}${chunk}`.slice(-800);
-      terminal?.write(chunk);
+      writeRichOutput(chunk);
       const combined = outputLineBuffer.current + chunk;
       const lines = combined.split(/\r?\n/);
       outputLineBuffer.current = lines.pop() ?? '';
@@ -315,6 +357,9 @@ export function BashTerminalPanel({
             HOME: '/workspace',
             PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
             TERM: 'xterm-256color',
+            COLORTERM: 'truecolor',
+            CLICOLOR_FORCE: '1',
+            FORCE_COLOR: '1',
           },
           network: { mode: 'http' },
           shell: 'bash',
@@ -352,6 +397,9 @@ export function BashTerminalPanel({
         setStatusMessage('Opening interactive Bash…');
         recentOutputRef.current = '';
         outputLineBuffer.current = '';
+        richOutputLineBuffer.current = '';
+        if (richOutputFlushTimer.current) clearTimeout(richOutputFlushTimer.current);
+        richOutputFlushTimer.current = undefined;
         lastErrorLine.current = '';
         process = await sandbox
           .command('bash', ['--noprofile', '--norc', '-i'], {
@@ -360,7 +408,10 @@ export function BashTerminalPanel({
               HOME: '/workspace',
               PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
               TERM: 'xterm-256color',
-              PS1: '\\w $ ',
+              COLORTERM: 'truecolor',
+              CLICOLOR_FORCE: '1',
+              FORCE_COLOR: '1',
+              PS1: '\\[\\e[32m\\]\\w\\[\\e[0m\\] \\$ ',
             },
           })
           .spawn({ terminal: { columns: Math.max(terminal.cols, 60), rows: Math.max(terminal.rows, 12) } });
@@ -412,6 +463,7 @@ export function BashTerminalPanel({
             // drained their final buffered bytes. Wait for both streams so the
             // failure banner reports the real shell startup output.
             await Promise.all(outputPumps);
+            flushRichOutputLine();
             if (disposed) return;
             processRef.current = null;
             setStatus(result.exitCode === 0 ? 'stopped' : 'error');
@@ -453,6 +505,9 @@ export function BashTerminalPanel({
     return () => {
       disposed = true;
       if (pollTimer) clearTimeout(pollTimer);
+      if (richOutputFlushTimer.current) clearTimeout(richOutputFlushTimer.current);
+      richOutputFlushTimer.current = undefined;
+      richOutputLineBuffer.current = '';
       const activeProcess = processRef.current;
       processRef.current = null;
       if (activeProcess) void activeProcess.terminate({ gracePeriodMs: 250 }).catch(() => undefined);
@@ -612,6 +667,9 @@ export function BashTerminalPanel({
     issuesRef.current = [];
     setIssues([]);
     outputLineBuffer.current = '';
+    richOutputLineBuffer.current = '';
+    if (richOutputFlushTimer.current) clearTimeout(richOutputFlushTimer.current);
+    richOutputFlushTimer.current = undefined;
     lastErrorLine.current = '';
     setTerminalDiagnostics([]);
   };
