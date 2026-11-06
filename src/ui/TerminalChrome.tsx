@@ -1,12 +1,14 @@
-import type { RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import type { Terminal as TerminalType } from '@xterm/xterm';
 import type { TerminalIssue } from '../core/terminalDiagnostics';
+import type { TerminalActivity } from '../core/terminalActivity';
 
 export type TerminalStatus = 'starting' | 'ready' | 'stopped' | 'error';
 
 interface TerminalChromeProps {
   status: TerminalStatus;
   statusMessage: string;
+  activity: TerminalActivity | null;
   projectName: string;
   activePath: string;
   terminalRef: RefObject<TerminalType | null>;
@@ -40,9 +42,16 @@ function changeFontSize(terminalRef: RefObject<TerminalType | null>, delta: numb
   terminal.refresh(0, Math.max(0, terminal.rows - 1));
 }
 
+function formatElapsed(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+}
+
 export function TerminalChrome({
   status,
   statusMessage,
+  activity,
   projectName,
   activePath,
   terminalRef,
@@ -95,6 +104,14 @@ export function TerminalChrome({
   };
 
   const quickCommands = ['pwd', 'help', 'echo ready'];
+  const [activityNow, setActivityNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!activity) return;
+    setActivityNow(Date.now());
+    const timer = setInterval(() => setActivityNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [activity?.startedAt]);
 
   return (
     <>
@@ -138,6 +155,30 @@ export function TerminalChrome({
           <button type="button" onClick={onRestart} title={status === 'error' ? 'Retry starting the terminal' : status === 'stopped' ? 'Start a new shell session' : 'Restart the shell'}>{status === 'error' ? 'Retry' : status === 'stopped' ? 'Start' : 'Restart'}</button>
         </div>
       </div>
+
+      {activity && status !== 'error' ? (
+        <section className="terminal-activity" aria-label={`${activity.label}${activity.percent === null ? '' : `, ${activity.percent}%`}`}>
+          <div className="terminal-activity-copy">
+            <span className="terminal-activity-spinner" aria-hidden="true" />
+            <strong>{activity.label}</strong>
+            <span className="terminal-activity-elapsed">{formatElapsed(activityNow - activity.startedAt)}</span>
+            {activity.percent !== null ? <span className="terminal-activity-percent">{activity.percent}%</span> : null}
+          </div>
+          <div
+            className={`terminal-progress-track${activity.percent === null ? ' is-indeterminate' : ''}`}
+            role="progressbar"
+            aria-label={activity.label}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={activity.percent ?? undefined}
+          >
+            <span
+              className="terminal-progress-fill"
+              style={{ width: activity.percent === null ? '34%' : `${activity.percent}%` }}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {status === 'error' ? (
         <div className="terminal-error-banner" role="alert">

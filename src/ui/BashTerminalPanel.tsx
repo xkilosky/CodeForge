@@ -5,6 +5,7 @@ import type { Process as WasmerProcess, ReadableBytes, Sandbox as WasmerSandbox,
 import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
 import { colorizeTerminalLine, mayBeRichTerminalLinePrefix } from '../core/terminalColors';
+import { describeTerminalCommand, parseTerminalProgress, type TerminalActivity } from '../core/terminalActivity';
 import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
 import { TerminalChrome, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
@@ -113,6 +114,9 @@ export function BashTerminalPanel({
   const fitRef = useRef<FitAddonType | null>(null);
   const processRef = useRef<WasmerProcess | null>(null);
   const stdinWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const commandInputBuffer = useRef('');
+  const promptMarkerBuffer = useRef('');
+  const progressOutputBuffer = useRef('');
   const sandboxRef = useRef<WasmerSandbox | null>(null);
   const clientRef = useRef<WasmerClient | null>(null);
   const filesRef = useRef(files);
@@ -130,7 +134,14 @@ export function BashTerminalPanel({
   const issuesRef = useRef<TerminalIssue[]>([]);
   const [status, setStatus] = useState<TerminalStatus>('starting');
   const [statusMessage, setStatusMessage] = useState('Starting browser-local Bash…');
+  const [activity, setActivity] = useState<TerminalActivity | null>(null);
+  const activityRef = useRef<TerminalActivity | null>(null);
   const [issues, setIssues] = useState<TerminalIssue[]>([]);
+
+  const updateActivity = useCallback((next: TerminalActivity | null) => {
+    activityRef.current = next;
+    setActivity(next);
+  }, []);
 
   filesRef.current = files;
   projectNameRef.current = projectName;
@@ -147,9 +158,30 @@ export function BashTerminalPanel({
     }
     const input = activeProcess.stdin;
     if (!input) {
+      updateActivity(null);
       setStatus('error');
       setStatusMessage('Bash is running without an input stream. Tap Retry to restart the terminal.');
       return;
+    }
+    if (data.includes('\u0003')) {
+      commandInputBuffer.current = '';
+      updateActivity(null);
+    } else if (!data.includes('\u001b')) {
+      for (const character of data) {
+        if (character === '\r' || character === '\n') {
+          const command = commandInputBuffer.current.trim();
+          commandInputBuffer.current = '';
+          if (command) {
+            progressOutputBuffer.current = '';
+            updateActivity({ label: describeTerminalCommand(command), percent: null, startedAt: Date.now() });
+            setStatusMessage(`Running ${command.slice(0, 72)}${command.length > 72 ? '…' : ''}`);
+          }
+        } else if (character === '\u007f' || character === '\b') {
+          commandInputBuffer.current = Array.from(commandInputBuffer.current).slice(0, -1).join('');
+        } else if (character >= ' ' && character !== '\t') {
+          commandInputBuffer.current += character;
+        }
+      }
     }
     // Some Android keyboards send LF while xterm's PTY expects carriage return
     // for Enter. Normalize pasted and keyboard line endings before forwarding.
@@ -159,10 +191,11 @@ export function BashTerminalPanel({
     stdinWriteQueueRef.current = stdinWriteQueueRef.current
       .then(() => input.write(normalized))
       .catch((error: unknown) => {
+        updateActivity(null);
         setStatus('error');
         setStatusMessage(`Could not send input to Bash: ${error instanceof Error ? error.message : String(error)}`);
       });
-  }, []);
+  }, [updateActivity]);
 
   const runBashScript = useCallback((request: { path: string; sequence: number }) => {
     const path = request.path.replace(/\\/g, '/').replace(/^\/+/, '');
@@ -197,10 +230,15 @@ export function BashTerminalPanel({
     let client: WasmerClient | null = null;
     let sandbox: WasmerSandbox | null = null;
     let process: WasmerProcess | null = null;
+    let utilitiesPackage: string | null = null;
     let scanInProgress = false;
 
     setStatus('starting');
     setStatusMessage('Starting browser-local Bash…');
+    updateActivity({ label: 'Preparing Bash runtime', percent: null, startedAt: Date.now() });
+    promptMarkerBuffer.current = '';
+    progressOutputBuffer.current = '';
+    commandInputBuffer.current = '';
     issuesRef.current = [];
     setIssues([]);
     setTerminalDiagnostics([]);
@@ -247,6 +285,40 @@ export function BashTerminalPanel({
 
     const appendOutput = (chunk: string) => {
       recentOutputRef.current = `${recentOutputRef.current}${chunk}`.slice(-800);
+      const currentActivity = activityRef.current;
+      const progressText = progressOutputBuffer.current + chunk;
+      const reportedPercent = parseTerminalProgress(progressText);
+      progressOutputBuffer.current = progressText.slice(-180);
+      if (currentActivity && reportedPercent !== null) {
+        updateActivity({ ...currentActivity, percent: reportedPercent });
+      }
+      const markerText = promptMarkerBuffer.current + chunk;
+      const promptMarker = markerText.match(/\u001b\]133;A(?:;(\d+))?\u0007/);
+      if (promptMarker) {
+        promptMarkerBuffer.current = '';
+        progressOutputBuffer.current = '';
+        if (currentActivity?.label === 'Waiting for Bash prompt') {
+          updateActivity(null);
+          setStatus('ready');
+          setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
+          const queuedRun = pendingRunRef.current;
+          if (queuedRun) {
+            pendingRunRef.current = undefined;
+            runBashScript(queuedRun);
+          }
+        } else if (currentActivity) {
+          updateActivity(null);
+          const exitCode = promptMarker[1];
+          setStatusMessage(exitCode && exitCode !== '0'
+            ? `${currentActivity.label} finished · exit ${exitCode}`
+            : `${currentActivity.label} completed`);
+        } else {
+          setStatus('ready');
+          setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
+        }
+      } else {
+        promptMarkerBuffer.current = markerText.slice(-24);
+      }
       writeRichOutput(chunk);
       const combined = outputLineBuffer.current + chunk;
       const lines = combined.split(/\r?\n/);
@@ -366,12 +438,15 @@ export function BashTerminalPanel({
           onPackageProgress: ({ phase, download }) => {
             if (disposed) return;
             const percent = download.percent;
-            setStatusMessage(percent === null
-              ? `Loading Bash and commands · ${phase}`
-              : `Loading Bash and commands · ${Math.round(percent)}%`);
+            const label = `Loading Bash and commands · ${phase}`;
+            setStatusMessage(percent === null ? label : `Loading Bash and commands · ${Math.round(percent)}%`);
+            updateActivity({
+              label,
+              percent: percent === null ? null : Math.round(percent),
+              startedAt: activityRef.current?.startedAt ?? Date.now(),
+            });
           },
         });
-        let utilitiesPackage: string | null = null;
         for (const candidate of ['wasmer/coreutils', 'wasmer/busybox', 'busybox/busybox']) {
           try {
             sandbox = await createSandbox(['wasmer/bash', candidate]);
@@ -411,6 +486,7 @@ export function BashTerminalPanel({
               COLORTERM: 'truecolor',
               CLICOLOR_FORCE: '1',
               FORCE_COLOR: '1',
+              PROMPT_COMMAND: '__cf_status=$?; printf "\\033]133;A;%s\\007" "$__cf_status"',
               PS1: '\\[\\e[32m\\]\\w\\[\\e[0m\\] \\$ ',
             },
           })
@@ -426,13 +502,9 @@ export function BashTerminalPanel({
         }
         stdinWriteQueueRef.current = Promise.resolve();
         processRef.current = process;
-        const queuedRun = pendingRunRef.current;
-        if (queuedRun) {
-          pendingRunRef.current = undefined;
-          runBashScript(queuedRun);
-        }
-        setStatus('ready');
-        setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
+        setStatus('starting');
+        setStatusMessage('Waiting for the Bash prompt…');
+        updateActivity({ label: 'Waiting for Bash prompt', percent: null, startedAt: Date.now() });
         terminal.writeln(`\x1b[90mCodeForge Bash · ${projectNameRef.current} · powered by Wasmer\x1b[0m`);
         if (utilitiesPackage) {
           terminal.writeln(`\x1b[90mCommon shell utilities preloaded from ${utilitiesPackage}.\x1b[0m`);
@@ -466,6 +538,7 @@ export function BashTerminalPanel({
             flushRichOutputLine();
             if (disposed) return;
             processRef.current = null;
+            updateActivity(null);
             setStatus(result.exitCode === 0 ? 'stopped' : 'error');
             const detail = recentOutputRef.current
               .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
@@ -478,6 +551,7 @@ export function BashTerminalPanel({
           } catch (error: unknown) {
             if (disposed) return;
             processRef.current = null;
+            updateActivity(null);
             setStatus('error');
             setStatusMessage(error instanceof Error ? error.message : String(error));
           }
@@ -494,6 +568,7 @@ export function BashTerminalPanel({
       } catch (error) {
         if (disposed) return;
         const message = error instanceof Error ? error.message : String(error);
+        updateActivity(null);
         setStatus('error');
         setStatusMessage(message);
         terminal?.writeln(`\r\n\x1b[31mBash failed to start: ${message}\x1b[0m`);
@@ -679,6 +754,7 @@ export function BashTerminalPanel({
       <TerminalChrome
         status={status}
         statusMessage={statusMessage}
+        activity={activity}
         projectName={projectName}
         activePath={activePath}
         terminalRef={terminalRef}
