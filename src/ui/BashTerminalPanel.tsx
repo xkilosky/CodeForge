@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FitAddon as FitAddonType } from '@xterm/addon-fit';
 import type { Terminal as TerminalType } from '@xterm/xterm';
 import type { Process as WasmerProcess, ReadableBytes, Sandbox as WasmerSandbox, Wasmer as WasmerClient } from '@wasmer/sdk/browser';
@@ -113,9 +113,6 @@ export function BashTerminalPanel({
   const [status, setStatus] = useState<TerminalStatus>('starting');
   const [statusMessage, setStatusMessage] = useState('Starting browser-local Bash…');
   const [issues, setIssues] = useState<TerminalIssue[]>([]);
-  const [packageFormOpen, setPackageFormOpen] = useState(false);
-  const [packageName, setPackageName] = useState('');
-  const [installingPackage, setInstallingPackage] = useState(false);
 
   filesRef.current = files;
   projectNameRef.current = projectName;
@@ -253,9 +250,9 @@ export function BashTerminalPanel({
         await client.ready();
         if (disposed) return;
 
-        setStatusMessage('Downloading Bash package (first launch only)…');
+        setStatusMessage('Downloading Bash and standard shell commands (first launch only)…');
         sandbox = await client.sandboxes.create({
-          packages: ['wasmer/bash'],
+          packages: ['wasmer/bash', 'coreutils/coreutils'],
           files: projectFiles(filesRef.current),
           env: { HOME: '/workspace', TERM: 'xterm-256color' },
           network: { mode: 'http' },
@@ -264,8 +261,8 @@ export function BashTerminalPanel({
             if (disposed) return;
             const percent = download.percent;
             setStatusMessage(percent === null
-              ? `Loading Bash package · ${phase}`
-              : `Loading Bash package · ${Math.round(percent)}%`);
+              ? `Loading Bash and commands · ${phase}`
+              : `Loading Bash and commands · ${Math.round(percent)}%`);
           },
         });
         sandboxRef.current = sandbox;
@@ -289,9 +286,9 @@ export function BashTerminalPanel({
         }
         processRef.current = process;
         setStatus('ready');
-        setStatusMessage('Bash ready · sandboxed in your browser');
+        setStatusMessage('Bash ready · standard commands preloaded');
         terminal.writeln(`\x1b[90mCodeForge Bash · ${projectNameRef.current} · powered by Wasmer\x1b[0m`);
-        terminal.writeln('\x1b[90mUse Node terminal for npm installs and the WebContainer shell.\x1b[0m');
+        terminal.writeln('\x1b[90mCommon file and text utilities are included. Use Node / npm for networked installs.\x1b[0m');
 
         const pump = async (stream: ReadableBytes | null) => {
           if (!stream) return;
@@ -501,35 +498,6 @@ export function BashTerminalPanel({
     setTerminalDiagnostics([]);
   };
 
-  const installPackage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const source = packageName.trim();
-    const sandbox = sandboxRef.current;
-    if (!source || !sandbox || installingPackage) return;
-    setInstallingPackage(true);
-    setStatusMessage(`Resolving ${source} from the public Wasmer registry…`);
-    try {
-      await sandbox.installPackage(source, {
-        onProgress: ({ phase, download }) => {
-          const progress = download.percent;
-          setStatusMessage(progress === null
-            ? `Installing ${source} · ${phase}`
-            : `Installing ${source} · ${Math.round(progress)}%`);
-        },
-      });
-      terminalRef.current?.writeln(`\r\n\x1b[32mInstalled ${source}. Try its command in Bash.\x1b[0m`);
-      setStatusMessage(`Installed ${source} · Bash ready`);
-      setPackageName('');
-      setPackageFormOpen(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setStatusMessage(`Package install failed: ${message}`);
-      terminalRef.current?.writeln(`\r\n\x1b[31mPackage install failed: ${message}\x1b[0m`);
-    } finally {
-      setInstallingPackage(false);
-    }
-  };
-
   return (
     <section className={`terminal-overlay${active ? ' is-active' : ''}`} aria-label="Bash terminal" aria-hidden={!active}>
       <div className="terminal-toolbar">
@@ -541,26 +509,10 @@ export function BashTerminalPanel({
         </div>
         <div className="terminal-actions">
           <button type="button" onClick={() => onSwitchShell('node')} title="Switch to Node.js and npm in WebContainer">Node / npm</button>
-          <button type="button" onClick={() => setPackageFormOpen((open) => !open)} disabled={status !== 'ready' || installingPackage} title="Install a public Wasmer package without an API key">Add package</button>
           <button type="button" onClick={onRunActiveFile} disabled={!activePath} title="Run the active file in the Node terminal">Run file in Node</button>
           <button type="button" onClick={clearTerminal} title="Clear terminal output and terminal problems">Clear</button>
         </div>
       </div>
-      {packageFormOpen ? (
-        <form className="terminal-package-form" onSubmit={(event) => void installPackage(event)}>
-          <label htmlFor="wasmer-package-source">Public Wasmer package</label>
-          <input
-            id="wasmer-package-source"
-            autoComplete="off"
-            value={packageName}
-            onChange={(event) => setPackageName(event.target.value)}
-            placeholder="e.g. wasmer/edgejs@0.2.0"
-            disabled={installingPackage}
-          />
-          <button type="submit" disabled={!packageName.trim() || installingPackage}>{installingPackage ? 'Installing…' : 'Install'}</button>
-          <span>No API key. External network access from installed commands needs a WISP endpoint.</span>
-        </form>
-      ) : null}
       {issues.length ? (
         <div className="terminal-issues" aria-label="Detected terminal errors">
           {issues.slice(-4).map((issue, index) => (

@@ -128,16 +128,16 @@ access, including the integrated WebContainer terminal and package installs, sti
 
 ### Integrated terminal
 
-Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs the
-`wasmer/bash` package in a browser-local WebAssembly/WASIX sandbox; it does not execute on a remote
-server and requires no account, API key, or backend. Bash edits and new text files synchronize with
-the CodeForge project. **Add package** loads a public Wasmer registry package without credentials.
-The package/runtime filesystem itself is temporary; project files are saved by CodeForge, while
-installed packages and shell history may need to be restored after switching shells or reloading.
+Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs
+`wasmer/bash` with `coreutils/coreutils` preloaded in a browser-local WebAssembly/WASIX sandbox. Common
+commands such as `ls`, `cat`, `cp`, `mv`, `rm`, and `mkdir` are available immediately—there is no
+manual package step for ordinary shell use. It does not execute on a remote server and requires no
+account, API key, or backend. Bash edits and new text files synchronize with the CodeForge project;
+the shell's temporary filesystem and history are session-local.
 
-Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. The available
-commands depend on the installed packages, and outbound TCP/DNS is disabled by default. Networked
-package managers such as `npm install` need a WISP proxy endpoint; no proxy is bundled. Use the
+Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. Outbound TCP/DNS
+is disabled by default, so networked package managers such as `npm install` need a WISP proxy
+endpoint; no proxy is bundled. Use the
 **Node / npm** shell switch for the existing browser-based WebContainer runtime (`jsh`) when you need
 `npm`/`npx`, development servers, or its wider command set. Open ports there surface an **Open running
 app** link. `Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the Node terminal.
