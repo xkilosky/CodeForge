@@ -77,16 +77,21 @@ describe('theme', () => {
     }
   });
 
-  it('is Tokyo Night, not a generic dark theme', () => {
-    // The three colours that make the scheme recognisable. If these drift the
-    // app is no longer the theme it claims to be.
+  it('keeps Monaco Tokyo Night colors separate from the richer interface palette', () => {
+    // Editor syntax retains the Tokyo Night colors; interface accents have
+    // their own brighter blue and distinct workspace hues.
     expect(TOKYO.bg).toBe('#16161e');
     expect(TOKYO.accent).toBe('#7aa2f7');
     expect(TOKYO.purple).toBe('#bb9af7');
+    expect(INTERFACE.accent).toBe('#78a9ff');
+    expect(INTERFACE.accent).not.toBe(TOKYO.accent);
+    expect(INTERFACE.purple).toBe('#c0a3ed');
+    expect(INTERFACE.cyan).toBe('#8dcdf5');
+    expect(INTERFACE.teal).toBe('#80cfb2');
   });
 
-  it('resolves a muted interface accent and falls back safely', () => {
-    expect(accentHex('teal')).toBe('#82a99b');
+  it('resolves a vivid-but-muted interface accent and falls back safely', () => {
+    expect(accentHex('teal')).toBe('#80cfb2');
     expect(accentHex(undefined)).toBe(INTERFACE.accent);
     // A project saved by a future build with an accent this one does not know.
     expect(accentHex('chartreuse')).toBe(INTERFACE.accent);
@@ -386,11 +391,14 @@ describe('mobile drawer overlay', () => {
     onOpenSearch: noop,
   };
 
-  it('uses an overlay and backdrop on mobile even when desktop pinning persisted', () => {
+  it('uses an overlay and backdrop on mobile with colored semantic section identities', () => {
     const html = renderToStaticMarkup(<Drawer {...base} />);
     expect(html).toContain('class="drawer-scrim"');
     expect(html).toContain('class="drawer open"');
     expect(html).not.toContain('drawer open pinned');
+    expect(html).toContain('class="drawer-section section-code active"');
+    expect(html).toContain('class="drawer-section section-files"');
+    expect(html).toContain('class="drawer-section section-source"');
     expect(html).toContain('aria-label="2 errors"');
   });
 
@@ -479,6 +487,8 @@ describe('top bar project navigation', () => {
     expect(html).toContain('class="project-back-btn"');
     expect(html).toContain('aria-label="Back to Projects"');
     expect(html).toContain('class="project-back-label">Projects</span>');
+    expect(html).toContain('workspace-chip workspace-chip-web');
+    expect(html).toContain('aria-label="All changes saved"');
   });
 });
 

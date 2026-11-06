@@ -1,30 +1,30 @@
 :root {
-  /* Cursor-inspired graphite chrome: cool surfaces, muted accents, no neon. */
+  /* VS Code / Cursor-inspired color in layered graphite chrome, never neon. */
   color-scheme: dark;
-  --bg: #111318;
-  --bg-raise: #181b22;
-  --bg-raise-2: #222630;
-  --bg-sunken: #0c0e12;
-  --border: #303643;
-  --border-soft: #252a34;
-  --text: #d9dde6;
-  --text-dim: #aab1bf;
-  --muted: #77808f;
-  --accent: #8ca7d2;
-  --accent-soft: #394965;
-  --purple: #aa9bc4;
-  --cyan: #91afbd;
-  --teal: #82a99b;
-  --ok: #93a88f;
-  --warn: #b9a17a;
-  --error: #c9878e;
+  --bg: #11141b;
+  --bg-raise: #1a1e27;
+  --bg-raise-2: #252b37;
+  --bg-sunken: #0c0f15;
+  --border: #354052;
+  --border-soft: #293241;
+  --text: #e2e7f0;
+  --text-dim: #b2bdce;
+  --muted: #8792a3;
+  --accent: #78a9ff;
+  --accent-soft: #3b5580;
+  --purple: #c0a3ed;
+  --cyan: #8dcdf5;
+  --teal: #80cfb2;
+  --ok: #8fd2a0;
+  --warn: #e2b76f;
+  --error: #e78d9b;
 
-  /* Translucent panels keep a little cool light on the edges, not neon glow. */
-  --glass: rgba(24, 27, 34, 0.94);
-  --glass-strong: rgba(17, 19, 24, 0.98);
-  --glass-border: rgba(151, 169, 198, 0.14);
-  --lit-top: rgba(210, 220, 238, 0.055);
-  --sheen: linear-gradient(180deg, rgba(140, 167, 210, 0.035), transparent 42%);
+  /* Translucent panels carry cool blue/violet light in the chrome, not glow. */
+  --glass: rgba(26, 30, 39, 0.95);
+  --glass-strong: rgba(17, 20, 27, 0.98);
+  --glass-border: rgba(139, 166, 211, 0.2);
+  --lit-top: rgba(220, 230, 245, 0.07);
+  --sheen: linear-gradient(180deg, rgba(120, 169, 255, 0.055), transparent 42%);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.22);
   --shadow-2: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
   --blur: 18px;
@@ -49,8 +49,8 @@ html, body, #root {
 
 body {
   background:
-    radial-gradient(1100px 650px at 14% -18%, rgba(112, 137, 178, 0.075), transparent 66%),
-    radial-gradient(820px 480px at 100% 0%, rgba(117, 111, 153, 0.045), transparent 60%),
+    radial-gradient(1100px 650px at 14% -18%, rgba(78, 127, 213, 0.12), transparent 66%),
+    radial-gradient(820px 480px at 100% 0%, rgba(147, 111, 205, 0.075), transparent 60%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -60,8 +60,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Quiet steel-blue selection and scrollbars. */
-::selection { background: rgba(140, 167, 210, 0.28); }
+/* Soft project-accent selection and unobtrusive scrollbars. */
+::selection { background: color-mix(in srgb, var(--accent) 34%, transparent); }
 
 * { scrollbar-width: thin; scrollbar-color: #465064 transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -88,7 +88,11 @@ button:focus-visible {
 .muted { color: var(--muted); }
 
 /* ── layout ───────────────────────────────────────────── */
-.app { display: flex; flex-direction: column; height: 100%; position: relative; }
+.app {
+  display: flex; flex-direction: column; height: 100%; position: relative;
+  /* The soft control tint follows the selected project accent across chrome. */
+  --accent-soft: color-mix(in srgb, var(--accent) 42%, var(--bg-raise));
+}
 
 /* The workspace fills what is left under the bar. The drawer is a sibling, not
    a grid cell: on a phone it has to overlay, and a cell cannot. */
@@ -106,8 +110,11 @@ button:focus-visible {
   padding: 0 12px;
   height: var(--topbar-h);
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--border);
-  background: var(--glass);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 40%),
+    var(--glass);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent) 10%, transparent);
   backdrop-filter: blur(var(--blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
   position: relative;
@@ -127,7 +134,10 @@ button:focus-visible {
   transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease,
     border-color var(--motion-ui) var(--ease-ui), transform var(--motion-fast) var(--ease-ui);
 }
-.drawer-btn:hover { background: var(--bg-raise-2); color: var(--text); border-color: var(--border); }
+.drawer-btn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-raise-2));
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
 .drawer-btn:active { transform: scale(0.94); }
 
 .topbar-file { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -161,11 +171,15 @@ button:focus-visible {
 .project-name:hover, .project-name:focus { background: var(--bg-raise-2); border-color: var(--border); outline: none; }
 
 .workspace-chip {
+  --chip-color: var(--accent);
   font-size: 10px; font-weight: 600; letter-spacing: 0.35px;
-  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  color: var(--chip-color); border: 1px solid color-mix(in srgb, var(--chip-color) 38%, var(--border));
   border-radius: 999px; padding: 3px 8px;
-  background: color-mix(in srgb, var(--accent) 7%, var(--bg-raise));
+  background: color-mix(in srgb, var(--chip-color) 10%, var(--bg-raise));
 }
+.workspace-chip-web { --chip-color: var(--cyan); }
+.workspace-chip-game { --chip-color: var(--purple); }
+.workspace-chip-python { --chip-color: var(--teal); }
 .save-state {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 10.5px; color: var(--ok); min-width: 58px;
@@ -230,8 +244,12 @@ button:focus-visible {
   border-color: var(--accent);
 }
 .btn.primary:disabled { opacity: 0.45; }
-.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
-.btn.ghost:hover { color: var(--text); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.btn.ghost:hover:not(:disabled) {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg-raise-2));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
 .btn.select { padding: 5px 8px; }
 
 /* ── tabs ─────────────────────────────────────────────── */
@@ -241,6 +259,7 @@ button:focus-visible {
   overflow-x: auto; flex: 0 0 auto;
 }
 .tab {
+  position: relative;
   background: transparent; border: 1px solid transparent; border-bottom: 0;
   border-radius: 7px 7px 0 0; padding: 6px 12px; cursor: pointer;
   color: var(--muted); white-space: nowrap;
@@ -249,7 +268,14 @@ button:focus-visible {
 }
 .tab:hover { color: var(--text); background: var(--bg-raise-2); }
 .tab:active { transform: translateY(1px); }
-.tab.active { background: var(--bg); color: var(--text); border-color: var(--border); }
+.tab.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--bg)), var(--bg) 72%);
+  color: var(--text); border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.tab.active::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px;
+  border-radius: 2px 2px 0 0; background: var(--accent); opacity: 0.85;
+}
 .tab-name { font-family: var(--font-mono); font-size: 12px; }
 
 /* ── editor / preview ─────────────────────────────────── */
@@ -429,7 +455,8 @@ button:focus-visible {
 }
 .project-current-chip {
   font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.7px;
-  color: var(--accent); border: 1px solid var(--accent); border-radius: 999px;
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg)); border-radius: 999px;
   padding: 1px 6px; flex: 0 0 auto;
 }
 .project-meta { display: flex; align-items: center; gap: 8px; font-size: 11.5px; flex-wrap: wrap; }
@@ -445,13 +472,16 @@ button:focus-visible {
 .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 24%, var(--bg-raise-2)); }
 
 .workspace-tag {
+  --tag-color: var(--muted);
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
-  border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted);
-  background: rgba(8, 10, 14, 0.18); flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 38%, var(--border));
+  border-radius: 999px; padding: 2px 8px;
+  color: var(--tag-color); background: color-mix(in srgb, var(--tag-color) 9%, var(--bg));
+  flex: 0 0 auto;
 }
-.workspace-tag.web { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 42%, var(--border)); }
-.workspace-tag.game { color: var(--purple); border-color: color-mix(in srgb, var(--purple) 40%, var(--border)); }
-.workspace-tag.python { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 40%, var(--border)); }
+.workspace-tag.web { --tag-color: var(--cyan); }
+.workspace-tag.game { --tag-color: var(--purple); }
+.workspace-tag.python { --tag-color: var(--teal); }
 
 /* ── template grid ────────────────────────────────────── */
 .template-grid {
@@ -1114,15 +1144,30 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease,
     transform var(--motion-fast) var(--ease-ui), box-shadow var(--motion-ui) var(--ease-ui);
 }
-.drawer-section:hover { background: var(--bg-raise-2); color: var(--text); }
+.drawer-section { --section-color: var(--accent); }
+.drawer-section.section-files { --section-color: var(--cyan); }
+.drawer-section.section-objects { --section-color: var(--purple); }
+.drawer-section.section-preview { --section-color: var(--ok); }
+.drawer-section.section-output { --section-color: var(--warn); }
+.drawer-section.section-look { --section-color: var(--purple); }
+.drawer-section.section-backup { --section-color: var(--teal); }
+.drawer-section:hover {
+  background: color-mix(in srgb, var(--section-color) 8%, var(--bg-raise-2));
+  color: var(--text);
+}
 .drawer-section:active { transform: scale(0.99); }
 .drawer-section.active {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  background: color-mix(in srgb, var(--section-color) 13%, var(--bg-raise-2));
   color: var(--text);
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--section-color);
 }
-.drawer-section-icon { display: inline-flex; color: var(--muted); }
-.drawer-section.active .drawer-section-icon { color: var(--accent); }
+.drawer-section-icon {
+  display: inline-flex;
+  color: color-mix(in srgb, var(--section-color) 76%, var(--text-dim));
+  transition: color var(--motion-fast) ease, transform var(--motion-ui) var(--ease-ui);
+}
+.drawer-section.active .drawer-section-icon { color: var(--section-color); transform: translateX(1px); }
+.drawer-section.active .drawer-section-hint { color: color-mix(in srgb, var(--section-color) 55%, var(--muted)); }
 .drawer-section-text { display: flex; flex-direction: column; min-width: 0; }
 .drawer-section-label { font-size: 12.5px; font-weight: 550; }
 .drawer-section-hint { font-size: 10.5px; color: var(--muted); }
@@ -1306,7 +1351,10 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
     transform var(--motion-fast) var(--ease-ui);
 }
 .palette-mode:active { transform: scale(0.96); }
-.palette-mode.active { background: var(--bg-raise-2); color: var(--text); }
+.palette-mode.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-raise-2));
+  color: var(--accent);
+}
 .palette-close {
   background: transparent; border: 0; color: var(--muted);
   cursor: pointer; padding: 4px; border-radius: 5px; display: inline-flex;
@@ -1326,7 +1374,11 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .palette-item:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 7%, var(--bg-raise)); }
 .palette-item:active:not(:disabled) { transform: scale(0.995); }
-.palette-item.active { background: var(--bg-raise-2); color: var(--text); }
+.palette-item.active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-raise-2));
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 .palette-item:disabled { opacity: 0.42; cursor: not-allowed; }
 .palette-name { font-family: var(--font-mono); font-size: 12.5px; flex: 0 1 auto; }
 .palette-name .hit { color: var(--accent); font-weight: 700; }
@@ -1442,7 +1494,10 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   animation: notice-in 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes notice-in { from { opacity: 0; transform: translate(-50%, 8px); } }
-.notice-success { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.notice-success {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--glass-strong));
+}
 .notice-error { border-color: var(--error); color: #f2f2f2; }
 .notice-info { color: var(--text-dim); }
 .notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1471,7 +1526,12 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .section-tab:hover { color: var(--text); background: var(--bg-raise-2); }
 .section-tab:active { transform: scale(0.98); }
-.section-tab.active { color: var(--text); background: var(--bg-raise-2); border-color: var(--border); }
+.section-tab.active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-raise-2));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 13%, transparent);
+}
 .section-badge {
   font-size: 9.5px; font-weight: 700; border-radius: 999px;
   padding: 0 5px; line-height: 15px; min-width: 15px; text-align: center;
@@ -1488,7 +1548,10 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .arrangement-btn:hover { color: var(--text); }
 .arrangement-btn:active { transform: scale(0.97); }
-.arrangement-btn.active { background: var(--bg-raise-2); color: var(--text); }
+.arrangement-btn.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-raise-2));
+  color: var(--accent);
+}
 
 .split-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .focus-body { flex: 1; min-height: 0; display: flex; }
@@ -1498,15 +1561,19 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 .pane-head {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px; flex: 0 0 auto;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--bg-raise);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-soft));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 52%), var(--bg-raise);
 }
-.pane-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+.pane-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: color-mix(in srgb, var(--accent) 38%, var(--muted)); }
 .pane-meta { margin-left: auto; font-size: 11px; }
 .pane-output { background: var(--bg-raise); }
 .pane-output > * { min-height: 0; }
 
-.output-drawer { flex: 0 0 auto; border-top: 1px solid var(--border); background: var(--bg-raise); }
+.output-drawer {
+  flex: 0 0 auto;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 48%), var(--bg-raise);
+}
 .output-toggle {
   display: flex; align-items: center; gap: 7px;
   width: 100%; padding: 5px 12px;
@@ -1515,8 +1582,9 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
   color: var(--muted); text-align: left;
   transition: background var(--motion-ui) var(--ease-ui), color var(--motion-fast) ease;
 }
-.output-toggle:hover { color: var(--text); background: rgba(180, 195, 220, 0.025); }
-.output-toggle:active { background: rgba(180, 195, 220, 0.05); }
+.output-toggle:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.output-toggle:active { background: color-mix(in srgb, var(--accent) 11%, transparent); }
+.output-drawer.open .output-toggle { color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
 .output-chevron { transition: transform var(--motion-ui) var(--ease-ui); }
 .output-chevron.open { transform: rotate(90deg); }
 .output-panel {
@@ -1568,7 +1636,12 @@ button, .tree-row-main, .tab, .template-card { touch-action: manipulation; -webk
 }
 .theme-option:hover { border-color: var(--accent-soft); }
 .theme-option:active { transform: scale(0.995); }
-.theme-option.active { border-color: var(--text-dim); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); }
+.theme-option.active {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-raise));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .theme-swatch {
   width: 34px; height: 24px; border-radius: 5px; flex: 0 0 auto;
   border: 1px solid var(--border);

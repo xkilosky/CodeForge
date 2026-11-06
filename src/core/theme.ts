@@ -1,8 +1,8 @@
 /**
  * The palette, in one place.
  *
- * CodeForge's interface uses layered graphite surfaces and a restrained,
- * cool accent palette. Monaco keeps its separate Tokyo Night syntax colors.
+ * CodeForge's interface uses layered graphite surfaces and a richer, clearly
+ * differentiated accent palette. Monaco keeps its separate Tokyo Night syntax colors.
  * Keeping both here prevents chrome choices from washing out code highlighting.
  *
  * "Liquid" is a treatment, not a colour: translucent surfaces over a lit
@@ -36,30 +36,30 @@ export const TOKYO = {
 
 export type TokyoToken = keyof typeof TOKYO;
 
-/** Neutral colors for the app interface, independent from syntax highlighting. */
+/** Interface chrome colors, independent from Monaco syntax highlighting. */
 export const INTERFACE = {
-  bg: '#111318',
-  bgRaise: '#181b22',
-  bgRaise2: '#222630',
-  bgSunken: '#0c0e12',
-  border: '#303643',
-  borderSoft: '#252a34',
-  text: '#d9dde6',
-  textDim: '#aab1bf',
-  muted: '#77808f',
-  accent: '#8ca7d2',
-  accentSoft: '#394965',
-  purple: '#aa9bc4',
-  cyan: '#91afbd',
-  teal: '#82a99b',
-  green: '#93a88f',
-  yellow: '#b9a17a',
-  red: '#c9878e',
+  bg: '#11141b',
+  bgRaise: '#1a1e27',
+  bgRaise2: '#252b37',
+  bgSunken: '#0c0f15',
+  border: '#354052',
+  borderSoft: '#293241',
+  text: '#e2e7f0',
+  textDim: '#b2bdce',
+  muted: '#8792a3',
+  accent: '#78a9ff',
+  accentSoft: '#3b5580',
+  purple: '#c0a3ed',
+  cyan: '#8dcdf5',
+  teal: '#80cfb2',
+  green: '#8fd2a0',
+  yellow: '#e2b76f',
+  red: '#e78d9b',
 } as const;
 
 /**
  * Project accents are stored by id, never by hex. Keep the historical ids so
- * existing projects load, with muted shades that complement the graphite UI.
+ * existing projects load, with clear but softened shades that complement the graphite UI.
  */
 export const ACCENTS = [
   { id: 'blue', label: 'Steel blue', hex: INTERFACE.accent },
@@ -229,6 +229,7 @@ export const CSS_TOKENS: { name: string; value: string }[] = [
   { name: 'border', value: INTERFACE.border },
   { name: 'border-soft', value: INTERFACE.borderSoft },
   { name: 'text', value: INTERFACE.text },
+  { name: 'text-dim', value: INTERFACE.textDim },
   { name: 'muted', value: INTERFACE.muted },
   { name: 'accent', value: INTERFACE.accent },
   { name: 'accent-soft', value: INTERFACE.accentSoft },

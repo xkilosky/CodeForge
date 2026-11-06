@@ -178,7 +178,7 @@ export function Drawer({
             return (
               <button
                 key={section.id}
-                className={`drawer-section${active ? ' active' : ''}`}
+                className={`drawer-section section-${section.id}${active ? ' active' : ''}`}
                 aria-current={active ? 'page' : undefined}
                 onClick={() => onSection(section.id)}
               >
