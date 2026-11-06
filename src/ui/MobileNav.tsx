@@ -2,7 +2,7 @@ import type { ConsoleState } from '../core/consoleStore';
 import type { DiagnosticsState } from '../core/diagnosticsStore';
 
 /** The panes available in the compact workspace. */
-export type MobileTab = 'files' | 'code' | 'preview' | 'output';
+export type MobileTab = 'files' | 'code' | 'preview' | 'output' | 'terminal';
 
 /**
  * Counts everything the user needs to be told about, from both sources: a

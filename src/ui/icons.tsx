@@ -205,6 +205,15 @@ export function TerminalIcon({ size = 15, className }: IconProps) {
   );
 }
 
+export function OutputIcon({ size = 15, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 8h10M7 12h10M7 16h6" />
+    </svg>
+  );
+}
+
 export function CodeIcon({ size = 15, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>
@@ -243,7 +252,8 @@ export const SECTION_ICONS = {
   objects: LayoutIcon,
   code: CodeIcon,
   preview: PlayIcon,
-  output: TerminalIcon,
+  output: OutputIcon,
+  terminal: TerminalIcon,
   look: PaletteIcon,
   backup: DownloadIcon,
   source: GitBranchIcon,

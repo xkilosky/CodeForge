@@ -54,7 +54,7 @@ interface DesktopWorkspaceProps {
   runSignal: number;
   onRun: () => void;
   onClearConsole: () => void;
-  onOpenFileForDiagnostic: (file: string) => void;
+  onOpenFileForDiagnostic: (file: string, line: number, column: number) => void;
   issues: { errors: number; warnings: number };
   console: ConsoleState;
   diagnostics: DiagnosticsState;
@@ -67,6 +67,7 @@ const SECTION_LABEL: Record<Section, string> = {
   code: 'Code',
   preview: 'Preview',
   output: 'Output',
+  terminal: 'Terminal',
 };
 
 export function DesktopWorkspace(props: DesktopWorkspaceProps) {

@@ -7,6 +7,11 @@ const monacoEsm = fileURLToPath(
   new URL('./node_modules/monaco-editor/esm/vs', import.meta.url),
 );
 
+const isolationHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
 // The app is a static site (client-only, local-first). The dev server must accept
 // the Arena preview origin, so no host/origin allowlist is applied.
 export default defineConfig({
@@ -26,12 +31,14 @@ export default defineConfig({
     // The app is served through a proxied preview origin whose hostname is not
     // known ahead of time, so no host allowlist is applied.
     allowedHosts: true,
+    headers: isolationHeaders,
   },
   preview: {
     host: '0.0.0.0',
     port: 4173,
     strictPort: true,
     allowedHosts: true,
+    headers: isolationHeaders,
   },
   // Workers must be ES modules: Monaco's editor worker is emitted as one, and
   // ES output is what Vite's worker pipeline expects here.

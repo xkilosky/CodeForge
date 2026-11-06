@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { consoleStore, io } from './core/consoleStore';
 import { clearDiagnostics, diagnosticsStore, scheduleLint } from './core/diagnosticsStore';
 import { projectActions, projectStore } from './core/projectStore';
@@ -40,6 +40,9 @@ import { useVisualViewport } from './ui/useVisualViewport';
 import { currentRelease } from './core/release';
 import type { ProjectTextMatch } from './core/search';
 import { CreateProjectDialog, type NewProjectOptions } from './ui/CreateProjectDialog';
+import './styles/terminal.css';
+
+const TerminalPanel = lazy(() => import('./ui/TerminalPanel').then((module) => ({ default: module.TerminalPanel })));
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
 const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'source' | 'drawer'> = {
@@ -51,6 +54,7 @@ const DESKTOP_SECTION: Record<SectionId, MobileTab | 'look' | 'backup' | 'source
   look: 'look',
   backup: 'backup',
   source: 'source',
+  terminal: 'terminal',
 };
 
 export default function App() {
@@ -76,7 +80,10 @@ export default function App() {
     mode: 'file',
   });
   /** Extra destinations (Look, Backup, Source Control, or game Objects). */
-  const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | null>(null);
+  const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | 'terminal' | null>(null);
+  const [terminalMounted, setTerminalMounted] = useState(false);
+  const [terminalRunRequest, setTerminalRunRequest] = useState<{ path: string; sequence: number }>();
+  const terminalRunSequence = useRef(0);
   const [desktopTab, setDesktopTab] = useState<MobileTab>('code');
   const [createDialog, setCreateDialog] = useState<{ open: boolean; templateId: string | null }>({
     open: false,
@@ -102,6 +109,14 @@ export default function App() {
   }
 
   const pinned = layoutState.drawerPinned;
+
+  const runActiveFileInTerminal = useCallback(() => {
+    if (!project?.activeFile) return;
+    setTerminalMounted(true);
+    setExtraSection('terminal');
+    setDrawerOpen(false);
+    setTerminalRunRequest({ path: project.activeFile, sequence: ++terminalRunSequence.current });
+  }, [project?.activeFile]);
 
   /**
    * Pinned on a wide screen means the drawer is simply part of the layout; on a
@@ -226,7 +241,10 @@ export default function App() {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       const key = e.key.toLowerCase();
-      if (key === 'enter') {
+      if (key === 'enter' && e.shiftKey) {
+        e.preventDefault();
+        runActiveFileInTerminal();
+      } else if (key === 'enter') {
         e.preventDefault();
         handleRun();
       } else if (key === 's') {
@@ -257,7 +275,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleRun, openPalette, layout]);
+  }, [handleRun, openPalette, layout, runActiveFileInTerminal]);
 
   const activePath = project?.activeFile ?? '';
   const activeFile = project && activePath ? project.files[activePath] : undefined;
@@ -297,6 +315,13 @@ export default function App() {
     (section: SectionId) => {
       layoutActions.markDrawerSeen();
       const target = DESKTOP_SECTION[section];
+
+      if (section === 'terminal') {
+        setTerminalMounted(true);
+        setExtraSection('terminal');
+        setDrawerOpen(false);
+        return;
+      }
 
       if (section === 'objects') {
         setExtraSection('objects');
@@ -367,6 +392,27 @@ export default function App() {
     [],
   );
 
+  const handleOpenDiagnostic = useCallback((path: string, line: number, column = 1) => {
+    setDiffView(null);
+    projectActions.setActiveFile(path);
+    setExtraSection(null);
+    setDesktopTab('code');
+    setMobileTab('code');
+    setEditorReveal({
+      path,
+      line,
+      column,
+      length: 1,
+      sequence: ++revealSequence.current,
+    });
+  }, []);
+
+  const openTerminal = useCallback(() => {
+    setTerminalMounted(true);
+    setExtraSection('terminal');
+    setDrawerOpen(false);
+  }, []);
+
   const paletteCommands = useMemo<PaletteCommand[]>(() => {
     const commands: PaletteCommand[] = [
       {
@@ -397,6 +443,20 @@ export default function App() {
         label: 'Open Code',
         description: 'Return to the editor',
         run: () => handleSection('code'),
+      },
+      {
+        id: 'terminal',
+        label: 'Open Terminal',
+        description: 'Open the interactive project shell',
+        run: openTerminal,
+      },
+      {
+        id: 'run-active-file-terminal',
+        label: 'Run Active File in Terminal',
+        description: 'Execute the active JavaScript or TypeScript file in the browser runtime',
+        shortcut: 'Ctrl/Cmd+Shift+Enter',
+        enabled: Boolean(project.activeFile),
+        run: runActiveFileInTerminal,
       },
       {
         id: 'preview',
@@ -493,6 +553,8 @@ export default function App() {
     handleStop,
     openCreateDialog,
     openPalette,
+    openTerminal,
+    runActiveFileInTerminal,
   ]);
 
   const handleImport = useCallback((file: File) => {
@@ -602,6 +664,11 @@ export default function App() {
         />
       ) : null}
 
+      <div className="workspace workspace-stack">
+        <div
+          className="workspace-stack-main"
+          hidden={Boolean(project && extraSection === 'terminal')}
+        >
       {projectState.loading ? (
         <div className="pane-empty">Loading…</div>
       ) : !project ? (
@@ -721,12 +788,7 @@ export default function App() {
                 ? mobileTab
                 : 'code'
           }
-          onOpenFile={(file) => {
-            projectActions.setActiveFile(file);
-            setMobileTab('code');
-            setDesktopTab('code');
-            setExtraSection(null);
-          }}
+          onOpenFile={handleOpenDiagnostic}
           onSelectEntity={() => {}}
         />
       ) : layout === 'compact' ? (
@@ -808,12 +870,7 @@ export default function App() {
               </div>
               <div className="mobile-output-grid">
                 <ConsolePanel onClear={() => io.clear()} />
-                <DiagnosticsPanel
-                  onOpen={(file) => {
-                    projectActions.setActiveFile(file);
-                    setMobileTab('code');
-                  }}
-                />
+                <DiagnosticsPanel onOpen={handleOpenDiagnostic} />
               </div>
             </section>
           )}
@@ -865,10 +922,7 @@ export default function App() {
                 runSignal={runSignal}
                 onRun={handleRun}
                 onClearConsole={() => io.clear()}
-                onOpenFileForDiagnostic={(file) => {
-                  projectActions.setActiveFile(file);
-                  setDesktopTab('code');
-                }}
+                onOpenFileForDiagnostic={handleOpenDiagnostic}
                 issues={issues}
                 console={consoleState}
                 diagnostics={diagnosticsState}
@@ -879,6 +933,29 @@ export default function App() {
           </main>
         </div>
       )}
+        </div>
+        {project && terminalMounted ? (
+          <Suspense fallback={
+            <div className={`terminal-overlay terminal-loading${extraSection === 'terminal' ? ' is-active' : ''}`}>
+              Loading terminal interface…
+            </div>
+          }>
+            <TerminalPanel
+              active={extraSection === 'terminal'}
+              projectId={project.id}
+              projectName={project.name}
+              files={project.files}
+              activePath={project.activeFile}
+              runRequest={terminalRunRequest}
+              onRunActiveFile={runActiveFileInTerminal}
+              onReplaceFiles={(projectId, contents) => {
+                if (projectState.project?.id === projectId) projectActions.replaceFiles(contents);
+              }}
+              onOpenIssue={handleOpenDiagnostic}
+            />
+          </Suspense>
+        ) : null}
+      </div>
 
       <Palette
         open={palette.open}

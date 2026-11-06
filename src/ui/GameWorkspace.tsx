@@ -48,7 +48,7 @@ interface GameWorkspaceProps {
   onExitDiff?: () => void;
   onViewDiff?: () => void;
   diffDisabledReason?: string;
-  onOpenFile?: (path: string) => void;
+  onOpenFile?: (path: string, line: number, column: number) => void;
   /** Publishes the selected object id so the phone layout can scroll to it. */
   onSelectEntity?: (id: string | null) => void;
 }
@@ -333,7 +333,10 @@ export function GameWorkspace({
   const output = (
     <div className="game-output">
       <ConsolePanel onClear={() => io.clear()} />
-      <DiagnosticsPanel onOpen={(file) => (onOpenFile ?? projectActions.setActiveFile)(file)} />
+      <DiagnosticsPanel onOpen={(file, line, column) => {
+        if (onOpenFile) onOpenFile(file, line, column);
+        else projectActions.setActiveFile(file);
+      }} />
     </div>
   );
 

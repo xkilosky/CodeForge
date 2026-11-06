@@ -80,8 +80,9 @@ second one says how many files are going. Files and folders have no undo yet —
 allocates a new project id, so importing a backup twice gives two projects and can never overwrite
 the one that is here.
 
-There is no server and no account. Projects are stored in this browser's IndexedDB, the preview is a
-sandboxed iframe, and the whole thing is a static site.
+There is no CodeForge backend or account. Projects are stored in this browser's IndexedDB, the
+built-in preview is a sandboxed iframe, and the app itself is a static site. The optional integrated
+terminal creates browser-hosted processes and previews only when the user runs commands.
 
 ## Using it
 
@@ -113,7 +114,26 @@ template does the same job without overwriting anything.
 | Games | canvas stage + gravity + a per-frame script | the stage, playable |
 | Languages | *planned* (Forge S2.2) | — |
 
-### The game builder
+### Integrated terminal
+
+Open **Terminal** from the project drawer or command palette. It runs in a browser-based WebContainer
+with an interactive `jsh` shell; use `npm`/`npx` and other commands provided by that runtime to install
+packages and start development servers. Open ports surface an **Open running app** link. Files edited
+in either the shell or CodeForge are synchronized back into the project; dependency, Git metadata,
+build-output folders, and binary files stay outside the editor's text-file map. Workspace files are
+restored from the saved project after reload, but installed `node_modules` are session-local and may
+need reinstalling.
+
+`Ctrl/Cmd+Shift+Enter` runs the active JavaScript or TypeScript file in the terminal. Common compiler
+and runtime source locations become clickable terminal problems and Monaco markers. The shell is a
+WebContainer POSIX-like environment—not the computer's host shell or a PowerShell/zsh emulator—and
+commands depend on the WebContainer runtime. For GitHub commits and pushes, use **Source Control**;
+local `git` CLI availability depends on the browser runtime.
+
+WebContainers require a secure HTTPS page and cross-origin isolation (`COOP: same-origin`,
+`COEP: require-corp`); the Vite and Vercel configurations in this repository set those headers.
+
+## The game builder
 
 A game project is a **scene** plus a **script**, both saved with the project.
 

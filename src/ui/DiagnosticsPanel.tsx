@@ -12,7 +12,7 @@ const ICON: Record<Diagnostic['severity'], string> = {
  * Linter output. Clicking an entry opens the file — the editor keys models by
  * URI, so the squiggle is already there when the tab appears.
  */
-export function DiagnosticsPanel({ onOpen }: { onOpen: (file: string, line: number) => void }) {
+export function DiagnosticsPanel({ onOpen }: { onOpen: (file: string, line: number, column: number) => void }) {
   const state = useStore(diagnosticsStore);
   const errors = state.diagnostics.filter((d) => d.severity === 'error').length;
   const warnings = state.diagnostics.length - errors;
@@ -41,7 +41,7 @@ export function DiagnosticsPanel({ onOpen }: { onOpen: (file: string, line: numb
             <button
               key={`${d.file}:${d.line}:${d.code ?? ''}:${i}`}
               className={`diag-line kind-${d.severity}`}
-              onClick={() => onOpen(d.file, d.line)}
+              onClick={() => onOpen(d.file, d.line, d.column)}
               title={`${d.file}:${d.line}`}
             >
               <span className="console-marker" aria-hidden="true">

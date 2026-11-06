@@ -5,6 +5,8 @@ export interface DiagnosticsState {
   diagnostics: Diagnostic[];
   /** Diagnostics emitted directly by Monaco's JavaScript/TypeScript language service. */
   compilerDiagnostics?: Diagnostic[];
+  /** Source locations parsed from interactive terminal output. */
+  terminalDiagnostics?: Diagnostic[];
   /** True while a check is in flight. */
   checking: boolean;
   error: string | null;
@@ -13,26 +15,50 @@ export interface DiagnosticsState {
 export const diagnosticsStore = new Store<DiagnosticsState>({
   diagnostics: [],
   compilerDiagnostics: [],
+  terminalDiagnostics: [],
   checking: false,
   error: null,
 });
 
-function combineDiagnostics(base: Diagnostic[], compiler: Diagnostic[]): Diagnostic[] {
-  return [...base, ...compiler];
+function combineDiagnostics(
+  base: Diagnostic[],
+  compiler: Diagnostic[],
+  terminal: Diagnostic[],
+): Diagnostic[] {
+  return [...base, ...compiler, ...terminal];
+}
+
+function diagnosticsWithoutManagedSources(diagnostics: Diagnostic[]): Diagnostic[] {
+  return diagnostics.filter(
+    (item) => item.source !== 'TypeScript' && item.source !== 'JavaScript' && item.source !== 'Terminal',
+  );
 }
 
 /** Keep Monaco's asynchronous compiler results alongside the fast runtime lint. */
 export function setCompilerDiagnostics(compilerDiagnostics: Diagnostic[]): void {
   diagnosticsStore.set((prev) => {
-    const base = prev.diagnostics.filter(
-      (item) => item.source !== 'TypeScript' && item.source !== 'JavaScript',
-    );
+    const base = diagnosticsWithoutManagedSources(prev.diagnostics);
     const current = prev.compilerDiagnostics ?? [];
     if (JSON.stringify(current) === JSON.stringify(compilerDiagnostics)) return prev;
+    const terminalDiagnostics = prev.terminalDiagnostics ?? [];
     return {
       ...prev,
       compilerDiagnostics,
-      diagnostics: combineDiagnostics(base, compilerDiagnostics),
+      diagnostics: combineDiagnostics(base, compilerDiagnostics, terminalDiagnostics),
+    };
+  });
+}
+
+export function setTerminalDiagnostics(terminalDiagnostics: Diagnostic[]): void {
+  diagnosticsStore.set((prev) => {
+    const current = prev.terminalDiagnostics ?? [];
+    if (JSON.stringify(current) === JSON.stringify(terminalDiagnostics)) return prev;
+    const base = diagnosticsWithoutManagedSources(prev.diagnostics);
+    const compilerDiagnostics = prev.compilerDiagnostics ?? [];
+    return {
+      ...prev,
+      terminalDiagnostics,
+      diagnostics: combineDiagnostics(base, compilerDiagnostics, terminalDiagnostics),
     };
   });
 }
@@ -55,7 +81,13 @@ export function isLintInFlight(): boolean {
 export function clearDiagnostics(): void {
   if (timer) clearTimeout(timer);
   timer = null;
-  diagnosticsStore.set({ diagnostics: [], compilerDiagnostics: [], checking: false, error: null });
+  diagnosticsStore.set({
+    diagnostics: [],
+    compilerDiagnostics: [],
+    terminalDiagnostics: [],
+    checking: false,
+    error: null,
+  });
 }
 
 /**
@@ -72,7 +104,10 @@ export function scheduleLint(
   if (!runtime.lint) {
     diagnosticsStore.set((prev) => ({
       ...prev,
-      diagnostics: prev.compilerDiagnostics ?? [],
+      diagnostics: [
+        ...(prev.compilerDiagnostics ?? []),
+        ...(prev.terminalDiagnostics ?? []),
+      ],
       checking: false,
       error: null,
     }));
@@ -88,20 +123,26 @@ export function scheduleLint(
       .then((diagnostics) => {
         // A newer request superseded this one.
         if (requestId !== inFlight) return;
-        const compilerDiagnostics = diagnosticsStore.get().compilerDiagnostics ?? [];
+        const current = diagnosticsStore.get();
+        const compilerDiagnostics = current.compilerDiagnostics ?? [];
+        const terminalDiagnostics = current.terminalDiagnostics ?? [];
         diagnosticsStore.set({
-          diagnostics: combineDiagnostics(diagnostics, compilerDiagnostics),
+          diagnostics: combineDiagnostics(diagnostics, compilerDiagnostics, terminalDiagnostics),
           compilerDiagnostics,
+          terminalDiagnostics,
           checking: false,
           error: null,
         });
       })
       .catch((err: unknown) => {
         if (requestId !== inFlight) return;
-        const compilerDiagnostics = diagnosticsStore.get().compilerDiagnostics ?? [];
+        const current = diagnosticsStore.get();
+        const compilerDiagnostics = current.compilerDiagnostics ?? [];
+        const terminalDiagnostics = current.terminalDiagnostics ?? [];
         diagnosticsStore.set({
-          diagnostics: compilerDiagnostics,
+          diagnostics: [...compilerDiagnostics, ...terminalDiagnostics],
           compilerDiagnostics,
+          terminalDiagnostics,
           checking: false,
           error: err instanceof Error ? err.message : String(err),
         });

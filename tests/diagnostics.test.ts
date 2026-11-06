@@ -4,6 +4,7 @@ import {
   diagnosticsStore,
   scheduleLint,
   setCompilerDiagnostics,
+  setTerminalDiagnostics,
 } from '../src/core/diagnosticsStore';
 import type { Diagnostic, Runtime } from '../src/core/types';
 
@@ -23,6 +24,14 @@ const lintDiagnostic: Diagnostic = {
   severity: 'error',
   message: 'Missing closing tag for <main>.',
   source: 'HTML',
+};
+const terminalDiagnostic: Diagnostic = {
+  file: 'src/app.ts',
+  line: 8,
+  column: 2,
+  severity: 'error',
+  message: 'Cannot find name missing.',
+  source: 'Terminal',
 };
 
 const runtime = (lint: Runtime['lint']): Runtime => ({
@@ -48,6 +57,21 @@ describe('diagnostics channels', () => {
 
     expect(diagnosticsStore.get().diagnostics).toEqual([lintDiagnostic, compilerDiagnostic]);
     expect(diagnosticsStore.get().checking).toBe(false);
+  });
+
+  it('keeps terminal diagnostics alongside compiler and lint results', async () => {
+    vi.useFakeTimers();
+    setCompilerDiagnostics([compilerDiagnostic]);
+    setTerminalDiagnostics([terminalDiagnostic]);
+    scheduleLint(runtime(async () => [lintDiagnostic]), {}, 0);
+    await vi.runAllTimersAsync();
+
+    expect(diagnosticsStore.get().diagnostics).toEqual([
+      lintDiagnostic,
+      compilerDiagnostic,
+      terminalDiagnostic,
+    ]);
+    expect(diagnosticsStore.get().terminalDiagnostics).toEqual([terminalDiagnostic]);
   });
 
   it('retains compiler results when a runtime has no separate linter', () => {
