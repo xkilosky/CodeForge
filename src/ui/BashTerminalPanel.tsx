@@ -251,8 +251,8 @@ export function BashTerminalPanel({
         if (disposed) return;
 
         setStatusMessage('Downloading Bash and standard shell commands (first launch only)…');
-        sandbox = await client.sandboxes.create({
-          packages: ['wasmer/bash', 'coreutils/coreutils'],
+        const createSandbox = (packages: string[]) => client!.sandboxes.create({
+          packages,
           files: projectFiles(filesRef.current),
           env: { HOME: '/workspace', TERM: 'xterm-256color' },
           network: { mode: 'http' },
@@ -265,6 +265,20 @@ export function BashTerminalPanel({
               : `Loading Bash and commands · ${Math.round(percent)}%`);
           },
         });
+        let utilitiesPackage: string | null = null;
+        for (const candidate of ['wasmer/coreutils', 'wasmer/busybox', 'busybox/busybox']) {
+          try {
+            sandbox = await createSandbox(['wasmer/bash', candidate]);
+            utilitiesPackage = candidate;
+            break;
+          } catch {
+            if (disposed) return;
+          }
+        }
+        if (!sandbox) {
+          setStatusMessage('Starting Bash with its built-in commands…');
+          sandbox = await createSandbox(['wasmer/bash']);
+        }
         sandboxRef.current = sandbox;
         if (disposed) {
           await sandbox.close();
@@ -286,9 +300,13 @@ export function BashTerminalPanel({
         }
         processRef.current = process;
         setStatus('ready');
-        setStatusMessage('Bash ready · standard commands preloaded');
+        setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
         terminal.writeln(`\x1b[90mCodeForge Bash · ${projectNameRef.current} · powered by Wasmer\x1b[0m`);
-        terminal.writeln('\x1b[90mCommon file and text utilities are included. Use Node / npm for networked installs.\x1b[0m');
+        if (utilitiesPackage) {
+          terminal.writeln(`\x1b[90mCommon shell utilities preloaded from ${utilitiesPackage}. Use Node / npm for networked installs.\x1b[0m`);
+        } else {
+          terminal.writeln('\x1b[33mCommon utility bundle unavailable; Bash is running with built-in commands only.\x1b[0m');
+        }
 
         const pump = async (stream: ReadableBytes | null) => {
           if (!stream) return;

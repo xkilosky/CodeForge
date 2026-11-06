@@ -128,12 +128,12 @@ access, including the integrated WebContainer terminal and package installs, sti
 
 ### Integrated terminal
 
-Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs
-`wasmer/bash` with `coreutils/coreutils` preloaded in a browser-local WebAssembly/WASIX sandbox. Common
-commands such as `ls`, `cat`, `cp`, `mv`, `rm`, and `mkdir` are available immediately—there is no
-manual package step for ordinary shell use. It does not execute on a remote server and requires no
-account, API key, or backend. Bash edits and new text files synchronize with the CodeForge project;
-the shell's temporary filesystem and history are session-local.
+Open **Terminal** from the project drawer or command palette. The default **Bash** shell runs in a
+browser-local WebAssembly/WASIX sandbox and automatically loads a compatible common-utilities bundle
+when one is available. Common commands such as `ls`, `cat`, `cp`, `mv`, `rm`, and `mkdir` need no
+manual package step. It does not execute on a remote server and requires no account, API key, or
+backend. Bash edits and new text files synchronize with the CodeForge project; the shell's temporary
+filesystem and history are session-local.
 
 Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. Outbound TCP/DNS
 is disabled by default, so networked package managers such as `npm install` need a WISP proxy
