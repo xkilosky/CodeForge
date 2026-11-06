@@ -6,19 +6,16 @@ import { TerminalChrome } from '../src/ui/TerminalChrome';
 
 const noop = () => {};
 
-function renderChrome(shell: 'bash' | 'node'): string {
+function renderChrome(): string {
   return renderToStaticMarkup(
     <TerminalChrome
-      shell={shell}
       status="ready"
       statusMessage="Shell ready"
       projectName="Demo project"
       activePath="src/main.js"
-      serverUrl={null}
       terminalRef={createRef<TerminalType>()}
       terminalHostRef={createRef<HTMLDivElement>()}
       issues={[]}
-      onSwitchShell={noop}
       onRunActiveFile={noop}
       onClear={noop}
       onRestart={noop}
@@ -30,22 +27,22 @@ function renderChrome(shell: 'bash' | 'node'): string {
 }
 
 describe('terminal chrome', () => {
-  it('offers both runtimes and touch-friendly terminal controls', () => {
-    const markup = renderChrome('bash');
-    expect(markup).toContain('Choose runtime in this terminal');
+  it('shows one Bash terminal with touch-friendly terminal controls', () => {
+    const markup = renderChrome();
     expect(markup.match(/<h2>Terminal<\/h2>/g)).toHaveLength(1);
-    expect(markup).toContain('aria-pressed="true"');
-    expect(markup).toContain('Node / npm');
+    expect(markup).toContain('Browser-local Bash');
+    expect(markup).not.toContain('Node / npm');
     expect(markup).toContain('Paste');
     expect(markup).toContain('Restart');
     expect(markup).toContain('Ctrl+C');
     expect(markup).toContain('previous command');
   });
 
-  it('shows Node/npm shortcuts when that runtime is selected', () => {
-    const markup = renderChrome('node');
-    expect(markup).toContain('Browser runtime');
-    expect(markup).toContain('node -v');
-    expect(markup).toContain('npm -v');
+  it('does not expose a second terminal runtime selector', () => {
+    const markup = renderChrome();
+    expect(markup).not.toContain('Node / npm');
+    expect(markup).not.toContain('Choose runtime in this terminal');
+    expect(markup).toContain('pwd');
+    expect(markup).toContain('help');
   });
 });

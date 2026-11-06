@@ -1,4 +1,4 @@
-/* A focused, mobile-first terminal surface shared by the Bash and Node runtimes. */
+/* A focused, mobile-first Bash terminal surface. */
 .workspace-stack {
   position: relative;
   overflow: hidden;
@@ -54,8 +54,7 @@
 .terminal-topbar-tools,
 .terminal-title-line,
 .terminal-controlbar,
-.terminal-control-group,
-.terminal-shell-switcher {
+.terminal-control-group {
   display: flex;
   align-items: center;
 }
@@ -153,50 +152,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 12%, transparent);
 }
 
-.terminal-shell-switcher {
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: var(--bg-sunken);
-}
-
-.terminal-shell-switcher button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 29px;
-  padding: 4px 9px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--muted);
-  background: transparent;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 650;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.terminal-shell-switcher button:hover { color: var(--text); }
-
-.terminal-shell-switcher button.is-selected {
-  border-color: var(--border-soft);
-  color: var(--text);
-  background: var(--bg-raise);
-  box-shadow: 0 1px 2px #0002;
-}
-
-.terminal-shell-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.terminal-shell-dot-node { background: var(--cyan); }
-
 .terminal-controlbar {
   justify-content: space-between;
   gap: 10px;
@@ -210,8 +165,7 @@
 .terminal-run-controls { flex: 1 1 auto; }
 .terminal-utility-controls { flex: 0 0 auto; }
 
-.terminal-controlbar button,
-.terminal-server-link,
+  .terminal-controlbar button,
 .terminal-quick-commands button {
   display: inline-flex;
   align-items: center;
@@ -232,7 +186,6 @@
 }
 
 .terminal-controlbar button:hover,
-.terminal-server-link:hover,
 .terminal-quick-commands button:hover {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   color: var(--text);
@@ -261,7 +214,6 @@
   background: color-mix(in srgb, var(--accent) 86%, white);
 }
 
-.terminal-server-link { color: var(--ok); }
 .terminal-font-control { min-width: 31px; font-weight: 700 !important; }
 
 .terminal-quick-commands {
@@ -388,8 +340,7 @@
 .terminal-topbar button:focus-visible,
 .terminal-controlbar button:focus-visible,
 .terminal-mobile-keys button:focus-visible,
-.terminal-issue:focus-visible,
-.terminal-server-link:focus-visible {
+.terminal-issue:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -412,7 +363,7 @@
   .terminal-control-group { width: 100%; overflow-x: auto; scrollbar-width: none; }
   .terminal-control-group::-webkit-scrollbar { display: none; }
   .terminal-utility-controls { justify-content: flex-start; }
-  .terminal-controlbar button, .terminal-server-link { min-height: 32px; padding-inline: 9px; }
+  .terminal-controlbar button { min-height: 32px; padding-inline: 9px; }
   .terminal-quick-commands { display: none; }
   .terminal-view { padding: 6px 5px; }
   .terminal-mobile-keys { padding: 6px 8px; }
@@ -424,8 +375,7 @@
 
 @media (max-width: 420px) {
   .terminal-state-pill { min-height: 25px; padding-inline: 7px; }
-  .terminal-shell-switcher button { min-height: 27px; padding-inline: 7px; font-size: 9px; }
-  .terminal-controlbar button, .terminal-server-link { font-size: 9px; }
+  .terminal-controlbar button { font-size: 9px; }
   .terminal-utility-controls { gap: 4px; }
   .terminal-utility-controls button { padding-inline: 7px; }
 }

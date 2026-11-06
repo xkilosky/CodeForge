@@ -2,20 +2,16 @@ import type { RefObject } from 'react';
 import type { Terminal as TerminalType } from '@xterm/xterm';
 import type { TerminalIssue } from '../core/terminalDiagnostics';
 
-export type TerminalShell = 'bash' | 'node';
 export type TerminalStatus = 'starting' | 'ready' | 'stopped' | 'error';
 
 interface TerminalChromeProps {
-  shell: TerminalShell;
   status: TerminalStatus;
   statusMessage: string;
   projectName: string;
   activePath: string;
-  serverUrl: string | null;
   terminalRef: RefObject<TerminalType | null>;
   terminalHostRef: RefObject<HTMLDivElement | null>;
   issues: TerminalIssue[];
-  onSwitchShell: (shell: TerminalShell) => void;
   onRunActiveFile: () => void;
   onClear: () => void;
   onRestart: () => void;
@@ -45,16 +41,13 @@ function changeFontSize(terminalRef: RefObject<TerminalType | null>, delta: numb
 }
 
 export function TerminalChrome({
-  shell,
   status,
   statusMessage,
   projectName,
   activePath,
-  serverUrl,
   terminalRef,
   terminalHostRef,
   issues,
-  onSwitchShell,
   onRunActiveFile,
   onClear,
   onRestart,
@@ -101,9 +94,7 @@ export function TerminalChrome({
     }
   };
 
-  const quickCommands = shell === 'bash'
-    ? ['pwd', 'help', 'echo ready']
-    : ['pwd', 'node -v', 'npm -v'];
+  const quickCommands = ['pwd', 'help', 'echo ready'];
 
   return (
     <>
@@ -115,7 +106,7 @@ export function TerminalChrome({
               <h2>Terminal</h2>
               <span className="terminal-project-name" title={projectName}>{projectName}</span>
             </div>
-            <p className="terminal-context">{shell === 'bash' ? 'Browser-local Bash' : 'Node.js · WebContainer mode'} <span aria-hidden="true">/</span> {activePath || 'project root'}</p>
+            <p className="terminal-context">Browser-local Bash <span aria-hidden="true">/</span> {activePath || 'project root'}</p>
           </div>
         </div>
         <div className="terminal-topbar-tools">
@@ -123,21 +114,12 @@ export function TerminalChrome({
             <span className="terminal-status" aria-hidden="true" />
             <span className="terminal-status-message" title={statusMessage}>{status === 'ready' ? 'Ready' : status === 'error' ? 'Needs attention' : status === 'stopped' ? 'Stopped' : 'Starting'}</span>
           </span>
-          <div className="terminal-shell-switcher" role="group" aria-label="Choose runtime in this terminal">
-            <button type="button" aria-pressed={shell === 'bash'} className={shell === 'bash' ? 'is-selected' : ''} onClick={() => onSwitchShell('bash')}>
-              <span className="terminal-shell-dot terminal-shell-dot-bash" aria-hidden="true" />Bash
-            </button>
-            <button type="button" aria-pressed={shell === 'node'} className={shell === 'node' ? 'is-selected' : ''} onClick={() => onSwitchShell('node')}>
-              <span className="terminal-shell-dot terminal-shell-dot-node" aria-hidden="true" />Node / npm
-            </button>
-          </div>
         </div>
       </header>
 
       <div className="terminal-controlbar">
         <div className="terminal-control-group terminal-run-controls">
-          {serverUrl ? <a className="terminal-server-link" href={serverUrl} target="_blank" rel="noreferrer">Open preview <span aria-hidden="true">↗</span></a> : null}
-          <button type="button" className="terminal-primary-action" onClick={onRunActiveFile} disabled={!activePath} title="Run the active JavaScript or TypeScript file in Node / npm">
+          <button type="button" className="terminal-primary-action" onClick={onRunActiveFile} disabled={!activePath} title="Run a Bash script in this terminal, or run the active project in Preview">
             <span aria-hidden="true">▶</span> Run file
           </button>
           <div className="terminal-quick-commands" aria-label="Quick commands">
@@ -184,7 +166,7 @@ export function TerminalChrome({
       </div>
       <div className="terminal-footnote">
         <span className="terminal-footnote-status">{statusMessage}</span>
-        <span>{shell === 'bash' ? 'WASM sandbox · no key required' : 'Browser runtime · project files sync automatically'}</span>
+        <span>WASM Bash · project files sync automatically</span>
       </div>
     </>
   );

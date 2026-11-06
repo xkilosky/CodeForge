@@ -128,30 +128,27 @@ access, including the integrated WebContainer terminal and package installs, sti
 
 ### Integrated terminal
 
-Open the single **Terminal** section from the project drawer or command palette. **Bash** is selected
-by default. Bash and Node/npm are runtime modes inside that same Terminal—not separate sections—and
-switching modes replaces the active runtime view. Bash runs in a browser-local WebAssembly/WASIX
-sandbox and automatically tries compatible common-utilities bundles; there is no manual package step.
-If no bundle resolves, the Terminal reports that it has fallen back to Bash built-ins. It does not
-execute on a remote server and requires no account, API key, or backend. Bash edits and new text files
-synchronize with the CodeForge project; the shell's temporary filesystem and history are session-local.
+Open the single **Terminal** section from the project drawer or command palette. It is one
+Bash-only terminal, running in a browser-local WebAssembly/WASIX sandbox. It automatically tries
+compatible common-utilities bundles; there is no manual package step. If no bundle resolves, the
+Terminal reports that it has fallen back to Bash built-ins. It does not execute on a remote server and
+requires no account, API key, or backend. Bash edits and new text files synchronize with the CodeForge
+project; the shell's temporary filesystem and history are session-local.
 
 Bash in WASIX is not the phone's native shell or a complete Linux virtual machine. Outbound TCP/DNS
-is disabled by default, so networked package managers such as `npm install` need a WISP proxy
-endpoint; no proxy is bundled. Switch the same Terminal to **Node / npm** mode for the existing
-browser-based WebContainer runtime (`jsh`) when you need `npm`/`npx`, development servers, or its wider
-command set. Open ports there surface an **Open running app** link. `Ctrl/Cmd+Shift+Enter` runs the
-active JavaScript or TypeScript file in Node / npm mode.
-The terminal toolbar switches shells, runs the active file, copies/pastes selection, adjusts text size,
-restarts a stopped shell, and exposes mobile-friendly Tab/Escape/Ctrl/arrow keys. Quick-command chips
-provide safe starter commands for the selected runtime.
+is disabled by default, so networked package managers such as `npm install` are not available inside
+this Bash terminal. Use CodeForge's **Run** and **Preview** features for JavaScript/TypeScript projects
+and development servers; those features do not open a second terminal. The Terminal's **Run file**
+action runs `.sh` files in Bash and routes app files to CodeForge's existing Preview runtime.
+The one Bash toolbar copies/pastes selection, adjusts text size, restarts a stopped shell, and exposes
+mobile-friendly Tab/Escape/Ctrl/arrow keys. Quick-command chips provide Bash starter commands.
 
-Files edited in either shell or CodeForge are synchronized back into the project; dependency, Git
-metadata, build-output folders, and binary files stay outside the editor's text-file map. Common
-compiler/runtime locations become clickable terminal problems and Monaco markers. For GitHub commits
-and pushes, use **Source Control**; local `git` CLI availability depends on the selected runtime.
+Files edited in Bash or CodeForge synchronize back into the project; dependency, Git metadata,
+build-output folders, and binary files stay outside the editor's text-file map. Common compiler/runtime
+locations become clickable terminal problems and Monaco markers. For GitHub commits and pushes, use
+**Source Control**; local `git` CLI availability depends on the browser shell environment.
 
-Both runtimes require a secure HTTPS page and cross-origin isolation (`COOP: same-origin`,
+The Bash runtime requires a secure HTTPS page and cross-origin isolation (`COOP: same-origin`,
 `COEP: require-corp`); the Vite and Vercel configurations in this repository set those headers. The
 first Bash launch needs an internet connection to fetch and cache the public runtime package. The
 Wasmer attribution is shown in the Bash terminal; see [third-party notices](THIRD_PARTY_NOTICES.md).

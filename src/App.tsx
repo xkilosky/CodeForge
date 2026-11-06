@@ -45,7 +45,6 @@ import { usePwaInstall } from './ui/usePwaInstall';
 import './styles/terminal.css';
 import './styles/pwa.css';
 
-const TerminalPanel = lazy(() => import('./ui/TerminalPanel').then((module) => ({ default: module.TerminalPanel })));
 const BashTerminalPanel = lazy(() => import('./ui/BashTerminalPanel').then((module) => ({ default: module.BashTerminalPanel })));
 
 /** Where a drawer section lands on a wide screen: a column section, or none. */
@@ -88,7 +87,6 @@ export default function App() {
   /** Extra destinations (Look, Backup, Source Control, or game Objects). */
   const [extraSection, setExtraSection] = useState<'look' | 'backup' | 'source' | 'objects' | 'terminal' | null>(null);
   const [terminalMounted, setTerminalMounted] = useState(false);
-  const [terminalShell, setTerminalShell] = useState<'bash' | 'node'>('bash');
   const [terminalRestartToken, setTerminalRestartToken] = useState(0);
   const [terminalRunRequest, setTerminalRunRequest] = useState<{ path: string; sequence: number }>();
   const terminalRunSequence = useRef(0);
@@ -131,15 +129,6 @@ export default function App() {
   const handleTerminalRunRequestHandled = useCallback((sequence: number) => {
     setTerminalRunRequest((request) => request?.sequence === sequence ? undefined : request);
   }, []);
-
-  const runActiveFileInTerminal = useCallback(() => {
-    if (!project?.activeFile) return;
-    setTerminalShell('node');
-    setTerminalMounted(true);
-    setExtraSection('terminal');
-    setDrawerOpen(false);
-    setTerminalRunRequest({ path: project.activeFile, sequence: ++terminalRunSequence.current });
-  }, [project?.activeFile]);
 
   /**
    * Pinned on a wide screen means the drawer is simply part of the layout; on a
@@ -252,6 +241,22 @@ export default function App() {
     }
     void startRun((bridge) => runtime.run(project.files, project.activeFile, bridge));
   }, [project, runtime, layout]);
+
+  const runActiveFileInTerminal = useCallback(() => {
+    if (!project?.activeFile) return;
+    if (project.activeFile.toLowerCase().endsWith('.sh')) {
+      setTerminalMounted(true);
+      setExtraSection('terminal');
+      setDrawerOpen(false);
+      setTerminalRunRequest({ path: project.activeFile, sequence: ++terminalRunSequence.current });
+      return;
+    }
+    // Keep the terminal itself Bash-only. App files run through CodeForge's
+    // existing browser preview runtime instead of opening a second shell.
+    setExtraSection(null);
+    if (layout === 'desktop') setDesktopTab('preview');
+    handleRun();
+  }, [project?.activeFile, layout, handleRun]);
 
   const handleStop = useCallback(() => stopRun(), []);
 
@@ -478,8 +483,8 @@ export default function App() {
       },
       {
         id: 'run-active-file-terminal',
-        label: 'Run Active File in Terminal',
-        description: 'Execute the active JavaScript or TypeScript file in the browser runtime',
+        label: 'Run Active File',
+        description: 'Run .sh files in Bash; run app files in CodeForge Preview',
         shortcut: 'Ctrl/Cmd+Shift+Enter',
         enabled: Boolean(project.activeFile),
         run: runActiveFileInTerminal,
@@ -616,8 +621,6 @@ export default function App() {
         ? ' has-drawer'
         : ' has-drawer unpinned'
       : '';
-  const ActiveTerminalPanel = terminalShell === 'bash' ? BashTerminalPanel : TerminalPanel;
-
   return (
     <div
       className={`app${drawerLayout}`}
@@ -979,16 +982,15 @@ export default function App() {
               Loading terminal interface…
             </div>
           }>
-            <ActiveTerminalPanel
+            <BashTerminalPanel
               key={terminalRestartToken}
               active={extraSection === 'terminal'}
-              onSwitchShell={setTerminalShell}
               onRestartTerminal={restartTerminal}
               projectId={project.id}
               projectName={project.name}
               files={project.files}
               activePath={project.activeFile}
-              runRequest={terminalShell === 'node' ? terminalRunRequest : undefined}
+              runRequest={terminalRunRequest}
               onRunRequestHandled={handleTerminalRunRequestHandled}
               onRunActiveFile={runActiveFileInTerminal}
               onReplaceFiles={(projectId, contents) => {

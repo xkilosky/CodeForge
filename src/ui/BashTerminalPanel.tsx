@@ -5,12 +5,11 @@ import type { Process as WasmerProcess, ReadableBytes, Sandbox as WasmerSandbox,
 import type { FileMap } from '../core/types';
 import { setTerminalDiagnostics } from '../core/diagnosticsStore';
 import { parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
-import { TerminalChrome, type TerminalShell, type TerminalStatus } from './TerminalChrome';
+import { TerminalChrome, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
 
 interface BashTerminalPanelProps {
   active: boolean;
-  onSwitchShell: (shell: TerminalShell) => void;
   onRestartTerminal: () => void;
   projectId: string;
   projectName: string;
@@ -28,6 +27,10 @@ type TextFiles = Record<string, string>;
 const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', '.wasmer', 'dist', 'build', 'coverage']);
 const MAX_SYNC_FILE_BYTES = 1024 * 1024;
 const MAX_SYNC_TOTAL_BYTES = 10 * 1024 * 1024;
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
 
 function projectPath(path: string): string | null {
   const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '');
@@ -87,7 +90,6 @@ async function readSandboxTextFiles(sandbox: WasmerSandbox): Promise<{ files: Te
 
 export function BashTerminalPanel({
   active,
-  onSwitchShell,
   onRestartTerminal,
   projectId,
   projectName,
@@ -111,6 +113,7 @@ export function BashTerminalPanel({
   const onOpenIssueRef = useRef(onOpenIssue);
   const lastSyncedFilesRef = useRef<TextFiles>({});
   const handledRunSequence = useRef(0);
+  const pendingRunRef = useRef<{ path: string; sequence: number } | undefined>(undefined);
   const outputLineBuffer = useRef('');
   const lastErrorLine = useRef('');
   const issuesRef = useRef<TerminalIssue[]>([]);
@@ -127,6 +130,20 @@ export function BashTerminalPanel({
     const input = processRef.current?.stdin;
     if (input) void input.write(data).catch(() => undefined);
   }, []);
+
+  const runBashScript = useCallback((request: { path: string; sequence: number }) => {
+    const path = request.path.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!projectPath(path) || filesRef.current[path] === undefined || !path.toLowerCase().endsWith('.sh')) {
+      terminalRef.current?.writeln('\r\n\x1b[33mOnly .sh files run as commands in this Bash terminal. Use CodeForge Run/Preview for app files.\x1b[0m');
+      return;
+    }
+    if (!processRef.current) {
+      pendingRunRef.current = request;
+      return;
+    }
+    sendInput(`bash ${shellQuote(path)}\r`);
+    terminalRef.current?.focus();
+  }, [sendInput]);
 
   const fitTerminal = useCallback(() => {
     const terminal = terminalRef.current;
@@ -317,11 +334,16 @@ export function BashTerminalPanel({
           return;
         }
         processRef.current = process;
+        const queuedRun = pendingRunRef.current;
+        if (queuedRun) {
+          pendingRunRef.current = undefined;
+          runBashScript(queuedRun);
+        }
         setStatus('ready');
         setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
         terminal.writeln(`\x1b[90mCodeForge Bash · ${projectNameRef.current} · powered by Wasmer\x1b[0m`);
         if (utilitiesPackage) {
-          terminal.writeln(`\x1b[90mCommon shell utilities preloaded from ${utilitiesPackage}. Use Node / npm for networked installs.\x1b[0m`);
+          terminal.writeln(`\x1b[90mCommon shell utilities preloaded from ${utilitiesPackage}.\x1b[0m`);
         } else {
           terminal.writeln('\x1b[33mCommon utility bundle unavailable; Bash is running with built-in commands only.\x1b[0m');
         }
@@ -427,8 +449,8 @@ export function BashTerminalPanel({
     if (!runRequest || handledRunSequence.current === runRequest.sequence) return;
     handledRunSequence.current = runRequest.sequence;
     onRunRequestHandled(runRequest.sequence);
-    terminalRef.current?.writeln('\r\n\x1b[33mRun Active File uses Node.js. Switch this Terminal to Node / npm mode to run this file.\x1b[0m');
-  }, [runRequest]);
+    runBashScript(runRequest);
+  }, [runRequest, onRunRequestHandled, runBashScript]);
 
   useEffect(() => {
     let disposed = false;
@@ -543,16 +565,13 @@ export function BashTerminalPanel({
   return (
     <section className={`terminal-overlay${active ? ' is-active' : ''}`} aria-label="Bash terminal" aria-hidden={!active}>
       <TerminalChrome
-        shell="bash"
         status={status}
         statusMessage={statusMessage}
         projectName={projectName}
         activePath={activePath}
-        serverUrl={null}
         terminalRef={terminalRef}
         terminalHostRef={terminalHost}
         issues={issues}
-        onSwitchShell={onSwitchShell}
         onRunActiveFile={onRunActiveFile}
         onClear={clearTerminal}
         onRestart={onRestartTerminal}
