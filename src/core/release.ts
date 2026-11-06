@@ -1,60 +1,35 @@
 /**
- * The release name shown in the app.
- *
- * Every release is **Forge S<season>.<milestone>** with a channel beside it:
- *
- *     CodeForge - Forge S1.9
- *     Platform Release
- *
- * The number in front of the dot is the shipped milestone, so it is **derived
- * from the runtime registry** rather than typed twice. A hand-written "S1.5"
- * in a template string is a version number that goes stale on the next release
- * and nobody notices for a month — the list below already knows which
- * milestones are live, so it is the single source for this.
- *
- * Season is separate because it is a decision, not a count: S1 is the season
- * opened by the Web workspace. Adding a runtime to a later season is a one-line
- * change here plus the `season` on the milestone table below.
+ * Release identity shown in the app. Every release tag is derived from the
+ * shipped milestone list, keeping the UI, document title, and release notes in
+ * step.
  */
 
-/** One per shipped milestone, in the order they shipped. */
-const SEASON = 1;
-
 interface MilestoneName {
-  /** The milestone id used across the codebase and PLAN.md. */
+  /** Internal milestone id used across the codebase and PLAN.md. */
   id: string;
   /** What the milestone is called, for the release note. */
   name: string;
+  /** User-facing season and milestone tag, e.g. S2.1. */
+  release: string;
 }
 
-/**
- * Milestones that have shipped, oldest first. The list order is the version
- * order: the last entry is the current milestone.
- *
- * Declared here rather than inferred by counting `available` runtimes, because
- * a milestone can ship without adding a workspace — the projects home and the
- * mobile pass were both real releases with no new runtime.
- */
+/** Shipped milestones in chronological order. */
 export const SHIPPED_MILESTONES: MilestoneName[] = [
-  { id: 'M1', name: 'Web workspace' },
-  { id: 'M5', name: 'Visual game builder' },
-  { id: 'M6', name: 'Files, folders and a new interface' },
-  { id: 'M7', name: 'Development workflow evolution' },
-  { id: 'M8', name: 'Global project search' },
-  { id: 'M9', name: 'GitHub source control' },
+  { id: 'M1', name: 'Web workspace', release: 'S1.1' },
+  { id: 'M5', name: 'Visual game builder', release: 'S1.5' },
+  { id: 'M6', name: 'Files, folders and a new interface', release: 'S1.6' },
+  { id: 'M7', name: 'Development workflow evolution', release: 'S1.7' },
+  { id: 'M8', name: 'Global project search', release: 'S1.8' },
+  { id: 'M9', name: 'GitHub source control', release: 'S1.9' },
+  { id: 'M12', name: 'Real-time error detection', release: 'S2.1' },
 ];
 
-/**
- * When the next unshipped milestone lands, in user-facing words.
- *
- * "Arrives in M10" is a note to the team, not to the person looking at the
- * workspace tab — the milestone numbering is an internal build plan. This maps
- * it to the next release tag instead, so the UI can say "Forge S1.10".
- */
+/** The next user-facing tag after the latest release. */
 export function nextReleaseTag(): string {
   const latest = SHIPPED_MILESTONES[SHIPPED_MILESTONES.length - 1];
-  const next = Number((latest?.id ?? 'M0').replace(/^M/, '')) + 1;
-  return `S${SEASON}.${next}`;
+  const match = /^(S\d+)\.(\d+)$/.exec(latest?.release ?? 'S1.0');
+  if (!match) return 'S1.1';
+  return `${match[1]}.${Number(match[2]) + 1}`;
 }
 
 /** User-facing "not yet" line for an unshipped workspace. */
@@ -62,45 +37,33 @@ export function arrivesIn(): string {
   return `Arrives in Forge ${nextReleaseTag()}.`;
 }
 
-/** The same fact as a mid-sentence phrase: "arrives in Forge S1.10." */
+/** The same fact as a mid-sentence phrase: "arrives in Forge S2.2." */
 export function arrivesInPhrase(): string {
   return `arrives in Forge ${nextReleaseTag()}.`;
 }
 
-export type ReleaseChannel =
-  | 'Platform Release'
-  | 'Preview'
-  | 'Maintenance';
+export type ReleaseChannel = 'Platform Release' | 'Preview' | 'Maintenance';
 
 export interface Release {
-  /** e.g. `S1.9` */
+  /** e.g. `S2.1` */
   tag: string;
-  /** e.g. `CodeForge - Forge S1.9` */
+  /** e.g. `CodeForge - Forge S2.1` */
   title: string;
-  /** e.g. `Platform Release` */
   channel: ReleaseChannel;
-  /** What shipped, e.g. `M5 — Visual game builder`. */
+  /** What shipped, e.g. `M12 — Real-time error detection`. */
   milestone: string;
-  /** The short, human line under the version. */
   summary: string;
 }
 
-/**
- * The current release.
- *
- * The number is the highest shipped milestone, so it advances by editing
- * `SHIPPED_MILESTONES` when a milestone lands and by nothing else. There is no
- * second place to remember.
- */
+/** The current release, derived from the last shipped milestone. */
 export function currentRelease(): Release {
   const latest = SHIPPED_MILESTONES[SHIPPED_MILESTONES.length - 1];
-  const tag = `S${SEASON}.${(latest?.id ?? 'M0').replace(/^M/, '')}`;
+  const tag = latest?.release ?? 'S1.0';
   return {
     tag,
     title: `CodeForge - Forge ${tag}`,
     channel: 'Platform Release',
     milestone: latest ? `${latest.id} — ${latest.name}` : 'M0 — Scaffold',
-    summary:
-      'Track project changes and commit them to GitHub from the browser.',
+    summary: 'Catch code errors and type issues as you edit, with live editor diagnostics.',
   };
 }

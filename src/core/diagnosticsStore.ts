@@ -3,6 +3,8 @@ import type { Diagnostic, FileMap, Runtime } from './types';
 
 export interface DiagnosticsState {
   diagnostics: Diagnostic[];
+  /** Diagnostics emitted directly by Monaco's JavaScript/TypeScript language service. */
+  compilerDiagnostics?: Diagnostic[];
   /** True while a check is in flight. */
   checking: boolean;
   error: string | null;
@@ -10,9 +12,30 @@ export interface DiagnosticsState {
 
 export const diagnosticsStore = new Store<DiagnosticsState>({
   diagnostics: [],
+  compilerDiagnostics: [],
   checking: false,
   error: null,
 });
+
+function combineDiagnostics(base: Diagnostic[], compiler: Diagnostic[]): Diagnostic[] {
+  return [...base, ...compiler];
+}
+
+/** Keep Monaco's asynchronous compiler results alongside the fast runtime lint. */
+export function setCompilerDiagnostics(compilerDiagnostics: Diagnostic[]): void {
+  diagnosticsStore.set((prev) => {
+    const base = prev.diagnostics.filter(
+      (item) => item.source !== 'TypeScript' && item.source !== 'JavaScript',
+    );
+    const current = prev.compilerDiagnostics ?? [];
+    if (JSON.stringify(current) === JSON.stringify(compilerDiagnostics)) return prev;
+    return {
+      ...prev,
+      compilerDiagnostics,
+      diagnostics: combineDiagnostics(base, compilerDiagnostics),
+    };
+  });
+}
 
 /** Checks are not free, so callers must debounce instead of running per edit. */
 const DEBOUNCE_MS = 400;
@@ -32,7 +55,7 @@ export function isLintInFlight(): boolean {
 export function clearDiagnostics(): void {
   if (timer) clearTimeout(timer);
   timer = null;
-  diagnosticsStore.set({ diagnostics: [], checking: false, error: null });
+  diagnosticsStore.set({ diagnostics: [], compilerDiagnostics: [], checking: false, error: null });
 }
 
 /**
@@ -47,7 +70,12 @@ export function scheduleLint(
   if (timer) clearTimeout(timer);
 
   if (!runtime.lint) {
-    diagnosticsStore.set({ diagnostics: [], checking: false, error: null });
+    diagnosticsStore.set((prev) => ({
+      ...prev,
+      diagnostics: prev.compilerDiagnostics ?? [],
+      checking: false,
+      error: null,
+    }));
     return;
   }
 
@@ -60,12 +88,20 @@ export function scheduleLint(
       .then((diagnostics) => {
         // A newer request superseded this one.
         if (requestId !== inFlight) return;
-        diagnosticsStore.set({ diagnostics, checking: false, error: null });
+        const compilerDiagnostics = diagnosticsStore.get().compilerDiagnostics ?? [];
+        diagnosticsStore.set({
+          diagnostics: combineDiagnostics(diagnostics, compilerDiagnostics),
+          compilerDiagnostics,
+          checking: false,
+          error: null,
+        });
       })
       .catch((err: unknown) => {
         if (requestId !== inFlight) return;
+        const compilerDiagnostics = diagnosticsStore.get().compilerDiagnostics ?? [];
         diagnosticsStore.set({
-          diagnostics: [],
+          diagnostics: compilerDiagnostics,
+          compilerDiagnostics,
           checking: false,
           error: err instanceof Error ? err.message : String(err),
         });

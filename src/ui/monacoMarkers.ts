@@ -1,5 +1,6 @@
-import type { Diagnostic } from '../core/types';
-import { monaco } from './monaco';
+import type { Diagnostic, FileMap } from '../core/types';
+import { setCompilerDiagnostics } from '../core/diagnosticsStore';
+import { monaco, monacoLanguageFor } from './monaco';
 
 /**
  * Monaco models are keyed by URI so diagnostics can be attached to a specific
@@ -9,6 +10,62 @@ import { monaco } from './monaco';
 export function modelUriFor(path: string): monaco.Uri {
   return monaco.Uri.parse(`inmemory://codeforge/${path}`);
 }
+
+let activeProjectPaths = new Set<string>();
+
+/** Keep every JS/TS project file in Monaco so imports can be checked together. */
+export function syncProjectModels(files: FileMap | undefined): void {
+  activeProjectPaths = new Set(files ? Object.keys(files) : []);
+  for (const [path, file] of Object.entries(files ?? {})) {
+    if (file.language !== 'typescript' && file.language !== 'javascript') continue;
+    const uri = modelUriFor(path);
+    const language = monacoLanguageFor(file.language);
+    const model = monaco.editor.getModel(uri);
+    if (model) {
+      if (model.getLanguageId() !== language) monaco.editor.setModelLanguage(model, language);
+      if (model.getValue() !== file.content) model.setValue(file.content);
+    } else {
+      monaco.editor.createModel(file.content, language, uri);
+    }
+  }
+  syncCompilerDiagnostics();
+}
+
+function syncCompilerDiagnostics(): void {
+  const diagnostics: Diagnostic[] = [];
+  for (const model of monaco.editor.getModels()) {
+    const language = model.getLanguageId();
+    const path = model.uri.path.replace(/^\/+/, '');
+    if (!activeProjectPaths.has(path)) continue;
+    if (language !== 'typescript' && language !== 'javascript') continue;
+    const source = language === 'typescript' ? 'TypeScript' : 'JavaScript';
+    for (const marker of monaco.editor.getModelMarkers({ resource: model.uri })) {
+      if (marker.owner === 'codeforge') continue;
+      const code = typeof marker.code === 'string' ? marker.code : marker.code?.value;
+      diagnostics.push({
+        file: model.uri.path.replace(/^\/+/, ''),
+        line: marker.startLineNumber,
+        column: marker.startColumn,
+        endLine: marker.endLineNumber,
+        endColumn: marker.endColumn,
+        severity:
+          marker.severity === monaco.MarkerSeverity.Error
+            ? 'error'
+            : marker.severity === monaco.MarkerSeverity.Warning
+              ? 'warning'
+              : 'info',
+        message: marker.message,
+        code,
+        source,
+      });
+    }
+  }
+  setCompilerDiagnostics(diagnostics);
+}
+
+// The TypeScript worker publishes fresh markers as the user types. Mirror them
+// into Problems as well as leaving Monaco's native red/amber squiggles intact.
+monaco.editor.onDidChangeMarkers(syncCompilerDiagnostics);
 
 function severityFor(severity: Diagnostic['severity']): monaco.MarkerSeverity {
   if (severity === 'error') return monaco.MarkerSeverity.Error;

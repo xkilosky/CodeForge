@@ -1,5 +1,5 @@
 /**
- * The Forge S1.9 interface: source control, global search, palette, themes, export/import and the
+ * The Forge S2.1 interface: live diagnostics, source control, global search, themes, and export/import plus the
  * components that replaced the flat file list.
  *
  * Two kinds of assertion here. The first are behavioural — does the tree show

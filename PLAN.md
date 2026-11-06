@@ -6,6 +6,9 @@
 > feasibility results, the measured costs, and the reasoning are still accurate history, and the
 > remaining milestones (visual game builder, Python) are renumbered from it.
 >
+> **M12 — real-time error detection — is built (Forge S2.1).** JavaScript/TypeScript diagnostics
+> run in Monaco's on-demand compiler worker; HTML, CSS, and JSON are linted locally as you edit.
+>
 > **M9 — GitHub source control — is built (Forge S1.9).** Stage and unstage project changes,
 > fetch and pull text files, and publish commits directly to a linked repository.
 >
@@ -352,13 +355,15 @@ Night palette with per-project accents, and `.codeforge.json` export/import.
 folders, and a keyboard map. Export/import and per-project theming shipped early, in S1.6,
 because without a backup path the data model was one cleared browser profile away from gone.
 
-**Forge S2 — experience direction (proposed, not release-tagged).** The next design track focuses
-on making the browser IDE feel more intentional and responsive without losing its graphite/slate
-character or Monaco's colorful syntax themes. The first foundation is in place: subtle button
-hover/press feedback, shared motion timing, clear keyboard focus, and system reduced-motion support.
-Further polish can carry that language through navigation, project actions, and long-running task
-feedback. Forge S2 becomes a release label only when its milestones are scoped and shipped; this
-work does not prematurely change the current S1.9 release tag.
+**M12 — Real-time error detection.** ✅ *Done (Forge S2.1).* TypeScript's Monaco language service
+checks JavaScript and TypeScript models for syntax and type errors in a lazy-loaded worker;
+HTML structure, CSS delimiters, and JSON syntax are linted locally after a short typing pause.
+Diagnostics appear as editor squiggles and in Problems, without requiring save or run.
+
+**Forge S2 — experience direction.** The season focuses on making the browser IDE feel more
+intentional and responsive without losing its graphite/slate character or Monaco's colorful syntax
+themes. The S2.1 release establishes a creator-workflow foundation with real-time feedback; further
+polish can carry that language through navigation, project actions, and long-running task feedback.
 
 ---
 
@@ -373,7 +378,7 @@ work does not prematurely change the current S1.9 release tag.
 | `@luau-rs/luau` is v0.x — API may shift | Medium | Pin version; isolate behind `Runtime` |
 | Rapier ≠ Roblox physics solver | Medium | Label as approximate; don't promise parity |
 | Pixi's 76 MB hurts the builder's first load | Medium | Lazy-load; Canvas2D fallback |
-| Monaco's 101 MB bloats the bundle | **Resolved** | Minimal build landed in M0: 14 MB → 4.5 MB `dist`, no language-service workers. `.json` falls back to plaintext. |
+| Monaco's language-service worker increases transfer size | **Mitigated** | TypeScript worker is emitted separately and starts only for JS/TS files; basic projects keep the editor-only worker path. |
 | IndexedDB loss on cleared profile | Medium | Prominent export/import; autosave |
 | Analysis at 307 ms/check | Low | Debounce 400 ms in a worker |
 
@@ -396,5 +401,5 @@ exercised in a real browser. That is the first thing to click through manually.
 Runtime + preview abstraction that everything else reuses. The Roblox pillar that followed was
 retired; the **visual game builder (M5)** now occupies the same slot and reuses the same
 Runtime + preview contract. **M6 (files and the interface)** shipped ahead of Python because the
-flat file list was becoming the reason projects were hard to navigate. Next is **M10 (Python)**,
-then M11 polish.
+flat file list was becoming the reason projects were hard to navigate. **M12 real-time diagnostics**
+opened Forge S2. Next is **M10 (Python)** for Forge S2.2, then M11 polish.

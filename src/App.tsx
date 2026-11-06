@@ -15,7 +15,7 @@ import {
 import { loadLayout, layoutActions, layoutStore } from './core/layoutStore';
 import { useStore } from './ui/useStore';
 import { runtimeForWorkspace } from './runtimes/registry';
-import { applyMarkers, clearAllMarkers } from './ui/monacoMarkers';
+import { applyMarkers, clearAllMarkers, syncProjectModels } from './ui/monacoMarkers';
 import { EditorPane, type EditorReveal } from './ui/EditorPane';
 import { PreviewPane } from './ui/PreviewPane';
 import { summarizeIssues } from './ui/MobileNav';
@@ -156,20 +156,27 @@ export default function App() {
     [project?.workspace],
   );
 
-  // Lint on change. The bus debounces so a check never runs per keystroke.
+  // Lint on every file snapshot; the store debounces markup/style checks.
+  // Monaco's JS/TS compiler worker reports its own live markers independently.
   const files = project?.files;
   useEffect(() => {
-    if (!files || !runtime.lint) {
+    if (!files) {
       clearDiagnostics();
       clearAllMarkers();
+      syncProjectModels(undefined);
       return;
     }
+    syncProjectModels(files);
     scheduleLint(runtime, files);
   }, [files, runtime]);
 
   // Push results into Monaco as squiggles.
   useEffect(() => {
-    applyMarkers(diagnosticsState.diagnostics);
+    applyMarkers(
+      diagnosticsState.diagnostics.filter(
+        (diagnostic) => diagnostic.source !== 'TypeScript' && diagnostic.source !== 'JavaScript',
+      ),
+    );
   }, [diagnosticsState.diagnostics]);
 
   const handleRun = useCallback(() => {

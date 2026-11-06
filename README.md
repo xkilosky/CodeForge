@@ -4,15 +4,14 @@ A coding environment that runs entirely in your browser — HTML, CSS and JavaSc
 game builder. Python is planned.
 
 **Live:** https://codeforge-ten-flame.vercel.app
-**Source release:** **CodeForge - Forge S1.9** (Platform Release)
+**Source release:** **CodeForge - Forge S2.1** (Platform Release)
 
-## Forge S2 — design direction
+## Forge S2.1 — real-time error detection
 
-Forge S2 is taking shape around interface quality and creator workflow: restrained, tactile
-interaction motion; clear keyboard focus; reduced-motion support; and more consistent feedback
-across navigation and project actions. This pass establishes the shared motion and button-feedback
-foundation. It is a design direction, not a release-tag change: the shipped release remains S1.9
-until the next milestone is complete.
+JavaScript and TypeScript syntax/type diagnostics update while you edit, with Monaco squiggles and
+clickable entries in Problems. HTML tag structure, CSS braces/strings, and JSON parse errors are
+linted locally after a short typing pause. Nothing waits for save or run; analysis stays in the
+browser and the TypeScript worker loads only when a JS/TS file needs it.
 
 ## Versioning
 
@@ -20,9 +19,9 @@ Every release is named **Forge S<season>.<milestone>** and carries a channel:
 
 | | |
 | --- | --- |
-| Title | `CodeForge - Forge S1.9` |
+| Title | `CodeForge - Forge S2.1` |
 | Channel | `Platform Release` |
-| Milestone | M9 — GitHub source control |
+| Milestone | M12 — Real-time error detection |
 
 The number after the dot is the highest **shipped** milestone, and it is derived from
 `SHIPPED_MILESTONES` in `src/core/release.ts` — not typed into a component. Shipping a milestone
@@ -112,7 +111,7 @@ template does the same job without overwriting anything.
 | --- | --- | --- |
 | Web | HTML/CSS/JS in a sandboxed iframe | live page, console forwarded |
 | Games | canvas stage + gravity + a per-frame script | the stage, playable |
-| Languages | *planned* (Forge S1.10) | — |
+| Languages | *planned* (Forge S2.2) | — |
 
 ### The game builder
 

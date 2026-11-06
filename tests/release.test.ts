@@ -20,23 +20,23 @@ import { TEMPLATES } from '../src/core/templates';
 import { readFileSync } from 'node:fs';
 
 describe('release identity', () => {
-  it('names the current release Forge S1.9', () => {
+  it('names Forge S2.1 as the current release', () => {
     const release = currentRelease();
-    expect(release.tag).toBe('S1.9');
-    expect(release.title).toBe('CodeForge - Forge S1.9');
+    expect(release.tag).toBe('S2.1');
+    expect(release.title).toBe('CodeForge - Forge S2.1');
     expect(release.channel).toBe('Platform Release');
-    expect(release.milestone).toBe('M9 — GitHub source control');
+    expect(release.milestone).toBe('M12 — Real-time error detection');
   });
 
-  it('derives the number from the last shipped milestone', () => {
+  it('derives the release tag from the last shipped milestone', () => {
     const latest = SHIPPED_MILESTONES[SHIPPED_MILESTONES.length - 1];
-    expect(currentRelease().tag).toBe(`S1.${latest.id.replace(/^M/, '')}`);
+    expect(currentRelease().tag).toBe(latest.release);
   });
 
   it('points at the next milestone for work that has not shipped', () => {
-    expect(nextReleaseTag()).toBe('S1.10');
-    expect(arrivesIn()).toBe('Arrives in Forge S1.10.');
-    expect(arrivesInPhrase()).toBe('arrives in Forge S1.10.');
+    expect(nextReleaseTag()).toBe('S2.2');
+    expect(arrivesIn()).toBe('Arrives in Forge S2.2.');
+    expect(arrivesInPhrase()).toBe('arrives in Forge S2.2.');
   });
 
   it('lists only milestones whose runtime exists', () => {

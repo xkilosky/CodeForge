@@ -2,12 +2,10 @@
  * Minimal Monaco build.
  *
  * `import * from 'monaco-editor'` resolves to editor.main.js, which registers all
- * 81 language definitions *and* the css/html/json/typescript language services.
- * Those services drag in multi-megabyte workers (ts.worker alone is ~6.9 MB) that
- * this app never uses.
- *
- * So: the editor API, the widget, the languages we actually offer, and a curated
- * set of editing features. Nothing that starts a language service.
+ * 81 language definitions and every language service. Import the editor API,
+ * offered languages, and curated editing features directly instead. The JS/TS
+ * diagnostics service is opt-in and its multi-megabyte worker starts only for
+ * JavaScript or TypeScript models.
  */
 import * as monaco from 'monaco-editor/editor/editor.api';
 import { MONACO_THEMES } from '../core/theme';
@@ -19,6 +17,11 @@ for (const theme of MONACO_THEMES) {
 // Monaco 0.57's exports map is "./*": "./esm/vs/*.js", so bare subpaths below
 // resolve into esm/vs/. editor.worker.js is the self-contained worker entry.
 import editorWorker from 'monaco-editor/editor/editor.worker?worker';
+import typeScriptWorker from 'monaco-editor/languages/features/typescript/ts.worker?worker';
+import {
+  javascriptDefaults,
+  typescriptDefaults,
+} from 'monaco-editor/languages/features/typescript/register';
 
 // Core widget and commands — required for an editor to function at all.
 import 'monaco-editor/editor/browser/widget/codeEditor/codeEditorWidget';
@@ -32,7 +35,7 @@ import 'monaco-editor/languages/definitions/typescript/register';
 import 'monaco-editor/languages/definitions/lua/register';
 import 'monaco-editor/languages/definitions/python/register';
 
-// Editing features. Deliberately excludes the language-service-backed ones.
+// Core editing features. Language-service diagnostics are configured below.
 import 'monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching';
 import 'monaco-editor/editor/contrib/clipboard/browser/clipboard';
 import 'monaco-editor/editor/contrib/comment/browser/comment';
@@ -61,8 +64,73 @@ import 'monaco-editor/editor/contrib/wordOperations/browser/wordOperations';
 import 'monaco-codicon-css';
 import 'monaco-codicon-modifiers-css';
 
+// Turn on Monaco's real TypeScript compiler service only for JS/TS models. Its
+// worker is emitted separately and downloaded on demand, keeping plain-text and
+// HTML/CSS projects on the small editor worker path.
+typescriptDefaults.setCompilerOptions({
+  allowNonTsExtensions: true,
+  target: 99,
+  module: 99,
+  moduleResolution: 2,
+  jsx: 4,
+  strict: true,
+  noEmit: true,
+});
+typescriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: false,
+  noSyntaxValidation: false,
+  onlyVisible: false,
+});
+typescriptDefaults.setModeConfiguration({
+  completionItems: false,
+  hovers: false,
+  documentSymbols: false,
+  definitions: false,
+  references: false,
+  documentHighlights: false,
+  rename: false,
+  diagnostics: true,
+  documentRangeFormattingEdits: false,
+  signatureHelp: false,
+  onTypeFormattingEdits: false,
+  codeActions: false,
+  inlayHints: false,
+});
+
+javascriptDefaults.setCompilerOptions({
+  allowNonTsExtensions: true,
+  allowJs: true,
+  checkJs: true,
+  target: 99,
+  module: 99,
+  moduleResolution: 2,
+  strict: false,
+  noEmit: true,
+});
+javascriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: false,
+  noSyntaxValidation: false,
+  onlyVisible: false,
+});
+javascriptDefaults.setModeConfiguration({
+  completionItems: false,
+  hovers: false,
+  documentSymbols: false,
+  definitions: false,
+  references: false,
+  documentHighlights: false,
+  rename: false,
+  diagnostics: true,
+  documentRangeFormattingEdits: false,
+  signatureHelp: false,
+  onTypeFormattingEdits: false,
+  codeActions: false,
+  inlayHints: false,
+});
+
 (self as unknown as { MonacoEnvironment?: monaco.Environment }).MonacoEnvironment = {
-  getWorker() {
+  getWorker(_workerId, label) {
+    if (label === 'typescript' || label === 'javascript') return new typeScriptWorker();
     return new editorWorker();
   },
 };

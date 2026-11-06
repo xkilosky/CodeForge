@@ -16,6 +16,7 @@ import type {
   RunHandle,
   Runtime,
 } from '../core/types';
+import { lintFiles } from '../core/lint';
 
 /** Line span occupied by one inlined `<script data-cf-file="…">` block. */
 export interface ScriptSpan {
@@ -258,6 +259,10 @@ export const webRuntime: Runtime = {
   label: 'Web',
   preview: 'iframe',
   available: true,
+
+  lint(files: FileMap) {
+    return Promise.resolve(lintFiles(files));
+  },
 
   run(_files, _entry, bridge: IOBridge): RunHandle {
     bridge.log({ kind: 'system', text: 'Preview rebuilt. Console output is captured below.' });
