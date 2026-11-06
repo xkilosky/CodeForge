@@ -134,8 +134,26 @@ export function BashTerminalPanel({
   onOpenIssueRef.current = onOpenIssue;
 
   const sendInput = useCallback((data: string) => {
-    const input = processRef.current?.stdin;
-    if (input) void input.write(data).catch(() => undefined);
+    const activeProcess = processRef.current;
+    if (!activeProcess) {
+      if (/[\r\n]/.test(data)) {
+        terminalRef.current?.writeln('\r\n\x1b[33mBash is not running. Tap Retry to start a new shell session.\x1b[0m');
+      }
+      return;
+    }
+    const input = activeProcess.stdin;
+    if (!input) {
+      setStatus('error');
+      setStatusMessage('Bash is running without an input stream. Tap Retry to restart the terminal.');
+      return;
+    }
+    // Some Android keyboards send LF while xterm's PTY expects carriage return
+    // for Enter. Normalize pasted and keyboard line endings before forwarding.
+    const normalized = data.replace(/\r\n?/g, '\n').replace(/\n/g, '\r');
+    void input.write(normalized).catch((error: unknown) => {
+      setStatus('error');
+      setStatusMessage(`Could not send input to Bash: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }, []);
 
   const runBashScript = useCallback((request: { path: string; sequence: number }) => {
@@ -341,6 +359,11 @@ export function BashTerminalPanel({
             },
           })
           .spawn({ terminal: { columns: Math.max(terminal.cols, 60), rows: Math.max(terminal.rows, 12) } });
+        if (!process.stdin || !process.stdout || !process.stderr) {
+          await process.terminate({ gracePeriodMs: 100 });
+          process = null;
+          throw new Error('Wasmer did not attach the interactive terminal input and output streams.');
+        }
         if (disposed) {
           await process.terminate({ gracePeriodMs: 100 });
           return;
