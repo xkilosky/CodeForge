@@ -73,8 +73,15 @@ export function TopBar({
             aria-label="Project name"
             spellCheck={false}
           />
-          <span className="workspace-chip">{WORKSPACE_LABEL[project.workspace]}</span>
-          <span className={`save-state${dirty ? ' dirty' : ''}`}>
+          <span className={`workspace-chip workspace-chip-${project.workspace}`}>
+            {WORKSPACE_LABEL[project.workspace]}
+          </span>
+          <span
+            className={`save-state${dirty ? ' dirty' : ''}`}
+            role="status"
+            aria-live="polite"
+            aria-label={dirty ? 'Saving changes' : 'All changes saved'}
+          >
             {dirty ? 'saving…' : 'saved'}
           </span>
         </div>

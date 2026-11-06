@@ -21,6 +21,15 @@ import { WORKSPACE_LABEL, describeAge } from './labels';
 import { BrandMark } from './BrandMark';
 import { currentRelease } from '../core/release';
 import { accentHex } from '../core/theme';
+import {
+  ChevronIcon,
+  CodeIcon,
+  CopyIcon,
+  LayoutIcon,
+  PlusIcon,
+  TerminalIcon,
+  TrashIcon,
+} from './icons';
 
 interface ProjectsHomeProps {
   recent: Project[];
@@ -107,7 +116,7 @@ function ProjectRow({
           title="Make a copy"
           aria-label={`Duplicate ${project.name}`}
         >
-          ⧉
+          <CopyIcon size={15} />
         </button>
         {confirming ? (
           <span className="project-confirm">
@@ -128,12 +137,12 @@ function ProjectRow({
           </span>
         ) : (
           <button
-            className="btn ghost project-action"
+            className="btn ghost project-action project-delete-action"
             onClick={() => setConfirming(true)}
             title="Delete"
             aria-label={`Delete ${project.name}`}
           >
-            🗑
+            <TrashIcon size={15} />
           </button>
         )}
       </div>
@@ -163,6 +172,9 @@ export function ProjectsHome({
     <div className="home">
       <div className="home-inner">
         <header className="home-head">
+          <p className="home-eyebrow">
+            <span className="home-eyebrow-dot" /> LOCAL-FIRST DEVELOPMENT STUDIO
+          </p>
           <h1>
             <BrandMark size={30} /> {release.title}
           </h1>
@@ -170,7 +182,7 @@ export function ProjectsHome({
             <span className="release-channel">{release.channel}</span>
             <span className="release-milestone">{release.milestone}</span>
           </p>
-          <p className="muted">
+          <p className="muted home-intro">
             A coding environment that runs entirely in this browser. Everything is stored on this
             device — no account, no server. Export a project to keep a copy.
           </p>
@@ -240,7 +252,7 @@ export function ProjectsHome({
               <p className="muted">Choose a starter, name your project, then set editor and preview preferences.</p>
             </div>
             <button className="btn primary" onClick={() => onCreate()}>
-              + Create project
+              <PlusIcon size={15} /> Create project
             </button>
           </div>
           <div className="template-grid">
@@ -248,26 +260,40 @@ export function ProjectsHome({
               // Availability comes from the runtime registry, never from the
               // template's own milestone label.
               const enabled = available.has(template.workspace);
+              const TemplateIcon = template.workspace === 'game'
+                ? LayoutIcon
+                : template.workspace === 'python'
+                  ? TerminalIcon
+                  : CodeIcon;
               return (
                 <button
                   key={template.id}
-                  className={`template-card${enabled ? '' : ' disabled'}`}
+                  className={`template-card${enabled ? '' : ' disabled'} ${template.workspace}`}
                   onClick={() => onCreate(template.id)}
                   disabled={!enabled}
                 >
                   <span className="template-top">
-                    <span className="template-label">{template.label}</span>
+                    <span className="template-card-title">
+                      <span className={`template-icon ${template.workspace}`}>
+                        <TemplateIcon size={16} />
+                      </span>
+                      <span className="template-label">{template.label}</span>
+                    </span>
                     <span className={`workspace-tag ${template.workspace}`}>
                       {WORKSPACE_LABEL[template.workspace] ?? template.workspace}
                     </span>
                   </span>
                   <span className="template-desc">{template.description}</span>
-                  {!enabled ? (
+                  {enabled ? (
+                    <span className="template-cta">
+                      Start with this template <ChevronIcon size={14} />
+                    </span>
+                  ) : (
                     <span className="template-milestone">
                       {RUNTIMES.find((r) => r.id === template.workspace)?.unavailableReason ??
                         'Not available yet'}
                     </span>
-                  ) : null}
+                  )}
                 </button>
               );
             })}

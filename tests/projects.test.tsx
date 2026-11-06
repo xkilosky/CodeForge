@@ -258,13 +258,17 @@ describe('ProjectsHome', () => {
     expect(html).toContain('Give it a name and make it yours.');
   });
 
-  it('lists saved projects with their workspace and age', () => {
+  it('lists saved projects with their workspace, age, and consistent vector actions', () => {
     const project = projectFromTemplate(templateById('web-starter')!, 'gravity');
     const html = render({ recent: [project] });
 
     expect(html).toContain('gravity');
     expect(html).toContain('Web');
     expect(html).toContain('3 files');
+    expect(html).toContain('aria-label="Duplicate gravity"');
+    expect(html).toContain('aria-label="Delete gravity"');
+    expect(html).not.toContain('🗑');
+    expect(html).not.toContain('⧉');
     expect(html).not.toContain('Nothing here yet');
   });
 
@@ -275,7 +279,7 @@ describe('ProjectsHome', () => {
     expect(html).toContain('recent<');
   });
 
-  it('offers every template, enabled or not, from the home screen', () => {
+  it('offers every template with workspace identity and a clear next action', () => {
     const html = render();
     // Shipping templates and both "soon" ones are visible: hiding a template
     // entirely is how a workspace once became unreachable.
@@ -283,6 +287,11 @@ describe('ProjectsHome', () => {
       expect(html, label).toContain(label);
     }
     expect(html).toContain('template-card disabled');
+    expect(html).toContain('home-eyebrow');
+    expect(html).toContain('LOCAL-FIRST DEVELOPMENT STUDIO');
+    expect(html).toContain('template-icon web');
+    expect(html).toContain('template-icon game');
+    expect(html).toContain('Start with this template');
   });
 
   it('shows a storage error with a way to dismiss it', () => {
