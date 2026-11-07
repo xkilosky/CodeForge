@@ -7,7 +7,7 @@ import { setTerminalDiagnostics } from '../core/diagnosticsStore';
 import { colorizeTerminalLine, mayBeRichTerminalLinePrefix } from '../core/terminalColors';
 import { describeTerminalCommand, parseTerminalProgress, type TerminalActivity } from '../core/terminalActivity';
 import { findTerminalFileLocations, parseTerminalLocation, terminalIssueDiagnostic, type TerminalIssue } from '../core/terminalDiagnostics';
-import { TERMINAL_BASH_RC } from '../core/terminalShell';
+import { TERMINAL_BASH_PROMPT_COMMAND, TERMINAL_BASH_RC } from '../core/terminalShell';
 import { TerminalChrome, type TerminalStatus } from './TerminalChrome';
 import '@xterm/xterm/css/xterm.css';
 
@@ -233,6 +233,9 @@ export function BashTerminalPanel({
     let process: WasmerProcess | null = null;
     let terminalLinkRegistration: { dispose: () => void } | null = null;
     let utilitiesPackage: string | null = null;
+    let helperRcAvailable = false;
+    let promptSeen = false;
+    const helperRcPath = '/workspace/.codeforge/bashrc';
     let scanInProgress = false;
 
     setStatus('starting');
@@ -297,12 +300,33 @@ export function BashTerminalPanel({
       const markerText = promptMarkerBuffer.current + chunk;
       const promptMarker = markerText.match(/\u001b\]133;A(?:;(\d+))?\u0007/);
       if (promptMarker) {
+        promptSeen = true;
         promptMarkerBuffer.current = '';
         progressOutputBuffer.current = '';
-        if (currentActivity?.label === 'Waiting for Bash prompt') {
+        if (currentActivity?.label === 'Waiting for Bash prompt' && helperRcAvailable) {
+          updateActivity({ label: 'Loading terminal helpers', percent: null, startedAt: Date.now() });
+          setStatusMessage('Loading interactive terminal helpers…');
+          const input = processRef.current?.stdin;
+          if (!input) {
+            updateActivity(null);
+            setStatus('error');
+            setStatusMessage('Bash started without an input stream, so terminal helpers could not load.');
+          } else {
+            stdinWriteQueueRef.current = stdinWriteQueueRef.current
+              .then(() => input.write(`source ${helperRcPath}\n`))
+              .catch((error: unknown) => {
+                updateActivity(null);
+                setStatus('error');
+                setStatusMessage(`Could not load terminal helpers: ${error instanceof Error ? error.message : String(error)}`);
+              });
+          }
+        } else if (currentActivity?.label === 'Waiting for Bash prompt' || currentActivity?.label === 'Loading terminal helpers') {
           updateActivity(null);
           setStatus('ready');
-          setStatusMessage(utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
+          const helperExitCode = currentActivity.label === 'Loading terminal helpers' ? promptMarker[1] : undefined;
+          setStatusMessage(helperExitCode && helperExitCode !== '0'
+            ? `Bash ready · helper setup failed (exit ${helperExitCode})`
+            : utilitiesPackage ? 'Bash ready · standard commands preloaded' : 'Bash ready · basic shell');
           const queuedRun = pendingRunRef.current;
           if (queuedRun) {
             pendingRunRef.current = undefined;
@@ -523,11 +547,10 @@ export function BashTerminalPanel({
         richOutputFlushTimer.current = undefined;
         lastErrorLine.current = '';
         const bashArgs = ['--noprofile', '--norc', '-i'];
-        const helperRcPath = '/workspace/.codeforge/bashrc';
         try {
           await sandbox.fs.mkdir('/workspace/.codeforge', { recursive: true });
           await sandbox.fs.writeText(helperRcPath, TERMINAL_BASH_RC);
-          bashArgs.splice(1, 1, '--rcfile', helperRcPath);
+          helperRcAvailable = true;
         } catch {
           terminal.writeln('\x1b[33mInteractive helper setup unavailable; starting a plain Bash shell.\x1b[0m');
         }
@@ -541,7 +564,7 @@ export function BashTerminalPanel({
               COLORTERM: 'truecolor',
               CLICOLOR_FORCE: '1',
               FORCE_COLOR: '1',
-              PROMPT_COMMAND: '__cf_status=$?; if [[ -z ${__cf_helpers_loaded:-} && -r /workspace/.codeforge/bashrc ]]; then source /workspace/.codeforge/bashrc; __cf_helpers_loaded=1; fi; printf "\\033]133;A;%s\\007" "$__cf_status"',
+              PROMPT_COMMAND: TERMINAL_BASH_PROMPT_COMMAND,
               PS1: '\\[\\e[32m\\]\\w\\[\\e[0m\\] \\$ ',
             },
           })
@@ -600,9 +623,11 @@ export function BashTerminalPanel({
               .replace(/\s+/g, ' ')
               .trim()
               .slice(-320);
+            const phase = promptSeen ? '' : ' before showing the first prompt';
+            const reason = result.reason === 'exited' ? '' : ` (${result.reason})`;
             setStatusMessage(result.exitCode === 0
               ? 'Bash exited. Start a new session to continue.'
-              : `Bash exited with code ${result.exitCode}.${detail ? ` Last output: ${detail}` : ''} Restart to try again.`);
+              : `Bash exited${phase} with code ${result.exitCode}${reason}.${detail ? ` Last output: ${detail}` : ''} Restart to try again.`);
           } catch (error: unknown) {
             if (disposed) return;
             processRef.current = null;

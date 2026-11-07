@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { TERMINAL_BASH_RC } from '../src/core/terminalShell';
+import { TERMINAL_BASH_PROMPT_COMMAND, TERMINAL_BASH_RC } from '../src/core/terminalShell';
 
 describe('interactive Bash helpers', () => {
   it('is syntactically valid Bash when a local Bash executable is available', () => {
@@ -11,6 +11,15 @@ describe('interactive Bash helpers', () => {
     if (result.error && 'code' in result.error && result.error.code === 'ENOENT') return;
     expect(result.error).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
+  });
+
+  it('emits a clean prompt-ready marker without loading helpers during Bash startup', () => {
+    const result = spawnSync('bash', ['--noprofile', '--norc', '-c', TERMINAL_BASH_PROMPT_COMMAND], { encoding: 'utf8' });
+    if (result.error && 'code' in result.error && result.error.code === 'ENOENT') return;
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('\u001b]133;A;0\u0007');
+    expect(TERMINAL_BASH_PROMPT_COMMAND).not.toContain('source ');
   });
 
   it('emits visible syntax colors for keywords, numbers, and comments', () => {

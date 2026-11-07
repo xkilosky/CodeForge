@@ -280,3 +280,5 @@ cf-help() {
     '  choose OPTION...                 arrow-key picker for arguments'
 }
 `.replaceAll('\\' + '$' + '{', '$' + '{');
+
+export const TERMINAL_BASH_PROMPT_COMMAND = '__cf_status=$?; printf "\\033]133;A;%s\\007" "$__cf_status"';
